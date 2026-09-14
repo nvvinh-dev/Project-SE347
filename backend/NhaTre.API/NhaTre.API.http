@@ -1,0 +1,17 @@
+@NhaTre.API_HostAddress = http://localhost:5015
+
+### Đăng nhập — lấy token
+# @name login
+POST {{NhaTre.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@nhatre.local",
+  "password": "Admin@123456"
+}
+
+### Lấy thông tin tài khoản đang đăng nhập (dùng token của request trên)
+GET {{NhaTre.API_HostAddress}}/api/auth/me
+Authorization: Bearer {{login.response.body.data.token}}
+
+###
