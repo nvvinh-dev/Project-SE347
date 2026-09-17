@@ -38,7 +38,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Nhà Trẻ Management API",
         Version = "v1",
-        Description = "API cho hệ thống quản lý nhà trẻ — Đồ án Công nghệ .NET"
+        Description = "API cho hệ thống quản lý nhà trẻ"
     });
 
     // Cho phép Swagger UI có ô nhập "Bearer <token>" để test các API cần đăng nhập
@@ -52,6 +52,20 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Nhập token JWT (không cần gõ chữ 'Bearer ' phía trước, Swagger tự thêm)"
     });
 
+    // Áp scheme "Bearer" ở trên cho MỌI endpoint, để Swagger UI tự đính header
+    // Authorization sau khi bấm nút Authorize. Thiếu phần này thì nút Authorize
+    // vẫn hiện nhưng "Try it out" không gửi token — xem ghi chú ở D9.
+    // Phải truyền `document` vào reference thì tên "Bearer" mới được phân giải khi
+    // sinh swagger.json — đó cũng là lý do overload này nhận lambda chứ không nhận
+    // thẳng một OpenApiSecurityRequirement. Thiếu tham số document thì security
+    // serialize ra rỗng `[ { } ]` và Swagger UI vẫn không đính token.
+    options.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document),
+            new List<string>()   // scope rỗng: JWT của dự án không dùng OAuth scope
+        }
+    });
 });
 builder.Services.AddControllers();
 
