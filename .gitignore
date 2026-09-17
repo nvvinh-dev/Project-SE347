@@ -72,3 +72,15 @@ TestResults/
 *.temp
 *.swp
 Logs/
+# ================================
+# Tài liệu nội bộ — KHÔNG đẩy lên GitHub
+# (DECISIONS.md, docs/ và các bản audit được gửi riêng cho thành viên,
+#  chúng không ảnh hưởng tới việc build hay chạy phần mềm)
+# ================================
+docs/
+DECISIONS.md
+*.docx
+
+# Thư mục làm việc của Postman (không phải mã nguồn)
+.postman/
+postman/
