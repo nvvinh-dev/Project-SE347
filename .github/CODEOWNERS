@@ -1,0 +1,8 @@
+# Người review bắt buộc cho từng phần của repo.
+# Dòng khớp sau cùng được ưu tiên: file không thuộc backend/ hay frontend/
+# (README, .gitignore, chính file này) do lead tổng duyệt.
+
+*           @nvvinh-dev
+
+/backend/   @nvvinh-dev
+/frontend/  @QuangGiang06

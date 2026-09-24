@@ -113,8 +113,9 @@ mã 429, chờ hết phút đó rồi thử lại.
 - Mỗi module làm trên một nhánh riêng: `feature/auth`, `feature/student`, `feature/class`,
   `feature/attendance`, `feature/health`, `feature/tuition`, `feature/teacher`,
   `feature/notification`.
-- Làm xong thì mở pull request vào `develop` và gán lead review. Mô tả pull request ghi rõ
-  làm gì, thêm endpoint nào, mã FR tương ứng và đã test thế nào.
+- Làm xong thì mở pull request vào `develop`. GitHub tự gán người review theo
+  `.github/CODEOWNERS`: `backend/` do @nvvinh-dev duyệt, `frontend/` do @QuangGiang06 duyệt.
+  Mô tả pull request ghi rõ làm gì, thêm endpoint nào, mã FR tương ứng và đã test thế nào.
 - Commit theo Conventional Commits: `feat(scope): ...`, `fix(scope): ...`, `chore: ...`.
 
 ## Tài liệu
