@@ -47,4 +47,18 @@ public class AuthService : IAuthService
             user.FullName,
             roleClaim);
     }
+
+    // D20: JWT không chứa PII nên họ tên phải đọc lại từ DB, không lấy từ claim
+    public async Task<CurrentUserResponse?> GetCurrentUserAsync(Guid userId)
+    {
+        var user = await _authRepository.FindByIdAsync(userId);
+
+        if (user is null)
+            return null;
+
+        return new CurrentUserResponse(
+            user.Id,
+            user.FullName,
+            Roles.FromRoleId(user.RoleId));
+    }
 }
