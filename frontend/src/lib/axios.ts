@@ -56,7 +56,10 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !isLoginRequest) {
       setAuthToken(null);
       if (typeof window !== "undefined") {
-        window.location.href = "/login";
+        // Cố ý tải lại hẳn trang thay vì chuyển trang phía client: interceptor nằm
+        // ngoài cây React nên không có router, và tải lại xóa sạch cache dữ liệu của
+        // phiên cũ. Dùng replace để nút Back không quay lại trang cần đăng nhập.
+        window.location.replace("/login");
       }
     }
     return Promise.reject(error);
