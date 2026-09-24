@@ -84,3 +84,6 @@ DECISIONS.md
 # Thư mục làm việc của Postman (không phải mã nguồn)
 .postman/
 postman/
+
+# Chỉ mục CodeGraph (dữ liệu công cụ cục bộ, không phải mã nguồn)
+.codegraph/
