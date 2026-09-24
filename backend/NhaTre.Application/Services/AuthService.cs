@@ -33,7 +33,7 @@ public class AuthService : IAuthService
         if (!_passwordHasher.Verify(user.CredentialReference, request.Password))
             return null;
 
-        // D20 / audit Opus mục 3.1: chặn ngay tại lúc login nếu tài khoản đã bị khóa
+        // D20: chặn ngay tại lúc login nếu tài khoản đã bị khóa
         if (!user.IsActive)
             return null;
 

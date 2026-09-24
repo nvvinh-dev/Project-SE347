@@ -12,7 +12,7 @@ export const apiClient = axios.create({
 // --- Token: Context (in-memory) là nguồn chính theo D20 ---
 // AuthProvider gọi setAuthToken() mỗi khi login/logout/khôi phục phiên.
 // Biến này cho phép axios (nằm ngoài cây React) đọc được token đồng bộ,
-// mà KHÔNG cần đọc trực tiếp localStorage ở đây — sửa đúng lỗi #11.
+// mà KHÔNG cần đọc trực tiếp localStorage ở đây.
 let inMemoryToken: string | null = null;
 
 export function setAuthToken(token: string | null, expiresAtUtc?: string): void {

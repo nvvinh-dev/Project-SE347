@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Lỗi 8: đặt timer tự logout đúng lúc token hết hạn
+  // Đặt timer tự logout đúng lúc token hết hạn
   function scheduleAutoLogout(expiresAtUtc: string) {
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
     const msUntilExpiry = new Date(expiresAtUtc).getTime() - Date.now();
@@ -71,9 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role: res.data.data.role,
           });
 
-          // Lỗi 2: đặt lại timer từ expiresAtUtc đã lưu, nếu có.
-          // Nếu không có (phiên cũ trước khi sửa lỗi này), coi như hết hạn ngay
-          // để buộc đăng nhập lại — an toàn hơn là để token sống vô thời hạn.
+          // Đặt lại timer từ expiresAtUtc đã lưu. Không có hạn lưu kèm token thì
+          // coi như hết hạn ngay để buộc đăng nhập lại — an toàn hơn là để token
+          // sống vô thời hạn.
           const storedExpiry = getStoredExpiresAt();
           if (storedExpiry) {
             scheduleAutoLogout(storedExpiry);
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const loginData = res.data.data;
       if (!loginData) {
-        // Lỗi 3: backend trả 200 nhưng data null — tình huống hiếm nhưng
+        // Backend trả 200 nhưng data null — tình huống hiếm nhưng
         // không nên vỡ bằng TypeError, ném ApiError có message tử tế.
         throw new ApiError(
           res.data.message ?? "Đăng nhập thất bại.",

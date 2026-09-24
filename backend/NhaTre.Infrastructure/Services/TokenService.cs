@@ -32,7 +32,7 @@ public class TokenService : ITokenService
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim("role", roleClaim), // tên "role" phải khớp RoleClaimType cấu hình ở Bước 4.3
+            new Claim("role", roleClaim), // tên "role" phải khớp RoleClaimType cấu hình ở Program.cs
             new Claim(JwtRegisteredClaimNames.Iat,
                 DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
                 ClaimValueTypes.Integer64),

@@ -165,7 +165,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
             ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }, // chặn algorithm-confusion attack
 
-            RoleClaimType = "role", // khớp đúng tên claim đã phát hành ở TokenService (4.1)
+            RoleClaimType = "role", // khớp đúng tên claim đã phát hành ở TokenService
             NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub,
         };
     });

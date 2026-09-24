@@ -7,7 +7,7 @@ public class Invoice
     public Guid? TuitionFeeId { get; set; }
     public decimal Amount { get; set; }
     public DateTime IssuedAt { get; set; }
-    public string Status { get; set; } = null!; // chỉ "unpaid" | "paid" — check constraint ở DB (3.2)
+    public string Status { get; set; } = null!; // chỉ "unpaid" | "paid" — check constraint ở DB (D51)
 
     public Child Child { get; set; } = null!;
     public TuitionFee? TuitionFee { get; set; }

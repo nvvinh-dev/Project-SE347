@@ -54,8 +54,8 @@ public class ActiveUserMiddleware
         await _next(context);
     }
 
-    // D38: trả đúng khuôn ApiResponse<T> như mọi endpoint khác — trước đây middleware
-    // này trả { message } riêng, khiến Frontend phải xử lý thêm một dạng response nữa.
+    // D38: trả đúng khuôn ApiResponse<T> như mọi endpoint khác, để Frontend chỉ phải
+    // xử lý một dạng response.
     private static async Task WriteUnauthorized(HttpContext context, string message)
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
