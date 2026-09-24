@@ -118,7 +118,7 @@ mã 429, chờ hết phút đó rồi thử lại.
     `feature/fe-accounting`, `feature/fe-parent`, `feature/fe-admin`.
   - Dashboard (cả backend lẫn giao diện): `feature/dashboard`.
 
-  Thẻ Trello nào làm trên nhánh nào có trong hướng dẫn quy trình làm việc mà lead gửi.
+  Thẻ Trello nào làm trên nhánh nào có trong `docs/onboarding/team-workflow.md`.
 - Làm xong thì mở pull request vào `develop`. GitHub tự gán người review theo
   `.github/CODEOWNERS`: `backend/` do @nvvinh-dev duyệt, `frontend/` do @QuangGiang06 duyệt.
   Mô tả pull request ghi rõ làm gì, thêm endpoint nào, mã FR tương ứng và đã test thế nào.
@@ -127,7 +127,15 @@ mã 429, chờ hết phút đó rồi thử lại.
 ## Tài liệu
 
 Tài liệu đặc tả yêu cầu, quy tắc nghiệp vụ, thiết kế cơ sở dữ liệu, hướng dẫn onboarding
-và nhật ký quyết định không nằm trong repo này. Lead gửi riêng cho từng thành viên.
+và nhật ký quyết định không nằm trong repo này mà ở repo private `Project-SE347-docs`, lead
+cấp quyền cho từng thành viên. Clone repo đó vào thư mục `docs/` của dự án (repo này đã bỏ
+qua thư mục `docs/`):
+
+```
+git clone https://github.com/nvvinh-dev/Project-SE347-docs.git docs
+```
+
+Khi lead báo có cập nhật tài liệu, chạy `git -C docs pull`.
 
 Trong mã nguồn có những chú thích dạng `D20`, `D38`, `D39` — đó là số hiệu quyết định,
-tra trong file `DECISIONS.md` mà lead gửi.
+tra trong `docs/DECISIONS.md`.
