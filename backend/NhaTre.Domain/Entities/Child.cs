@@ -7,6 +7,7 @@ public class Child
     public string FullName { get; set; } = null!;
     public DateOnly DateOfBirth { get; set; }
     public DateOnly EnrollmentDate { get; set; }
+    public string? HealthNotes { get; set; } // lưu ý sức khỏe — chỉ Y tế ghi, Kế toán không đọc (D39 mục 14, D45)
 
     public Class? Class { get; set; }
     public ICollection<ChildGuardian> ChildGuardians { get; set; } = new List<ChildGuardian>();
