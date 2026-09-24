@@ -110,9 +110,15 @@ mã 429, chờ hết phút đó rồi thử lại.
 
 - `develop` là nhánh tích hợp, không commit thẳng lên đó. Không ai tự mở pull request
   vào `main`.
-- Mỗi module làm trên một nhánh riêng: `feature/auth`, `feature/student`, `feature/class`,
-  `feature/attendance`, `feature/health`, `feature/tuition`, `feature/teacher`,
-  `feature/notification`.
+- Mỗi nhóm việc làm trên một nhánh riêng, mỗi nhánh chỉ một người làm:
+  - Backend: `feature/auth`, `feature/user`, `feature/student`, `feature/teacher`,
+    `feature/class`, `feature/attendance`, `feature/health`, `feature/media`,
+    `feature/tuition`, `feature/menu`, `feature/notification`.
+  - Frontend, chia theo vai trò: `feature/fe-teacher`, `feature/fe-medical`,
+    `feature/fe-accounting`, `feature/fe-parent`, `feature/fe-admin`.
+  - Dashboard (cả backend lẫn giao diện): `feature/dashboard`.
+
+  Thẻ Trello nào làm trên nhánh nào có trong hướng dẫn quy trình làm việc mà lead gửi.
 - Làm xong thì mở pull request vào `develop`. GitHub tự gán người review theo
   `.github/CODEOWNERS`: `backend/` do @nvvinh-dev duyệt, `frontend/` do @QuangGiang06 duyệt.
   Mô tả pull request ghi rõ làm gì, thêm endpoint nào, mã FR tương ứng và đã test thế nào.
