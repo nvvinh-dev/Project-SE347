@@ -18,4 +18,10 @@ public class AuthRepository : IAuthRepository
         return await _dbContext.Users
             .FirstOrDefaultAsync(u => u.LoginIdentifier == normalizedEmail);
     }
+
+    public async Task<User?> FindByIdAsync(Guid userId)
+    {
+        return await _dbContext.Users
+            .FirstOrDefaultAsync(u => u.Id == userId);
+    }
 }
