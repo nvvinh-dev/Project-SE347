@@ -43,11 +43,16 @@ public class AuthController : ControllerBase
 
     [HttpGet("me")]
     [Authorize]
-    public ActionResult<ApiResponse<object>> Me()
+    public async Task<ActionResult<ApiResponse<CurrentUserResponse>>> Me()
     {
-        var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        var role = User.FindFirst("role")?.Value;
+        // ActiveUserMiddleware đã kiểm tra claim sub là Guid hợp lệ trước khi vào đây
+        var userId = Guid.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
 
-        return Ok(ApiResponse<object>.Ok(new { userId, role }));
+        var result = await _authService.GetCurrentUserAsync(userId);
+
+        if (result is null)
+            return NotFound(ApiResponse<CurrentUserResponse>.Fail("Không tìm thấy tài khoản."));
+
+        return Ok(ApiResponse<CurrentUserResponse>.Ok(result));
     }
 }

@@ -5,4 +5,5 @@ namespace NhaTre.Application.Interfaces;
 public interface IAuthRepository
 {
     Task<User?> FindByLoginIdentifierAsync(string normalizedEmail);
+    Task<User?> FindByIdAsync(Guid userId);
 }
