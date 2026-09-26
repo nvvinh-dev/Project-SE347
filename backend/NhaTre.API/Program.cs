@@ -115,6 +115,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IChildRepository, ChildRepository>();
 builder.Services.AddScoped<IChildService, ChildService>();
 builder.Services.AddScoped<IValidator<ChildProfileRequest>, ChildProfileRequestValidator>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 var jwtSection = builder.Configuration.GetSection("Jwt");
