@@ -34,7 +34,8 @@ public class ChildService : IChildService
             EnrollmentDate = request.EnrollmentDate
         };
 
-        await _childRepository.AddAsync(child);
+        _childRepository.Add(child);
+        await _childRepository.SaveChangesAsync();
         return ToResponse(child);
     }
 

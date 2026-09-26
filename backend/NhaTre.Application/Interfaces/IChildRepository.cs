@@ -6,6 +6,6 @@ public interface IChildRepository
 {
     Task<IReadOnlyList<Child>> GetAllAsync();
     Task<Child?> FindByIdAsync(Guid id);
-    Task AddAsync(Child child);
+    void Add(Child child);
     Task SaveChangesAsync();
 }

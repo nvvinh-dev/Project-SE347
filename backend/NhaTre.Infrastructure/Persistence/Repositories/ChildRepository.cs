@@ -26,10 +26,9 @@ public class ChildRepository : IChildRepository
             .FirstOrDefaultAsync(c => c.Id == id);
     }
 
-    public async Task AddAsync(Child child)
+    public void Add(Child child)
     {
         _dbContext.Children.Add(child);
-        await _dbContext.SaveChangesAsync();
     }
 
     public async Task SaveChangesAsync()
