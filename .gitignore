@@ -74,8 +74,8 @@ TestResults/
 Logs/
 # ================================
 # Tài liệu nội bộ — KHÔNG đẩy lên GitHub
-# (DECISIONS.md, docs/ và các bản audit được gửi riêng cho thành viên,
-#  chúng không ảnh hưởng tới việc build hay chạy phần mềm)
+# (docs/ là repo tài liệu private riêng, clone lồng vào đây, gồm cả DECISIONS.md;
+#  tài liệu không ảnh hưởng tới việc build hay chạy phần mềm)
 # ================================
 docs/
 DECISIONS.md
