@@ -15,5 +15,10 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             t.HasCheckConstraint("CK_Invoice_AmountPositive", "amount > 0");
             t.HasCheckConstraint("CK_Invoice_Status", "status IN ('unpaid', 'paid')");
         });
+
+        builder.HasOne(i => i.Child)
+            .WithMany(c => c.Invoices)
+            .HasForeignKey(i => i.ChildId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

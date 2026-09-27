@@ -10,5 +10,10 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
     {
         builder.Property(p => p.Amount).HasPrecision(12, 2);
         builder.ToTable(t => t.HasCheckConstraint("CK_Payment_AmountPositive", "amount > 0"));
+
+        builder.HasOne(p => p.Invoice)
+            .WithMany(i => i.Payments)
+            .HasForeignKey(p => p.InvoiceId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

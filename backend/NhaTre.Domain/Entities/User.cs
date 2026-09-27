@@ -8,6 +8,7 @@ public class User
     public string LoginIdentifier { get; set; } = null!; // email, chuẩn hóa lowercase ở Application (D20)
     public string CredentialReference { get; set; } = null!; // password hash — PasswordHasher<T> (D6)
     public bool IsActive { get; set; } = true;
+    public int TokenVersion { get; set; } // tăng lên thì mọi token cũ hết hiệu lực — không đưa vào DTO (D48, D45)
     public DateTime CreatedAt { get; set; }
 
     public Role Role { get; set; } = null!;

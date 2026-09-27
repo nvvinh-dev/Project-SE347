@@ -12,10 +12,12 @@ public class ChildGuardianConfiguration : IEntityTypeConfiguration<ChildGuardian
 
         builder.HasOne(cg => cg.Child)
             .WithMany(c => c.ChildGuardians)
-            .HasForeignKey(cg => cg.ChildId);
+            .HasForeignKey(cg => cg.ChildId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(cg => cg.GuardianUser)
             .WithMany(u => u.ChildGuardians)
-            .HasForeignKey(cg => cg.GuardianUserId);
+            .HasForeignKey(cg => cg.GuardianUserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

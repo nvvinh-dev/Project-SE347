@@ -27,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<WeeklyMenu> WeeklyMenus => Set<WeeklyMenu>();
     public DbSet<MenuEntry> MenuEntries => Set<MenuEntry>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<SecurityEvent> SecurityEvents => Set<SecurityEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

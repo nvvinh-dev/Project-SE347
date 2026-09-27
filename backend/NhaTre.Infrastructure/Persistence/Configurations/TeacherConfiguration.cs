@@ -13,6 +13,7 @@ public class TeacherConfiguration : IEntityTypeConfiguration<Teacher>
 
         builder.HasOne(t => t.User)
             .WithOne(u => u.Teacher)
-            .HasForeignKey<Teacher>(t => t.UserId);
+            .HasForeignKey<Teacher>(t => t.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
