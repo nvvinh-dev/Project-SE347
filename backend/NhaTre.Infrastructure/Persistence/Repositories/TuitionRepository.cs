@@ -34,6 +34,34 @@ public class TuitionRepository : ITuitionRepository
         _dbContext.TuitionFees.Add(fee);
     }
 
+    // Mới lập xếp trước; bỏ trống bộ lọc nào thì không lọc theo tiêu chí đó
+    public async Task<IReadOnlyList<Invoice>> GetInvoicesAsync(Guid? childId, string? status)
+    {
+        var query = _dbContext.Invoices.Include(i => i.Child).AsQueryable();
+
+        if (childId is not null)
+            query = query.Where(i => i.ChildId == childId);
+
+        if (status is not null)
+            query = query.Where(i => i.Status == status);
+
+        return await query
+            .OrderByDescending(i => i.IssuedAt)
+            .ToListAsync();
+    }
+
+    public async Task<Invoice?> FindInvoiceByIdAsync(Guid id)
+    {
+        return await _dbContext.Invoices
+            .Include(i => i.Child)
+            .FirstOrDefaultAsync(i => i.Id == id);
+    }
+
+    public void AddInvoice(Invoice invoice)
+    {
+        _dbContext.Invoices.Add(invoice);
+    }
+
     public async Task SaveChangesAsync()
     {
         await _dbContext.SaveChangesAsync();
