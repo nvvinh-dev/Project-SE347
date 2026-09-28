@@ -7,7 +7,7 @@ public class Attendance
     public Guid RecordedByTeacherId { get; set; }
     public DateOnly AttendanceDate { get; set; }
     public DateTime CheckInTime { get; set; }
-    public string Status { get; set; } = null!; // giá trị chưa constraint — xem D23 (Pending)
+    public string Status { get; set; } = null!; // Present | AbsentExcused | AbsentUnexcused — check constraint ở DB (D51)
 
     public Child Child { get; set; } = null!;
     public Teacher RecordedByTeacher { get; set; } = null!;

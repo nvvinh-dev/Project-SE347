@@ -8,6 +8,11 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
 {
     public void Configure(EntityTypeBuilder<Incident> builder)
     {
+        builder.HasOne(i => i.Child)
+            .WithMany(c => c.Incidents)
+            .HasForeignKey(i => i.ChildId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(i => i.RecordedByTeacher)
             .WithMany(t => t.Incidents)
             .HasForeignKey(i => i.RecordedByTeacherId)
