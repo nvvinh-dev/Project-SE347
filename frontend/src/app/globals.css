@@ -1,26 +1,59 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* MONTY Brand & Core Tokens */
+  --brand: #6D3BF5;
+  --brand-hover: #5B2FE3;
+  --brand-soft: #F0EBFE;
+
+  /* Surface & Background */
+  --surface: #F3F2F7;
+  --surface-card: #FFFFFF;
+  --surface-line: #E7E6ED;
+
+  /* Dark / Ink */
+  --ink: #16141F;
+  --ink-muted: #646271;
+  --ink-subtle: #9896A4;
+
+  /* Semantics */
+  --status-success: #30A46C;
+  --status-success-soft: #EDF7F2;
+  --status-warning: #F5A524;
+  --status-warning-soft: #FEF7EC;
+  --status-danger: #E5484D;
+  --status-danger-soft: #FDF2F2;
+
+  --background: var(--surface);
+  --foreground: var(--ink);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-line: var(--surface-line);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+
+  --color-status-success: var(--status-success);
+  --color-status-success-soft: var(--status-success-soft);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-soft: var(--status-warning-soft);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-soft: var(--status-danger-soft);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
+
