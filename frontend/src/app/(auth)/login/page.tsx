@@ -4,7 +4,10 @@ import { useState, FormEvent } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError } from "@/lib/axios";
 
+import { useRouter } from "next/navigation";
+
 export default function LoginPage() {
+  const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,8 +21,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      // Test thủ công — sau này sẽ redirect theo role, làm ở bước sau
-      alert("Đăng nhập thành công!");
+      router.push("/dashboard");
     } catch (err) {
       if (err instanceof ApiError) {
         setErrors(err.errors ?? [err.message]);

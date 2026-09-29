@@ -87,3 +87,8 @@ postman/
 
 # Chỉ mục CodeGraph (dữ liệu công cụ cục bộ, không phải mã nguồn)
 .codegraph/
+
+# Antigravity agent configuration & rules (cục bộ)
+.agents/
+CLAUDE.md
+AGENTS.md
