@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   createContext,
@@ -19,7 +19,7 @@ import {
 } from "@/lib/axios";
 import type { ApiResponse, LoginResponseData, Role } from "@/types/auth";
 
-interface AuthUser {
+export interface AuthUser {
   userId: string;
   fullName: string;
   role: Role;
@@ -30,7 +30,7 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -41,29 +41,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const logout = useCallback(() => {
+  // D48: Thu hoi token qua POST /api/auth/logout truoc khi xoa Context va localStorage
+  const logout = useCallback(async () => {
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
-    setToken(null);
-    setUser(null);
-    setAuthToken(null);
+    try {
+      await apiClient.post("/api/auth/logout");
+    } catch (err) {
+      // Bat loi qua toApiError; neu server chua co endpoint hoac loi mang thi van don dep an toan
+      const apiErr = toApiError(err);
+      console.warn("Logout API warning:", apiErr.message);
+    } finally {
+      setToken(null);
+      setUser(null);
+      setAuthToken(null);
+      if (typeof window !== "undefined") {
+        window.location.replace("/login");
+      }
+    }
   }, []);
 
-  // Đặt timer tự logout đúng lúc token hết hạn
+  // Dat timer tu logout dung luc token het han
   const scheduleAutoLogout = useCallback(
     (expiresAtUtc: string) => {
       if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
       const msUntilExpiry = new Date(expiresAtUtc).getTime() - Date.now();
       if (msUntilExpiry <= 0) {
-        logout();
+        void logout();
         return;
       }
-      logoutTimerRef.current = setTimeout(logout, msUntilExpiry);
+      logoutTimerRef.current = setTimeout(() => {
+        void logout();
+      }, msUntilExpiry);
     },
     [logout]
   );
 
-  // Khôi phục phiên từ token đã lưu khi tải lại trang. isLoading chỉ tắt sau khi
-  // việc khôi phục kết thúc, kể cả khi máy không có token nào.
+  // Khoi phuc phien tu token da luu khi tai lai trang.
+  // Doc ca fullName tu GET /api/auth/me de header khong bi mat ho ten khi reload.
   useEffect(() => {
     async function restoreSession() {
       const storedToken = getStoredToken();
@@ -71,9 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAuthToken(storedToken);
       try {
-        const res = await apiClient.get<ApiResponse<{ userId: string; role: Role }>>(
-          "/api/auth/me"
-        );
+        const res = await apiClient.get<
+          ApiResponse<{ userId: string; fullName?: string; role: Role }>
+        >("/api/auth/me");
+
         if (!res.data.success || !res.data.data) {
           setAuthToken(null);
           return;
@@ -82,18 +97,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(storedToken);
         setUser({
           userId: res.data.data.userId,
-          fullName: "",
+          fullName: res.data.data.fullName ?? "",
           role: res.data.data.role,
         });
 
-        // Đặt lại timer từ expiresAtUtc đã lưu. Không có hạn lưu kèm token thì
-        // coi như hết hạn ngay để buộc đăng nhập lại — an toàn hơn là để token
-        // sống vô thời hạn.
         const storedExpiry = getStoredExpiresAt();
         if (storedExpiry) {
           scheduleAutoLogout(storedExpiry);
         } else {
-          logout();
+          void logout();
         }
       } catch {
         setAuthToken(null);
@@ -116,10 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const loginData = res.data.data;
       if (!loginData) {
-        // Backend trả 200 nhưng data null — tình huống hiếm nhưng
-        // không nên vỡ bằng TypeError, ném ApiError có message tử tế.
         throw new ApiError(
-          res.data.message ?? "Đăng nhập thất bại.",
+          res.data.message ?? "Dang nhap that bai.",
           res.data.errors,
           null
         );
@@ -127,12 +137,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { token: newToken, userId, fullName, role, expiresAtUtc } = loginData;
 
-      setAuthToken(newToken, expiresAtUtc); // lưu kèm hạn dùng
+      setAuthToken(newToken, expiresAtUtc);
       setToken(newToken);
       setUser({ userId, fullName, role });
       scheduleAutoLogout(expiresAtUtc);
     } catch (err) {
-      if (err instanceof ApiError) throw err; // đã đúng dạng, không cần bọc lại
+      if (err instanceof ApiError) throw err;
       throw toApiError(err);
     }
   }
@@ -147,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth phải được gọi bên trong AuthProvider");
+    throw new Error("useAuth phai duoc goi ben trong AuthProvider");
   }
   return context;
 }

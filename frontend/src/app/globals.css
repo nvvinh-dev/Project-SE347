@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  
+  /* Brand Soothing Mint Pastel theme */
+  --brand: #42B591;
+  --brand-hover: #36A07F;
+  --brand-active: #2B876B;
+  --brand-subtle: #F0FAF6;
+  --brand-border: #C4EDE0;
+  --brand-text: #247A60;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Surfaces & Ink */
+  --background: #F3F2F7;
+  --card: #FFFFFF;
+  --border: #E8E8EC;
+  --border-hover: #D1D0D7;
+  --foreground: #16141F;
+  --muted: #6A677B;
+  --muted-light: #9E9AA9;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Semantic */
+  --success: #30A46C;
+  --success-bg: #ECFDF5;
+  --success-border: #A7F3D0;
+
+  --warning: #F5A524;
+  --warning-bg: #FFFBEB;
+  --warning-border: #FDE68A;
+
+  --danger: #E5484D;
+  --danger-bg: #FEF2F2;
+  --danger-border: #FECACA;
+
+  /* Grid Specifications */
+  --sidebar-width: 272px;
+  --grid-safe-area: 32px;
+  --grid-container: 1104px;
+  --grid-gutter: 24px;
 }
 
 body {
-  background: var(--background);
+  font-family: var(--font-sans);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar refinement */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D1D0D7;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9E9AA9;
 }

@@ -1,15 +1,26 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError } from "@/lib/axios";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user, token, isLoading } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Nếu người dùng đã có phiên hợp lệ, tự động chuyển về trang chủ /
+  useEffect(() => {
+    if (!isLoading && user && token) {
+      if (typeof window !== "undefined") {
+        window.location.replace("/");
+      }
+    }
+  }, [user, token, isLoading]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -18,8 +29,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      // Test thủ công — sau này sẽ redirect theo role, làm ở bước sau
-      alert("Đăng nhập thành công!");
+      router.replace("/");
     } catch (err) {
       if (err instanceof ApiError) {
         setErrors(err.errors ?? [err.message]);
