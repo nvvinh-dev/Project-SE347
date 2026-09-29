@@ -10,6 +10,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
     {
         builder.HasIndex(u => u.LoginIdentifier).IsUnique();
 
+        builder.Property(u => u.TokenVersion).HasDefaultValue(0);
+
         builder.HasOne(u => u.Role)
             .WithMany(r => r.Users)
             .HasForeignKey(u => u.RoleId)

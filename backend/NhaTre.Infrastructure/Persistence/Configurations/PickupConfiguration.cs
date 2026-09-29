@@ -12,7 +12,8 @@ public class PickupConfiguration : IEntityTypeConfiguration<Pickup>
 
         builder.HasOne(p => p.Attendance)
             .WithOne(a => a.Pickup)
-            .HasForeignKey<Pickup>(p => p.AttendanceId);
+            .HasForeignKey<Pickup>(p => p.AttendanceId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(p => p.RecordedByTeacher)
             .WithMany(t => t.Pickups)
