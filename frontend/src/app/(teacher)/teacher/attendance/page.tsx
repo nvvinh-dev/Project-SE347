@@ -8,7 +8,7 @@ export default function AttendancePage() {
       title="Điểm danh vào lớp"
       featureCode="FR-ATT-01"
       roleName="Giáo viên"
-      description="Chức năng điểm danh trẻ vào lớp trong ngày theo quy chuẩn BR-ATTENDANCE-xx sẽ được kết nối trong thẻ [FR-ATT-01] khi backend hoàn thiện."
+      description="Chức năng điểm danh trẻ vào lớp trong ngày sẽ được kết nối trong thẻ [FR-ATT-01] khi backend hoàn thiện."
       icon="📋"
     />
   );
