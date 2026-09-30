@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 interface LogoutConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -13,11 +15,22 @@ export default function LogoutConfirmModal({
   onConfirm,
   isLoggingOut,
 }: LogoutConfirmModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isLoggingOut) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isLoggingOut, onClose]);
+
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-labelledby="logout-dialog-title"

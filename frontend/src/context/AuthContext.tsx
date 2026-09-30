@@ -17,7 +17,7 @@ import {
   toApiError,
   ApiError,
 } from "@/lib/axios";
-import type { ApiResponse, LoginResponseData, CurrentUserResponseData, Role } from "@/types/auth";
+import type { ApiResponse, LoginResponseData, Role } from "@/types/auth";
 
 interface AuthUser {
   userId: string;
@@ -29,7 +29,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<LoginResponseData>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAuthToken(storedToken);
       try {
-        const res = await apiClient.get<ApiResponse<CurrentUserResponseData>>(
+        const res = await apiClient.get<ApiResponse<{ userId: string; role: Role }>>(
           "/api/auth/me"
         );
         if (!res.data.success || !res.data.data) {
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(storedToken);
         setUser({
           userId: res.data.data.userId,
-          fullName: res.data.data.fullName || "",
+          fullName: "",
           role: res.data.data.role,
         });
 
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [logout, scheduleAutoLogout]);
 
-  async function login(email: string, password: string): Promise<LoginResponseData> {
+  async function login(email: string, password: string) {
     try {
       const res = await apiClient.post<ApiResponse<LoginResponseData>>(
         "/api/auth/login",
@@ -139,7 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(newToken);
       setUser({ userId, fullName, role });
       scheduleAutoLogout(expiresAtUtc);
-      return loginData;
     } catch (err) {
       if (err instanceof ApiError) throw err; // đã đúng dạng, không cần bọc lại
       throw toApiError(err);

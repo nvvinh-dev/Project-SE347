@@ -8,7 +8,7 @@ export default function MedicalNotificationsPage() {
       title="Thông báo sự cố"
       featureCode="FR-NOTI-02"
       roleName="Cán bộ Y tế"
-      description="Chức năng nhận thông báo thời gian thực khi giáo viên báo cáo sự cố hoặc tai nạn học sinh sẽ được kết nối trong thẻ [FR-NOTI-02] khi backend hoàn thiện."
+      description="Chức năng nhận thông báo trong ứng dụng khi giáo viên báo cáo sự cố hoặc tai nạn học sinh sẽ được kết nối trong thẻ [FR-NOTI-02] khi backend hoàn thiện."
       icon="🔔"
     />
   );

@@ -9,16 +9,15 @@ import LogoutConfirmModal from "./LogoutConfirmModal";
 interface AppNavbarProps {
   portalTitle: string;
   roleBadgeText: string;
-  roleBadgeColorClass?: string;
+  notificationsHref?: string;
   onToggleMobileMenu?: () => void;
-  isSidebarCollapsed?: boolean;
-  onToggleSidebarCollapse?: () => void;
   homeHref?: string;
 }
 
 export default function AppNavbar({
   portalTitle,
   roleBadgeText,
+  notificationsHref,
   onToggleMobileMenu,
   homeHref = "/",
 }: AppNavbarProps) {
@@ -78,7 +77,7 @@ export default function AppNavbar({
                 Mầm Non Sao Mai
               </span>
               <span className="text-[10px] font-medium text-slate-500 mt-0.5">
-                Hệ thống quản trị nội bộ
+                {portalTitle}
               </span>
             </div>
           </Link>
@@ -98,17 +97,18 @@ export default function AppNavbar({
         {/* Nhóm bên phải: Chuông thông báo + Người dùng + Đăng xuất */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
 
-          {/* Chuông thông báo có chấm đỏ (như ảnh mẫu) */}
-          <Link
-            href={portalTitle === "Cổng Y Tế" ? "/notifications" : "/incidents"}
-            className="relative w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-            title="Hộp thư thông báo sự cố & tin nhắn"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
-          </Link>
+          {/* Chuông thông báo (chỉ hiển thị khi có notificationsHref, không có chấm đỏ theo D25) */}
+          {notificationsHref && (
+            <Link
+              href={notificationsHref}
+              className="relative w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+              title="Thông báo"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </Link>
+          )}
 
           {/* Thông tin người dùng dạng viên nang (như ảnh mẫu) */}
           <div
