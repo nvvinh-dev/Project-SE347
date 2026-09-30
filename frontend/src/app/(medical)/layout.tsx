@@ -5,10 +5,9 @@ import RoleGuard from "@/components/layout/RoleGuard";
 import AppNavbar from "@/components/layout/AppNavbar";
 import AppSidebar, { NavItem } from "@/components/layout/AppSidebar";
 
-// Bộ biểu tượng SVG tinh giản cho Y tế (chuẩn D35: không thêm package ngoài)
 const medicalNavItems: NavItem[] = [
   {
-    label: "Theo dõi thể chất",
+    label: "Theo dõi thể chất & BMI",
     href: "/health",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -17,7 +16,7 @@ const medicalNavItems: NavItem[] = [
     ),
   },
   {
-    label: "Lưu ý sức khỏe",
+    label: "Sổ lưu ý & Dị ứng",
     href: "/health-notes",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -26,7 +25,7 @@ const medicalNavItems: NavItem[] = [
     ),
   },
   {
-    label: "Lịch sử sức khỏe toàn trường",
+    label: "Hồ sơ sức khỏe & Sự cố",
     href: "/health-history",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -35,8 +34,10 @@ const medicalNavItems: NavItem[] = [
     ),
   },
   {
-    label: "Thông báo sự cố",
+    label: "Hộp thư thông báo sự cố",
     href: "/notifications",
+    badge: "3 mới",
+    badgeColorClass: "bg-rose-50 text-rose-700 border-rose-200",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -48,42 +49,41 @@ const medicalNavItems: NavItem[] = [
 export default function MedicalLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(272);
+  const [sidebarWidth, setSidebarWidth] = useState(256);
 
   return (
     <RoleGuard allowedRoles={["Medical"]}>
       <div
-        className="min-h-screen bg-surface text-ink flex flex-col"
-        style={{
-          ["--sidebar-w" as string]: isCollapsed ? "72px" : `${sidebarWidth}px`,
-        }}
+        className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans"
+        style={{ ["--sidebar-w" as string]: isCollapsed ? "72px" : `${sidebarWidth}px` }}
       >
-        {/* Navbar trên cùng */}
         <AppNavbar
           portalTitle="Cổng Y Tế"
           roleBadgeText="Cán bộ Y tế"
-          roleBadgeColorClass="bg-status-success-soft text-status-success border-status-success/20"
+          homeHref="/health"
+          isSidebarCollapsed={isCollapsed}
+          onToggleSidebarCollapse={() => setIsCollapsed((prev) => !prev)}
           onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
         />
 
-        {/* Sidebar điều hướng */}
-        <AppSidebar
-          portalName="Cổng Y Tế"
-          navItems={medicalNavItems}
-          mobileOpen={mobileMenuOpen}
-          onCloseMobile={() => setMobileMenuOpen(false)}
-          isCollapsed={isCollapsed}
-          onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
-          sidebarWidth={sidebarWidth}
-          onWidthChange={setSidebarWidth}
-        />
+        <div className="flex-1 flex pt-16">
+          <AppSidebar
+            portalName="Cổng Y Tế"
+            navItems={medicalNavItems}
+            mobileOpen={mobileMenuOpen}
+            onCloseMobile={() => setMobileMenuOpen(false)}
+            isCollapsed={isCollapsed}
+            onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
+            sidebarWidth={sidebarWidth}
+            onWidthChange={setSidebarWidth}
+          />
 
-        {/* Khu vực nội dung chính: Căn chỉnh theo chuẩn Monty 1440px frame */}
-        <main className="pt-16 flex-1 flex flex-col transition-[padding] duration-200 ease-in-out lg:pl-[var(--sidebar-w)]">
-          <div className="flex-1 w-full max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-8">
-            {children}
-          </div>
-        </main>
+          <main className="flex-1 min-w-0 flex flex-col transition-[padding] duration-200 ease-in-out lg:pl-[var(--sidebar-w)] pb-24 sm:pb-32">
+            <div className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </RoleGuard>
   );

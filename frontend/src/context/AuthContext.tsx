@@ -17,7 +17,7 @@ import {
   toApiError,
   ApiError,
 } from "@/lib/axios";
-import type { ApiResponse, LoginResponseData, Role } from "@/types/auth";
+import type { ApiResponse, LoginResponseData, CurrentUserResponseData, Role } from "@/types/auth";
 
 interface AuthUser {
   userId: string;
@@ -29,8 +29,8 @@ interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<LoginResponseData>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -41,11 +41,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const logout = useCallback(() => {
+  // Đăng xuất theo chuẩn D48: gọi POST /api/auth/logout trước để backend thu hồi phiên,
+  // sau đó mới xóa state, localStorage và hủy timer
+  const logout = useCallback(async () => {
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
-    setToken(null);
-    setUser(null);
-    setAuthToken(null);
+    try {
+      await apiClient.post("/api/auth/logout");
+    } catch {
+      // Backend chưa hỗ trợ hoặc lỗi mạng thì vẫn tiếp tục dọn dẹp client
+    } finally {
+      setToken(null);
+      setUser(null);
+      setAuthToken(null);
+    }
   }, []);
 
   // Đặt timer tự logout đúng lúc token hết hạn
@@ -71,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAuthToken(storedToken);
       try {
-        const res = await apiClient.get<ApiResponse<{ userId: string; role: Role }>>(
+        const res = await apiClient.get<ApiResponse<CurrentUserResponseData>>(
           "/api/auth/me"
         );
         if (!res.data.success || !res.data.data) {
@@ -82,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(storedToken);
         setUser({
           userId: res.data.data.userId,
-          fullName: "",
+          fullName: res.data.data.fullName || "",
           role: res.data.data.role,
         });
 
@@ -107,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [logout, scheduleAutoLogout]);
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string): Promise<LoginResponseData> {
     try {
       const res = await apiClient.post<ApiResponse<LoginResponseData>>(
         "/api/auth/login",
@@ -131,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(newToken);
       setUser({ userId, fullName, role });
       scheduleAutoLogout(expiresAtUtc);
+      return loginData;
     } catch (err) {
       if (err instanceof ApiError) throw err; // đã đúng dạng, không cần bọc lại
       throw toApiError(err);
