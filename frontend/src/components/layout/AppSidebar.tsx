@@ -169,19 +169,18 @@ export default function AppSidebar({
                 <span className="font-semibold text-xs tracking-wide">Online</span>
               </div>
 
-              {/* Nút thu gọn với icon "<" và nhãn rõ ràng */}
+              {/* Nút thu gọn với icon "<" */}
               <button
                 type="button"
                 id="sidebar-collapse-btn"
                 onClick={onToggleCollapse}
-                title="Thu gọn menu điều hướng (Sidebar)"
+                title="Thu gọn menu (<)"
                 aria-label="Thu gọn menu"
-                className="px-2.5 py-1.5 flex items-center gap-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer shadow-2xs group"
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer shadow-2xs group"
               >
-                <svg className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                 </svg>
-                <span>Thu gọn</span>
               </button>
             </div>
           )}
