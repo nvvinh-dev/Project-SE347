@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   createContext,
@@ -41,15 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // D48: Thu hoi token qua POST /api/auth/logout truoc khi xoa Context va localStorage
+  // D48: Thu hồi token qua POST /api/auth/logout trước khi xóa Context và localStorage
   const logout = useCallback(async () => {
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
     try {
       await apiClient.post("/api/auth/logout");
     } catch (err) {
-      // Bat loi qua toApiError; neu server chua co endpoint hoac loi mang thi van don dep an toan
+      // Bắt lỗi qua toApiError; nếu server chưa có endpoint hoặc lỗi mạng thì vẫn dọn dẹp an toàn
       const apiErr = toApiError(err);
-      console.warn("Logout API warning:", apiErr.message);
+      console.warn("Lỗi khi đăng xuất ở máy chủ:", apiErr.message);
     } finally {
       setToken(null);
       setUser(null);
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Dat timer tu logout dung luc token het han
+  // Đặt timer tự logout đúng lúc token hết hạn
   const scheduleAutoLogout = useCallback(
     (expiresAtUtc: string) => {
       if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
@@ -76,8 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [logout]
   );
 
-  // Khoi phuc phien tu token da luu khi tai lai trang.
-  // Doc ca fullName tu GET /api/auth/me de header khong bi mat ho ten khi reload.
+  // Khôi phục phiên từ token đã lưu khi tải lại trang. isLoading chỉ tắt sau khi
+  // việc khôi phục kết thúc, kể cả khi máy không có token nào.
   useEffect(() => {
     async function restoreSession() {
       const storedToken = getStoredToken();
@@ -85,10 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAuthToken(storedToken);
       try {
-        const res = await apiClient.get<
-          ApiResponse<{ userId: string; fullName?: string; role: Role }>
-        >("/api/auth/me");
-
+        const res = await apiClient.get<ApiResponse<{ userId: string; role: Role }>>(
+          "/api/auth/me"
+        );
         if (!res.data.success || !res.data.data) {
           setAuthToken(null);
           return;
@@ -97,10 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(storedToken);
         setUser({
           userId: res.data.data.userId,
-          fullName: res.data.data.fullName ?? "",
+          fullName: "",
           role: res.data.data.role,
         });
 
+        // Đặt lại timer từ expiresAtUtc đã lưu. Không có hạn lưu kèm token thì
+        // coi như hết hạn ngay để buộc đăng nhập lại — an toàn hơn là để token
+        // sống vô thời hạn.
         const storedExpiry = getStoredExpiresAt();
         if (storedExpiry) {
           scheduleAutoLogout(storedExpiry);
@@ -129,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const loginData = res.data.data;
       if (!loginData) {
         throw new ApiError(
-          res.data.message ?? "Dang nhap that bai.",
+          res.data.message ?? "Đăng nhập thất bại.",
           res.data.errors,
           null
         );
@@ -137,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { token: newToken, userId, fullName, role, expiresAtUtc } = loginData;
 
-      setAuthToken(newToken, expiresAtUtc);
+      setAuthToken(newToken, expiresAtUtc); // lưu kèm hạn dùng
       setToken(newToken);
       setUser({ userId, fullName, role });
       scheduleAutoLogout(expiresAtUtc);
@@ -157,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth phai duoc goi ben trong AuthProvider");
+    throw new Error("useAuth phải được gọi bên trong AuthProvider");
   }
   return context;
 }

@@ -11,8 +11,8 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
   const { user, logout } = useAuth();
 
   return (
-    <RoleGuard allowed={["Parent", "Admin"]}>
-      <div className="flex min-h-screen bg-[#F3F2F7]">
+    <RoleGuard allowed={["Parent"]}>
+      <div className="flex min-h-screen bg-muted-surface">
         <div className="hidden lg:block shrink-0">
           <Sidebar items={parentNav} roleLabel="Phụ huynh học sinh" onLogout={logout} />
         </div>

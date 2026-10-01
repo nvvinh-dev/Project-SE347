@@ -1,70 +1,23 @@
-"use client";
+import { PageHeader } from "@/components/layout/PageHeader";
 
-import Link from "next/link";
-import { PageHeader } from "@/components/layout/AppHeader";
-import { StatusPill } from "@/components/ui/StatusPill";
-
-export default function ParentDashboard() {
+export default function ParentDashboardPage() {
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title="Tổng quan bé yêu"
-        description="Theo dõi hoạt động, sức khỏe và thông tin học tập của con tại trường"
+        title="Tổng quan Phụ huynh"
+        description="Cổng thông tin theo dõi học tập, sinh hoạt và sức khỏe của bé tại trường"
       />
-
-      {/* Child Information Card */}
-      <div className="bg-white rounded-xl border border-[#E8E8EC] p-4 sm:p-5 shadow-xs mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-full bg-[#F0FAF6] text-[#247A60] border border-[#C4EDE0] text-base font-bold flex items-center justify-center shrink-0">
-            H
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-[#16141F]">Nguyễn Gia Hưng</h2>
-              <span className="text-xs font-bold text-[#247A60] bg-[#F0FAF6] px-2 py-0.5 rounded-full border border-[#C4EDE0]">
-                Lớp Chồi A
-              </span>
-            </div>
-            <p className="text-xs sm:text-sm font-medium text-[#6A677B] mt-0.5">
-              GVCN: Cô Nguyễn Thị Mai · Năm học 2024 - 2025
-            </p>
-          </div>
+      <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
         </div>
-        <StatusPill variant="success" dot>Đang theo học</StatusPill>
+        <h3 className="text-base font-semibold text-text-primary">Chức năng đang được xây dựng</h3>
+        <p className="mt-1 text-sm text-text-secondary">
+          Bảng điều khiển thông tin nhanh của bé sẽ được hoàn thiện trong nhánh feature/fe-parent.
+        </p>
       </div>
-
-      {/* 3 Overview Quick Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6">
-        <div className="bg-white rounded-xl border border-[#E8E8EC] p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <p className="text-xs font-bold text-[#6A677B] uppercase tracking-wider">Điểm danh hôm nay</p>
-            <p className="text-lg font-bold text-[#30A46C] mt-1.5">Có mặt (Present)</p>
-          </div>
-          <Link href="/parent/attendance" className="text-xs font-bold text-[#247A60] hover:underline mt-3 pt-3 border-t border-[#F3F2F7]">
-            Xem lịch sử điểm danh →
-          </Link>
-        </div>
-
-        <div className="bg-white rounded-xl border border-[#E8E8EC] p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <p className="text-xs font-bold text-[#6A677B] uppercase tracking-wider">Sức khỏe của con</p>
-            <p className="text-lg font-bold text-[#16141F] mt-1.5">Bình thường</p>
-          </div>
-          <Link href="/parent/health" className="text-xs font-bold text-[#247A60] hover:underline mt-3 pt-3 border-t border-[#F3F2F7]">
-            Xem sổ theo dõi sức khỏe →
-          </Link>
-        </div>
-
-        <div className="bg-white rounded-xl border border-[#E8E8EC] p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <p className="text-xs font-bold text-[#6A677B] uppercase tracking-wider">Học phí tháng này</p>
-            <p className="text-lg font-bold text-[#30A46C] mt-1.5">Đã thanh toán</p>
-          </div>
-          <Link href="/parent/tuition" className="text-xs font-bold text-[#247A60] hover:underline mt-3 pt-3 border-t border-[#F3F2F7]">
-            Xem hóa đơn học phí →
-          </Link>
-        </div>
-      </div>
-    </>
+    </div>
   );
 }

@@ -1,70 +1,23 @@
-"use client";
+import { PageHeader } from "@/components/layout/PageHeader";
 
-import { PageHeader } from "@/components/layout/AppHeader";
-import { StatusPill } from "@/components/ui/StatusPill";
-
-const healthHistory = [
-  { date: "10/06/2025", mood: "Vui vẻ", temp: "36.6°C", note: "Bé chơi ngoan, ăn hết suất" },
-  { date: "07/06/2025", mood: "Bình thường", temp: "36.8°C", note: "Tham gia đủ các hoạt động" },
-  { date: "06/06/2025", mood: "Hơi mệt", temp: "37.2°C", note: "Có dấu hiệu sổ mũi nhẹ, đã uống nước ấm" },
-];
-
-export default function HealthPage() {
+export default function ParentHealthPage() {
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title="Sức khỏe & Sự cố của con"
-        description="Theo dõi tình trạng sức khỏe và ghi nhận sự cố của bé tại trường"
+        title="Sức khỏe & Sự cố"
+        description="Theo dõi chỉ số phát triển, lịch sử y tế và các sự cố trong ngày của bé"
       />
-
-      {/* Health Notes Banner (Required by FR-HEALTH-05) */}
-      <div className="bg-[#F0FAF6] border border-[#C4EDE0] rounded-xl p-4 sm:p-5 mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold text-[#247A60] uppercase tracking-wider">Lưu ý sức khỏe của trẻ</span>
-          <span className="text-xs font-medium text-[#6A677B]">Từ sổ Y tế trường</span>
+      <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
         </div>
-        <p className="text-sm font-semibold text-[#16141F]">
-          Bé không có tiền sử dị ứng thực phẩm. Thể trạng bình thường.
-        </p>
-        <p className="text-xs font-medium text-[#E5484D] mt-2 pt-2 border-t border-[#C4EDE0]">
-          ⚠️ Lưu ý: Nếu thông tin sức khỏe của bé bị sai hoặc thiếu, phụ huynh vui lòng thông báo ngay cho Nhân viên Y tế nhà trường.
+        <h3 className="text-base font-semibold text-text-primary">Chức năng đang được xây dựng</h3>
+        <p className="mt-1 text-sm text-text-secondary">
+          Tính năng theo dõi hồ sơ sức khỏe và sự cố sẽ được phát triển trong thẻ FR-HEALTH-05 & FR-INCIDENT-03.
         </p>
       </div>
-
-      {/* Recent Health Records */}
-      <div className="bg-white rounded-xl border border-[#E8E8EC] shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-[#E8E8EC]">
-          <h2 className="text-base font-bold text-[#16141F]">Nhật ký theo dõi sức khỏe gần đây</h2>
-          <p className="text-xs font-medium text-[#6A677B] mt-0.5">Thông tin do giáo viên chủ nhiệm ghi nhận hàng ngày</p>
-        </div>
-
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left min-w-[600px] border-collapse">
-            <thead>
-              <tr className="bg-[#F9F9FB] border-b border-[#E8E8EC]">
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Ngày</th>
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Tâm trạng (Mood)</th>
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Thân nhiệt</th>
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E8E8EC]">
-              {healthHistory.map((item) => (
-                <tr key={item.date} className="hover:bg-[#F3F2F7]/50 transition-colors">
-                  <td className="px-4 sm:px-5 py-3.5 text-xs font-bold text-[#16141F]">{item.date}</td>
-                  <td className="px-4 sm:px-5 py-3.5">
-                    <StatusPill variant={item.mood === "Vui vẻ" ? "success" : item.mood === "Hơi mệt" ? "warning" : "neutral"}>
-                      {item.mood}
-                    </StatusPill>
-                  </td>
-                  <td className="px-4 sm:px-5 py-3.5 text-xs font-bold text-[#16141F]">{item.temp}</td>
-                  <td className="px-4 sm:px-5 py-3.5 text-xs font-medium text-[#6A677B]">{item.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </>
+    </div>
   );
 }

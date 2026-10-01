@@ -1,3 +1,5 @@
+export const APP_NAME = "Quản Lý Nhà Trẻ";
+
 export interface NavItem {
   title: string;
   href: string;

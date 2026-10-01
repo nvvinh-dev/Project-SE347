@@ -11,8 +11,8 @@ export default function AccountantLayout({ children }: { children: React.ReactNo
   const { user, logout } = useAuth();
 
   return (
-    <RoleGuard allowed={["Admin", "Accountant"]}>
-      <div className="flex min-h-screen bg-[#F3F2F7]">
+    <RoleGuard allowed={["Accountant"]}>
+      <div className="flex min-h-screen bg-muted-surface">
         <div className="hidden lg:block shrink-0">
           <Sidebar items={accountantNav} roleLabel="Kế toán trường" onLogout={logout} />
         </div>

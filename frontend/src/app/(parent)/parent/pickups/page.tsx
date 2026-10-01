@@ -1,84 +1,23 @@
-"use client";
+import { PageHeader } from "@/components/layout/PageHeader";
 
-import { PageHeader } from "@/components/layout/AppHeader";
-import { StatusPill } from "@/components/ui/StatusPill";
-
-export default function PickupsPage() {
+export default function ParentPickupsPage() {
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title="Người đón trẻ đã đăng ký"
-        description="Mỗi trẻ có đúng 1 người đón chính và tối đa 1 người dự phòng"
+        title="Đăng ký người đón trẻ"
+        description="Quản lý danh sách người đón chính và người đón dự phòng được ủy quyền đưa đón bé"
       />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Khung 1: Người đón chính (Bắt buộc, không có nút xóa) */}
-        <div className="bg-white rounded-xl border border-[#E8E8EC] p-5 sm:p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-[#247A60] bg-[#F0FAF6] border border-[#C4EDE0] px-2.5 py-1 rounded-full">
-                Người đón chính (Bắt buộc)
-              </span>
-              <StatusPill variant="success" dot>Đã đăng ký</StatusPill>
-            </div>
-
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-14 h-14 rounded-lg bg-[#F3F2F7] border border-[#E8E8EC] flex items-center justify-center text-xs font-bold text-[#6A677B] shrink-0">
-                Ảnh 3x4
-              </div>
-              <div className="space-y-1 text-xs">
-                <p className="text-sm font-bold text-[#16141F]">Trần Thu Hà</p>
-                <p className="text-[#247A60] font-semibold">Mối liên hệ: Mẹ</p>
-                <p className="text-[#6A677B]">Số điện thoại: <strong className="text-[#16141F]">0901.234.567</strong></p>
-                <p className="text-[#6A677B]">Số CCCD: <strong className="text-[#16141F]">079194008924</strong></p>
-              </div>
-            </div>
-
-            <div className="text-[11px] text-[#30A46C] bg-[#ECFDF5] border border-[#A7F3D0] p-2.5 rounded-lg">
-              ✓ Đã xác nhận đồng ý cung cấp thông tin phục vụ an toàn đón trẻ.
-            </div>
-          </div>
-
-          <p className="text-[11px] text-[#6A677B] mt-4 pt-3 border-t border-[#F3F2F7]">
-            Người đón chính chỉ có thể thay đổi thông tin, không thể xóa.
-          </p>
+      <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
         </div>
-
-        {/* Khung 2: Người dự phòng (Tùy chọn) */}
-        <div className="bg-white rounded-xl border border-[#E8E8EC] p-5 sm:p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-[#6A677B] bg-[#F3F2F7] border border-[#E8E8EC] px-2.5 py-1 rounded-full">
-                Người dự phòng (Tối đa 1 người)
-              </span>
-              <StatusPill variant="neutral" dot>Đã đăng ký</StatusPill>
-            </div>
-
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-14 h-14 rounded-lg bg-[#F3F2F7] border border-[#E8E8EC] flex items-center justify-center text-xs font-bold text-[#6A677B] shrink-0">
-                Ảnh 3x4
-              </div>
-              <div className="space-y-1 text-xs">
-                <p className="text-sm font-bold text-[#16141F]">Nguyễn Văn Hùng</p>
-                <p className="text-[#247A60] font-semibold">Mối liên hệ: Bố</p>
-                <p className="text-[#6A677B]">Số điện thoại: <strong className="text-[#16141F]">0912.345.678</strong></p>
-                <p className="text-[#6A677B]">Số CCCD: <strong className="text-[#16141F]">079192003456</strong></p>
-              </div>
-            </div>
-
-            <div className="text-[11px] text-[#30A46C] bg-[#ECFDF5] border border-[#A7F3D0] p-2.5 rounded-lg">
-              ✓ Đã xác nhận đồng ý cung cấp thông tin phục vụ an toàn đón trẻ.
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-[#F3F2F7] flex items-center justify-between">
-            <span className="text-[11px] text-[#6A677B]">Người dự phòng có thể xóa khi không cần.</span>
-            <button className="text-xs font-semibold text-[#E5484D] hover:underline">
-              Xóa người dự phòng
-            </button>
-          </div>
-        </div>
+        <h3 className="text-base font-semibold text-text-primary">Chức năng đang được xây dựng</h3>
+        <p className="mt-1 text-sm text-text-secondary">
+          Tính năng đăng ký người đón trẻ sẽ được phát triển trong thẻ FR-PICKUP-03 (tuân thủ quy định D24, D40 mục 1: người đón chính không thể xóa, checkbox cam kết an toàn).
+        </p>
       </div>
-    </>
+    </div>
   );
 }

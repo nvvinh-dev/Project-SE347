@@ -1,88 +1,23 @@
-"use client";
+import { PageHeader } from "@/components/layout/PageHeader";
 
-import { useState } from "react";
-import { PageHeader } from "@/components/layout/AppHeader";
-import { Select } from "@/components/ui/Select";
-import { StatusPill } from "@/components/ui/StatusPill";
-
-const invoiceList = [
-  { id: "HD-2025-06-01", childName: "Nguyễn Gia Hưng", class: "Chồi A", month: "06/2025", amount: "3.200.000đ", method: "Chuyển khoản (VCB-8924)", paidAt: "05/06/2025", status: "paid", statusLabel: "Đã thanh toán" },
-  { id: "HD-2025-06-02", childName: "Trần Bảo Ngọc", class: "Mầm 1", month: "06/2025", amount: "3.200.000đ", method: "Tiền mặt", paidAt: "04/06/2025", status: "paid", statusLabel: "Đã thanh toán" },
-  { id: "HD-2025-06-03", childName: "Lê Minh Tuấn", class: "Mầm 2", month: "06/2025", amount: "3.200.000đ", method: "—", paidAt: "—", status: "unpaid", statusLabel: "Chưa thanh toán" },
-  { id: "HD-2025-06-04", childName: "Phạm Thảo Vy", class: "Lá B", month: "06/2025", amount: "3.200.000đ", method: "Chuyển khoản (TCB-1102)", paidAt: "03/06/2025", status: "paid", statusLabel: "Đã thanh toán" },
-  { id: "HD-2025-06-05", childName: "Hoàng Gia Bảo", class: "Chồi B", month: "06/2025", amount: "3.200.000đ", method: "—", paidAt: "—", status: "unpaid", statusLabel: "Chưa thanh toán" },
-];
-
-export default function TuitionPage() {
-  const [filterStatus, setFilterStatus] = useState("all");
-
-  const filtered = invoiceList.filter((inv) => {
-    if (filterStatus === "all") return true;
-    return inv.status === filterStatus;
-  });
-
+export default function AccountantTuitionPage() {
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title="Học phí & Hóa đơn"
-        description="Quản lý biểu phí chung và ghi nhận nộp học phí của trẻ"
+        title="Quản lý học phí & hóa đơn"
+        description="Quản lý biểu phí, đợt thu học phí và theo dõi trạng thái thanh toán của học sinh"
       />
-
-      {/* Bộ lọc di chuyển xuống dưới banner, nằm ngay trên main table */}
-      <div className="flex items-center justify-end gap-2.5 mb-4">
-        <div className="w-36">
-          <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="all">Tất cả trạng thái</option>
-            <option value="paid">Đã thanh toán</option>
-            <option value="unpaid">Chưa thanh toán</option>
-          </Select>
+      <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </div>
-        <div className="w-36">
-          <Select defaultValue="06">
-            <option value="06">Tháng 06/2025</option>
-            <option value="05">Tháng 05/2025</option>
-          </Select>
-        </div>
+        <h3 className="text-base font-semibold text-text-primary">Chức năng đang được xây dựng</h3>
+        <p className="mt-1 text-sm text-text-secondary">
+          Tính năng quản lý học phí, xuất hóa đơn và ghi nhận thanh toán sẽ được phát triển trong thẻ FR-TUITION.
+        </p>
       </div>
-
-      {/* Main Table */}
-      <div className="bg-white rounded-xl border border-[#E8E8EC] shadow-xs overflow-hidden">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left min-w-[700px] border-collapse">
-            <thead>
-              <tr className="bg-[#F9F9FB] border-b border-[#E8E8EC]">
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Mã hóa đơn</th>
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Họ và tên trẻ</th>
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Lớp</th>
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Kỳ học</th>
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Số tiền</th>
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Hình thức / Ngày thu</th>
-                <th className="text-xs font-bold text-[#16141F] uppercase tracking-wider px-4 sm:px-5 py-3.5">Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E8E8EC]">
-              {filtered.map((inv) => (
-                <tr key={inv.id} className="hover:bg-[#F3F2F7]/50 transition-colors">
-                  <td className="px-4 sm:px-5 py-3.5 text-xs font-bold text-[#247A60]">{inv.id}</td>
-                  <td className="px-4 sm:px-5 py-3.5 text-sm font-semibold text-[#16141F]">{inv.childName}</td>
-                  <td className="px-4 sm:px-5 py-3.5 text-xs font-semibold text-[#6A677B]">{inv.class}</td>
-                  <td className="px-4 sm:px-5 py-3.5 text-xs font-medium text-[#16141F]">{inv.month}</td>
-                  <td className="px-4 sm:px-5 py-3.5 text-sm font-bold text-[#16141F]">{inv.amount}</td>
-                  <td className="px-4 sm:px-5 py-3.5">
-                    <p className="text-xs font-medium text-[#16141F]">{inv.method}</p>
-                    {inv.paidAt !== "—" && <p className="text-[11px] text-[#6A677B]">{inv.paidAt}</p>}
-                  </td>
-                  <td className="px-4 sm:px-5 py-3.5">
-                    <StatusPill variant={inv.status === "paid" ? "success" : "warning"} dot>
-                      {inv.statusLabel}
-                    </StatusPill>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </>
+    </div>
   );
 }
