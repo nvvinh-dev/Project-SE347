@@ -10,6 +10,21 @@ public class PickupConfiguration : IEntityTypeConfiguration<Pickup>
     {
         builder.HasIndex(p => p.AttendanceId).IsUnique();
 
+        builder.Property(p => p.PickupMethod).HasMaxLength(20);
+
+        // D51: validator vẫn là nơi kiểm tra chính; CHECK chặn các đường ghi không qua validator.
+        // Danh sách phải khớp PickupMethods.
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint(
+                "CK_Pickup_Method",
+                "pickup_method IN ('Primary', 'Backup', 'PhoneConfirmed')");
+            t.HasCheckConstraint(
+                "CK_Pickup_ConfirmedByName",
+                "(pickup_method = 'PhoneConfirmed' AND confirmed_by_name IS NOT NULL AND confirmed_by_name <> '') " +
+                "OR (pickup_method <> 'PhoneConfirmed' AND confirmed_by_name IS NULL)");
+        });
+
         builder.HasOne(p => p.Attendance)
             .WithOne(a => a.Pickup)
             .HasForeignKey<Pickup>(p => p.AttendanceId)
@@ -20,17 +35,7 @@ public class PickupConfiguration : IEntityTypeConfiguration<Pickup>
             .HasForeignKey(p => p.RecordedByTeacherId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // PickupPersonId cố ý để nullable: giá trị rỗng mang đúng nghĩa
-        // "phụ huynh trực tiếp đón" (D39 mục 11) — không cần cột riêng.
-        //
-        // OnDelete(Restrict) là BẮT BUỘC ở đây. Mặc định của EF Core cho quan hệ
-        // tùy chọn là ClientSetNull: khi phụ huynh xóa một người đón đã đăng ký,
-        // EF sẽ âm thầm set pickup_person_id về null trên MỌI bản ghi đón cũ —
-        // tức là xóa mất bằng chứng ai đã đón trẻ, biến chúng thành "phụ huynh
-        // trực tiếp đón". Restrict buộc phải giữ lại lịch sử, đúng tinh thần D37.
-        builder.HasOne(p => p.PickupPerson)
-            .WithMany(r => r.Pickups)
-            .HasForeignKey(p => p.PickupPersonId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // Không có khóa ngoại tới registered_pickup_persons: họ tên được chép vào bản ghi lúc đón,
+        // nên phụ huynh thay hay xóa người đón thì lịch sử ai đã đón trẻ vẫn giữ nguyên (D24).
     }
 }

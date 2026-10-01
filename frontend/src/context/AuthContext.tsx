@@ -17,7 +17,7 @@ import {
   toApiError,
   ApiError,
 } from "@/lib/axios";
-import type { ApiResponse, LoginResponseData, Role } from "@/types/auth";
+import type { ApiResponse, LoginResponseData, CurrentUserResponseData, Role } from "@/types/auth";
 
 interface AuthUser {
   userId: string;
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAuthToken(storedToken);
       try {
-        const res = await apiClient.get<ApiResponse<{ userId: string; role: Role }>>(
+        const res = await apiClient.get<ApiResponse<CurrentUserResponseData>>(
           "/api/auth/me"
         );
         if (!res.data.success || !res.data.data) {
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(storedToken);
         setUser({
           userId: res.data.data.userId,
-          fullName: "",
+          fullName: res.data.data.fullName || "",
           role: res.data.data.role,
         });
 

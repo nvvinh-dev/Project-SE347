@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NhaTre.Infrastructure.Persistence;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NhaTre.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260930015848_UpdatePickupsAndRegisteredPickupPersons")]
+    partial class UpdatePickupsAndRegisteredPickupPersons
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -324,11 +327,6 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("child_id");
 
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
                     b.Property<DateTime>("IssuedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("issued_at");
@@ -347,9 +345,6 @@ namespace NhaTre.Infrastructure.Migrations
 
                     b.HasIndex("ChildId")
                         .HasDatabaseName("ix_invoices_child_id");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("ix_invoices_status");
 
                     b.HasIndex("TuitionFeeId")
                         .HasDatabaseName("ix_invoices_tuition_fee_id");
