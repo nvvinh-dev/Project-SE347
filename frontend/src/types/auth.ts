@@ -8,6 +8,12 @@ export interface LoginResponseData {
   role: Role;
 }
 
+export interface CurrentUserResponseData {
+  userId: string;
+  fullName: string;
+  role: Role;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T | null;
