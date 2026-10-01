@@ -122,6 +122,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ITuitionRepository, TuitionRepository>();
 builder.Services.AddScoped<ITuitionService, TuitionService>();
 builder.Services.AddScoped<IValidator<TuitionFeeRequest>, TuitionFeeRequestValidator>();
+builder.Services.AddHttpClient<IFileStorageService, SupabaseFileStorageService>(); // D22, D53: Supabase:Url và Supabase:ServiceKey đọc lúc gọi, không chặn khởi động
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 var jwtSection = builder.Configuration.GetSection("Jwt");
