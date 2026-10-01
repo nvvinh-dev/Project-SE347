@@ -236,6 +236,7 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+app.UseMiddleware<SecurityHeadersMiddleware>(); // D55: đứng đầu pipeline để mọi response đều mang header, kể cả 307/429/500
 app.UseExceptionHandler();
 
 // D38: bọc nốt các response do framework sinh ra mà KHÔNG có body — 404 (route không
