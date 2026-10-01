@@ -1,0 +1,4 @@
+# Mọi file văn bản lưu xuống dòng LF trong repo, không phụ thuộc core.autocrlf của từng máy.
+# Khi checkout, git đổi sang kiểu xuống dòng của hệ điều hành; file nhị phân git tự nhận ra
+# và giữ nguyên.
+* text=auto
