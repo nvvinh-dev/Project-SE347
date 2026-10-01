@@ -12,7 +12,7 @@ export default function AccountantLayout({ children }: { children: React.ReactNo
 
   return (
     <RoleGuard allowed={["Accountant"]}>
-      <div className="flex min-h-screen bg-muted-surface">
+      <div className="flex min-h-screen bg-background">
         <div className="hidden lg:block shrink-0">
           <Sidebar items={accountantNav} roleLabel="Kế toán trường" onLogout={logout} />
         </div>

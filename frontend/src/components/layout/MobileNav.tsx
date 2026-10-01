@@ -10,7 +10,7 @@ interface MobileNavProps {
   items: NavItem[];
   roleLabel: string;
   userName: string;
-  onLogout: () => void;
+  onLogout: () => Promise<void>;
 }
 
 export function MobileNav({ items, roleLabel, userName, onLogout }: MobileNavProps) {
@@ -74,9 +74,9 @@ export function MobileNav({ items, roleLabel, userName, onLogout }: MobileNavPro
             {/* Nav list */}
             <nav className="flex-1 overflow-y-auto py-4 px-4 space-y-1">
               {items.map((item) => {
-                const active =
-                  pathname === item.href ||
-                  (item.href !== "/accountant" && item.href !== "/parent" && pathname.startsWith(item.href + "/"));
+                const active = item.exact
+                  ? pathname === item.href
+                  : pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
                   <Link
                     key={item.href}

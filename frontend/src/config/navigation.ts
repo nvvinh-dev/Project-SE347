@@ -4,10 +4,11 @@ export interface NavItem {
   title: string;
   href: string;
   icon: string;
+  exact?: boolean;
 }
 
 export const accountantNav: NavItem[] = [
-  { title: "Tổng quan", href: "/accountant", icon: "dashboard" },
+  { title: "Tổng quan", href: "/accountant", icon: "dashboard", exact: true },
   { title: "Hồ sơ trẻ", href: "/accountant/students", icon: "students" },
   { title: "Học phí & Hóa đơn", href: "/accountant/tuition", icon: "tuition" },
   { title: "Thực đơn tuần", href: "/accountant/menu", icon: "menu" },
@@ -15,7 +16,7 @@ export const accountantNav: NavItem[] = [
 ];
 
 export const parentNav: NavItem[] = [
-  { title: "Tổng quan", href: "/parent", icon: "home" },
+  { title: "Tổng quan", href: "/parent", icon: "home", exact: true },
   { title: "Điểm danh", href: "/parent/attendance", icon: "attendance" },
   { title: "Sức khỏe & Sự cố", href: "/parent/health", icon: "health" },
   { title: "Người đón trẻ", href: "/parent/pickups", icon: "pickups" },

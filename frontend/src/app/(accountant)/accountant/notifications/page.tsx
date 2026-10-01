@@ -5,7 +5,7 @@ export default function AccountantNotificationsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Thông báo nghỉ học"
-        description="Phát thông báo nghỉ học đột xuất hoặc định kỳ đến toàn trường / theo lớp"
+        description="Phát thông báo nghỉ học đột xuất hoặc kế hoạch nghỉ đến toàn bộ phụ huynh học sinh"
       />
       <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
@@ -13,9 +13,9 @@ export default function AccountantNotificationsPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
         </div>
-        <h3 className="text-base font-semibold text-text-primary">Chức năng đang được xây dựng</h3>
-        <p className="mt-1 text-sm text-text-secondary">
-          Tính năng phát thông báo nghỉ học sẽ được phát triển trong thẻ FR-NOTI-03 (tuân thủ giới hạn ≤ 500 ký tự và React Hook Form).
+        <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
+        <p className="mt-1 text-sm text-muted">
+          Tính năng phát thông báo nghỉ học đến toàn bộ phụ huynh học sinh sẽ được hoàn thiện trong các thẻ nghiệp vụ tiếp theo.
         </p>
       </div>
     </div>

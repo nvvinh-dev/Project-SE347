@@ -13,9 +13,9 @@ export default function ParentPickupsPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
         </div>
-        <h3 className="text-base font-semibold text-text-primary">Chức năng đang được xây dựng</h3>
-        <p className="mt-1 text-sm text-text-secondary">
-          Tính năng đăng ký người đón trẻ sẽ được phát triển trong thẻ FR-PICKUP-03 (tuân thủ quy định D24, D40 mục 1: người đón chính không thể xóa, checkbox cam kết an toàn).
+        <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
+        <p className="mt-1 text-sm text-muted">
+          Tính năng đăng ký người đón trẻ chính và người đón dự phòng sẽ được hoàn thiện trong các thẻ nghiệp vụ tiếp theo.
         </p>
       </div>
     </div>

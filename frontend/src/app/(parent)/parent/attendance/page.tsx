@@ -13,9 +13,9 @@ export default function ParentAttendancePage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
-        <h3 className="text-base font-semibold text-text-primary">Chức năng đang được xây dựng</h3>
-        <p className="mt-1 text-sm text-text-secondary">
-          Tính năng xem lịch sử điểm danh của bé sẽ được phát triển trong thẻ FR-ATT-02.
+        <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
+        <p className="mt-1 text-sm text-muted">
+          Tính năng xem lịch sử điểm danh của bé sẽ được hoàn thiện trong các thẻ nghiệp vụ tiếp theo.
         </p>
       </div>
     </div>

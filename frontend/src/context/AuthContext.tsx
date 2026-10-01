@@ -130,6 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const loginData = res.data.data;
       if (!loginData) {
+        // Backend trả 200 nhưng data null — tình huống hiếm nhưng
+        // không nên vỡ bằng TypeError, ném ApiError có message tử tế.
         throw new ApiError(
           res.data.message ?? "Đăng nhập thất bại.",
           res.data.errors,
@@ -144,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser({ userId, fullName, role });
       scheduleAutoLogout(expiresAtUtc);
     } catch (err) {
-      if (err instanceof ApiError) throw err;
+      if (err instanceof ApiError) throw err; // đã đúng dạng, không cần bọc lại
       throw toApiError(err);
     }
   }

@@ -10,7 +10,7 @@ import { NavIcon } from "./NavIcon";
 interface SidebarProps {
   items: NavItem[];
   roleLabel: string;
-  onLogout: () => void;
+  onLogout: () => Promise<void>;
   onNavigate?: () => void;
 }
 
@@ -44,9 +44,9 @@ export function Sidebar({ items, roleLabel, onLogout, onNavigate }: SidebarProps
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto py-4 px-4 space-y-1">
         {items.map((item) => {
-          const active =
-            pathname === item.href ||
-            (item.href !== "/accountant" && item.href !== "/parent" && pathname.startsWith(item.href + "/"));
+          const active = item.exact
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.href}

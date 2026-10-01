@@ -12,7 +12,7 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
 
   return (
     <RoleGuard allowed={["Parent"]}>
-      <div className="flex min-h-screen bg-muted-surface">
+      <div className="flex min-h-screen bg-background">
         <div className="hidden lg:block shrink-0">
           <Sidebar items={parentNav} roleLabel="Phụ huynh học sinh" onLogout={logout} />
         </div>
