@@ -59,6 +59,20 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return null;
   }
 
+  // Bản đồ tên hiển thị vai trò tiếng Việt
+  const roleNameVi =
+    user.role === "Admin"
+      ? "Quản trị viên"
+      : user.role === "Teacher"
+      ? "Giáo viên"
+      : user.role === "Parent"
+      ? "Phụ huynh"
+      : user.role === "Accountant"
+      ? "Kế toán"
+      : user.role === "Medical"
+      ? "Nhân viên y tế"
+      : user.role;
+
   // Người dùng đăng nhập nhưng không có vai trò Admin (Access Denied)
   if (user.role !== "Admin") {
     return (
@@ -82,7 +96,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <div>
             <h2 className="text-lg font-bold text-[#121314]">Truy cập bị từ chối</h2>
             <p className="text-xs text-[#606363] mt-1.5 leading-relaxed">
-              Tài khoản của bạn ({user.role}) không có quyền truy cập vào phân hệ Quản trị viên.
+              Tài khoản của bạn ({roleNameVi}) không có quyền truy cập vào phân hệ Quản trị viên.
             </p>
           </div>
           <button

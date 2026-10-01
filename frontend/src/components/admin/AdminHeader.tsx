@@ -9,15 +9,19 @@ interface AdminHeaderProps {
 }
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
-  "/dashboard": {
+  "/admin": {
     title: "Bảng điều hành tổng quan",
     subtitle: "Chỉ số hoạt động, điểm danh và học phí",
   },
-  "/users": {
+  "/admin/dashboard": {
+    title: "Bảng điều hành tổng quan",
+    subtitle: "Chỉ số hoạt động, điểm danh và học phí",
+  },
+  "/admin/users": {
     title: "Quản lý tài khoản & Phân quyền",
     subtitle: "Danh sách người dùng và phân quyền 5 vai trò hệ thống",
   },
-  "/classes": {
+  "/admin/classes": {
     title: "Xếp lớp học & Phân công",
     subtitle: "Quản lý 3 khối lớp và giáo viên chủ nhiệm",
   },
@@ -29,10 +33,10 @@ export function AdminHeader({ onOpenSidebar, onOpenLogout }: AdminHeaderProps) {
 
   const currentMeta = pageTitles[pathname] || {
     title: "Khu vực Quản trị",
-    subtitle: "Hệ thống quản lý mầm non",
+    subtitle: "Hệ thống quản lý nhà trẻ",
   };
 
-  const displayName = user?.fullName?.trim() ? user.fullName : "Nguyễn Văn Vinh";
+  const displayName = user?.fullName?.trim() ? user.fullName : "Quản trị viên";
   const userInitial = displayName.charAt(0).toUpperCase();
 
   return (
@@ -74,29 +78,8 @@ export function AdminHeader({ onOpenSidebar, onOpenLogout }: AdminHeaderProps) {
         </div>
       </div>
 
-      {/* Right: Quick Tools, Notifications, User Profile & Logout */}
+      {/* Right: User Profile & Logout */}
       <div className="flex items-center gap-2.5 sm:gap-3.5">
-        {/* Notification Bell with Badge */}
-        <button
-          type="button"
-          title="Thông báo hệ thống (2 việc cần xử lý)"
-          className="relative p-2.5 rounded-full border border-[#ECEDEC] bg-[#FEFEFE] text-[#606363] hover:bg-[#F8F8F9] hover:text-[#121314] transition-colors"
-        >
-          <svg
-            className="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-          </svg>
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#E8916E] ring-2 ring-white" />
-        </button>
-
         {/* User Card with Baby Blue / Pastel Avatar */}
         <div className="flex items-center gap-2.5 p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-[#F8F8F9] border border-[#ECEDEC]">
           <div className="w-8 h-8 rounded-full bg-[#D5E3F2] text-[#17627D] font-bold text-xs flex items-center justify-center shadow-2xs">
@@ -107,12 +90,12 @@ export function AdminHeader({ onOpenSidebar, onOpenLogout }: AdminHeaderProps) {
               {displayName}
             </p>
             <p className="text-[10px] text-[#9FA2A1] font-medium leading-none">
-              Ban Giám Hiệu
+              Quản trị viên
             </p>
           </div>
         </div>
 
-        {/* Logout Button (§18, D48) */}
+        {/* Logout Button (D48) */}
         <button
           onClick={onOpenLogout}
           title="Đăng xuất khỏi hệ thống"

@@ -11,7 +11,7 @@ interface AdminSidebarProps {
 const navItems = [
   {
     name: "Tổng quan",
-    href: "/dashboard",
+    href: "/admin/dashboard",
     badge: "Hôm nay",
     badgeType: "mint",
     icon: (
@@ -33,7 +33,7 @@ const navItems = [
   },
   {
     name: "Quản lý tài khoản",
-    href: "/users",
+    href: "/admin/users",
     badge: "5 Vai trò",
     badgeType: "neutral",
     icon: (
@@ -55,7 +55,7 @@ const navItems = [
   },
   {
     name: "Xếp lớp & Phân công",
-    href: "/classes",
+    href: "/admin/classes",
     badge: "3 Lớp",
     badgeType: "blue",
     icon: (
@@ -101,11 +101,11 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         {/* Logo & Brand Header */}
         <div className="h-20 px-6 flex items-center justify-between border-b border-[#ECEDEC]/80">
           <Link
-            href="/dashboard"
+            href="/admin/dashboard"
             onClick={onClose}
             className="flex items-center gap-3 group"
           >
-            {/* Cute Rounded Sprout Icon Container */}
+            {/* Rounded Sprout Icon Container */}
             <div className="w-10 h-10 rounded-2xl bg-[#E8F8F1] border border-[#A7E5D2]/60 flex items-center justify-center text-[#55B38F] shadow-xs group-hover:scale-105 transition-transform">
               <svg
                 className="w-5 h-5"
@@ -124,10 +124,10 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
             </div>
             <div>
               <span className="font-bold text-[15px] tracking-tight text-[#121314] block leading-tight">
-                Mầm Non Ánh Dương
+                Hệ thống Nhà trẻ
               </span>
               <span className="text-[11px] text-[#9FA2A1] font-medium leading-none block mt-1">
-                Hệ thống quản lý mầm non
+                Phân hệ Quản trị viên
               </span>
             </div>
           </Link>
@@ -161,7 +161,9 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
             </p>
             <nav className="space-y-1.5">
               {navItems.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
                 return (
                   <Link
                     key={item.href}
@@ -206,14 +208,14 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           </div>
         </div>
 
-        {/* Footer Support Card (§11, §16) */}
+        {/* Footer Support Card */}
         <div className="p-4 border-t border-[#ECEDEC]/80">
           <div className="px-4 py-3 rounded-2xl bg-[#F8F8F9] border border-[#ECEDEC] text-xs flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#55B38F] animate-pulse" />
               <span className="font-semibold text-[#606363]">Trực tuyến</span>
             </div>
-            <span className="text-[11px] text-[#9FA2A1]">Ban giám hiệu</span>
+            <span className="text-[11px] text-[#9FA2A1]">Quản trị viên</span>
           </div>
         </div>
       </aside>

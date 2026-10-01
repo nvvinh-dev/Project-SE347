@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiClient } from "@/lib/axios";
@@ -15,15 +15,31 @@ export function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
   const { logout } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Đóng modal khi nhấn phím Escape
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !isSubmitting) {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isSubmitting, onClose]);
+
   if (!isOpen) return null;
 
   async function handleConfirmLogout() {
     setIsSubmitting(true);
     try {
-      // D48: Bắt buộc gọi API POST /api/auth/logout trước để backend thu hồi token
+      // D48: Gọi API POST /api/auth/logout để backend thu hồi token.
+      // TODO: Sau khi PR #9 của Trang merge vào develop, logout() trong AuthContext sẽ tự gọi API này.
+      // Lúc đó bỏ dòng apiClient.post("/api/auth/logout") dưới đây để tránh gọi 2 lần.
       await apiClient.post("/api/auth/logout");
     } catch {
-      // Ngay cả khi request lỗi mạng, client vẫn dọn dẹp state và chuyển trang an toàn
+      // Ngay cả khi request lỗi mạng hoặc 404, client vẫn dọn dẹp state và chuyển trang an toàn
     } finally {
       logout();
       onClose();
@@ -33,6 +49,9 @@ export function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
 
   return (
     <div
+      onClick={() => {
+        if (!isSubmitting) onClose();
+      }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-xs animate-in fade-in duration-200"
       aria-modal="true"
       role="dialog"
