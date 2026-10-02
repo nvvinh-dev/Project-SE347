@@ -46,4 +46,4 @@ export const medicalNav: NavItem[] = [
   { title: "Sổ lưu ý & Dị ứng", href: "/medical/health-notes", icon: "notes" },
   { title: "Hồ sơ sức khỏe & Sự cố", href: "/medical/health-history", icon: "history" },
   { title: "Thông báo", href: "/medical/notifications", icon: "notifications" },
-];
+];
