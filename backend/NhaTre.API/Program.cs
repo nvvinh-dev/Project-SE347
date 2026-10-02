@@ -8,6 +8,7 @@ using NhaTre.Infrastructure.Services;
 using NhaTre.Application.Services;
 using NhaTre.Infrastructure.Persistence.Repositories;
 using NhaTre.API.Middleware;
+using NhaTre.API.Services;
 using Serilog;
 using FluentValidation;
 using NhaTre.Application.Validators.Auth;
@@ -119,6 +120,10 @@ builder.Services.AddScoped<IChildService, ChildService>();
 builder.Services.AddScoped<IValidator<ChildProfileRequest>, ChildProfileRequestValidator>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
+builder.Services.AddScoped<ISecurityEventRepository, SecurityEventRepository>();
+builder.Services.AddScoped<ISecurityEventService, SecurityEventService>(); // D50
 builder.Services.AddScoped<ITuitionRepository, TuitionRepository>();
 builder.Services.AddScoped<ITuitionService, TuitionService>();
 builder.Services.AddScoped<IValidator<TuitionFeeRequest>, TuitionFeeRequestValidator>();
