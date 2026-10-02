@@ -14,13 +14,19 @@ export default function MedicalLayout({ children }: { children: React.ReactNode 
     <RoleGuard allowed={["Medical"]}>
       <div className="flex min-h-screen bg-background">
         <div className="hidden lg:block shrink-0">
-          <Sidebar items={medicalNav} roleLabel="Nhân viên Y tế" onLogout={logout} />
+          <Sidebar
+            items={medicalNav}
+            roleLabel="Nhân viên Y tế"
+            onLogout={logout}
+            notificationsHref="/medical/notifications"
+          />
         </div>
         <MobileNav
           items={medicalNav}
           roleLabel="Nhân viên Y tế"
           userName={user?.fullName || "Nhân viên Y tế"}
           onLogout={logout}
+          notificationsHref="/medical/notifications"
         />
         <main className="flex-1 min-w-0 lg:pt-0 pt-16">
           <div className="w-full max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
