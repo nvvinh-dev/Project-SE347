@@ -50,7 +50,7 @@ public class AuthService : IAuthService
         }
 
         var roleClaim = Roles.FromRoleId(user.RoleId);
-        var tokenResult = _tokenService.GenerateToken(user.Id, roleClaim);
+        var tokenResult = _tokenService.GenerateToken(user.Id, roleClaim, user.TokenVersion);
 
         await _securityEventService.RecordAsync(
             SecurityEventTypes.LoginSucceeded,
@@ -77,6 +77,18 @@ public class AuthService : IAuthService
             user.Id,
             user.FullName,
             Roles.FromRoleId(user.RoleId));
+    }
+
+    // D48: tăng token_version làm mọi token đã phát của người dùng mất hiệu lực trên mọi thiết
+    // bị ngay từ request kế tiếp. Không lưu token trong database (NFR-SEC-25).
+    public async Task LogoutAsync(Guid userId)
+    {
+        await _authRepository.IncrementTokenVersionAsync(userId);
+
+        await _securityEventService.RecordAsync(
+            SecurityEventTypes.Logout,
+            actorUserId: userId,
+            targetUserId: userId);
     }
 
     // D50: chưa xác định được ai đăng nhập nên actor rỗng; target là tài khoản mang email đó
