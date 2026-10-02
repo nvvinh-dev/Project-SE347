@@ -51,7 +51,8 @@ export default function LoginPage() {
       // Bắt mã lỗi HTTP 429 khi vượt ngưỡng giới hạn tần suất đăng nhập (D54: 5 lần/phút)
       if (apiErr.status === 429) {
         setServerError(
-          "Bạn đã thử đăng nhập quá nhiều lần (tối đa 5 lần/phút). Vui lòng thử lại sau 1 phút."
+          apiErr.message ||
+            "Bạn đã thử đăng nhập quá nhiều lần (tối đa 5 lần/phút). Vui lòng thử lại sau 1 phút."
         );
         return;
       }
@@ -67,29 +68,29 @@ export default function LoginPage() {
   // Tránh flash giao diện đăng nhập nếu đang khôi phục phiên hoặc đã đăng nhập
   if (isLoading || (token && user)) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <main className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-          <p className="text-sm text-slate-500">Đang kiểm tra phiên làm việc...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+          <p className="text-sm text-muted">Đang kiểm tra phiên làm việc...</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Hệ thống Quản lý Nhà trẻ
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted">
             Đăng nhập để tiếp tục làm việc
           </p>
         </div>
 
         {serverError && (
-          <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="mb-5 rounded-lg border border-danger-border bg-danger-bg p-3.5 text-sm text-danger">
             <p className="font-medium">{serverError}</p>
             {serverFieldErrors.length > 0 && (
               <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
@@ -105,7 +106,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-slate-700"
+              className="block text-sm font-medium text-foreground"
             >
               Email
             </label>
@@ -114,11 +115,9 @@ export default function LoginPage() {
               type="email"
               autoComplete="email"
               disabled={isSubmitting}
-              className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 ${
-                errors.email
-                  ? "border-red-300 focus:border-red-500 focus:ring-red-200"
-                  : "border-slate-300 focus:border-emerald-500 focus:ring-emerald-200"
-              } disabled:cursor-not-allowed disabled:bg-slate-100`}
+              className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm text-foreground bg-card shadow-sm transition-colors focus:outline-none focus:border-brand disabled:cursor-not-allowed disabled:opacity-50 ${
+                errors.email ? "border-danger" : "border-border"
+              }`}
               placeholder="ten@truong.edu.vn"
               {...register("email", {
                 required: "Vui lòng nhập email",
@@ -129,7 +128,7 @@ export default function LoginPage() {
               })}
             />
             {errors.email && (
-              <p className="mt-1 text-xs text-red-600">
+              <p className="mt-1 text-xs text-danger">
                 {errors.email.message}
               </p>
             )}
@@ -138,7 +137,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-slate-700"
+              className="block text-sm font-medium text-foreground"
             >
               Mật khẩu
             </label>
@@ -147,18 +146,16 @@ export default function LoginPage() {
               type="password"
               autoComplete="current-password"
               disabled={isSubmitting}
-              className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 ${
-                errors.password
-                  ? "border-red-300 focus:border-red-500 focus:ring-red-200"
-                  : "border-slate-300 focus:border-emerald-500 focus:ring-emerald-200"
-              } disabled:cursor-not-allowed disabled:bg-slate-100`}
+              className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm text-foreground bg-card shadow-sm transition-colors focus:outline-none focus:border-brand disabled:cursor-not-allowed disabled:opacity-50 ${
+                errors.password ? "border-danger" : "border-border"
+              }`}
               placeholder="••••••••"
               {...register("password", {
                 required: "Vui lòng nhập mật khẩu",
               })}
             />
             {errors.password && (
-              <p className="mt-1 text-xs text-red-600">
+              <p className="mt-1 text-xs text-danger">
                 {errors.password.message}
               </p>
             )}
@@ -167,7 +164,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex w-full items-center justify-center rounded-lg bg-emerald-600 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center rounded-lg bg-brand hover:bg-brand-hover active:bg-brand-active py-2.5 text-sm font-semibold text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? (
               <>
