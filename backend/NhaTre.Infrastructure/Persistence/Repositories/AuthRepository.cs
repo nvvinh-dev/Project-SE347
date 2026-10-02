@@ -24,4 +24,13 @@ public class AuthRepository : IAuthRepository
         return await _dbContext.Users
             .FirstOrDefaultAsync(u => u.Id == userId);
     }
+
+    // Một câu UPDATE token_version = token_version + 1 ngay trong database, không đọc lên rồi
+    // ghi lại, để hai lần tăng cùng lúc (đăng xuất trên hai máy) không ghi đè nhau
+    public async Task IncrementTokenVersionAsync(Guid userId)
+    {
+        await _dbContext.Users
+            .Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.TokenVersion, u => u.TokenVersion + 1));
+    }
 }
