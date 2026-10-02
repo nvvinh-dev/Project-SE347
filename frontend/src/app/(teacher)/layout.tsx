@@ -14,14 +14,13 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     <RoleGuard allowed={["Teacher"]}>
       <div className="flex min-h-screen bg-background">
         <div className="hidden lg:block shrink-0">
-          <Sidebar items={teacherNav} roleLabel="Giáo viên" onLogout={logout} homeHref="/teacher" />
+          <Sidebar items={teacherNav} roleLabel="Giáo viên" onLogout={logout} />
         </div>
         <MobileNav
           items={teacherNav}
           roleLabel="Giáo viên"
           userName={user?.fullName || "Giáo viên"}
           onLogout={logout}
-          homeHref="/teacher"
         />
         <main className="flex-1 min-w-0 lg:pt-0 pt-16">
           <div className="w-full max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
