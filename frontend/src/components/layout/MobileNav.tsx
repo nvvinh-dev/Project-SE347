@@ -11,9 +11,10 @@ interface MobileNavProps {
   roleLabel: string;
   userName: string;
   onLogout: () => Promise<void>;
+  homeHref?: string;
 }
 
-export function MobileNav({ items, roleLabel, userName, onLogout }: MobileNavProps) {
+export function MobileNav({ items, roleLabel, userName, onLogout, homeHref }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
@@ -27,7 +28,7 @@ export function MobileNav({ items, roleLabel, userName, onLogout }: MobileNavPro
     <>
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 z-40">
-        <div className="flex items-center gap-2.5">
+        <Link href={homeHref || "/"} className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
           <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center shadow-xs">
             <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
@@ -35,7 +36,7 @@ export function MobileNav({ items, roleLabel, userName, onLogout }: MobileNavPro
           </div>
           <span className="text-sm font-bold text-foreground">{APP_NAME}</span>
           <span className="text-[10px] font-semibold bg-brand-subtle text-brand-text px-2 py-0.5 rounded-full border border-brand-border">{roleLabel}</span>
-        </div>
+        </Link>
         <button
           onClick={() => setOpen(!open)}
           className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-background text-foreground transition-colors cursor-pointer"
@@ -59,7 +60,11 @@ export function MobileNav({ items, roleLabel, userName, onLogout }: MobileNavPro
           <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-card shadow-2xl flex flex-col duration-200">
             {/* Header */}
-            <div className="h-16 px-6 flex items-center gap-3 border-b border-border">
+            <Link
+              href={homeHref || "/"}
+              onClick={() => setOpen(false)}
+              className="h-16 px-6 flex items-center gap-3 border-b border-border hover:opacity-90 transition-opacity"
+            >
               <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center shadow-xs">
                 <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
@@ -69,7 +74,7 @@ export function MobileNav({ items, roleLabel, userName, onLogout }: MobileNavPro
                 <span className="text-sm font-bold text-foreground">{APP_NAME}</span>
                 <span className="text-[11px] font-semibold text-brand-text">{roleLabel}</span>
               </div>
-            </div>
+            </Link>
 
             {/* Nav list */}
             <nav className="flex-1 overflow-y-auto py-4 px-4 space-y-1">
