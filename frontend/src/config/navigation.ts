@@ -25,3 +25,9 @@ export const parentNav: NavItem[] = [
   { title: "Hóa đơn học phí", href: "/parent/tuition", icon: "tuition" },
   { title: "Thông báo", href: "/parent/notifications", icon: "notifications" },
 ];
+
+export const adminNav: NavItem[] = [
+  { title: "Tổng quan", href: "/admin/dashboard", icon: "dashboard", exact: true },
+  { title: "Quản lý tài khoản", href: "/admin/users", icon: "teachers" },
+  { title: "Xếp lớp & Phân công", href: "/admin/classes", icon: "students" },
+];
