@@ -15,7 +15,7 @@ export default function AdminClassesPage() {
         </div>
         <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
         <p className="mt-1 text-sm text-muted">
-          Đang chờ kết nối API xếp lớp và phân công giáo viên ([FE][FR-CLASS-01]).
+          Đang chờ kết nối API xếp lớp và phân công giáo viên.
         </p>
       </div>
     </div>

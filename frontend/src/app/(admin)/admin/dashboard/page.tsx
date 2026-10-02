@@ -15,7 +15,7 @@ export default function AdminDashboardPage() {
         </div>
         <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
         <p className="mt-1 text-sm text-muted">
-          Đang chờ kết nối API báo cáo và thống kê tổng quan ([FR-DASH-*]).
+          Đang chờ kết nối API báo cáo và thống kê tổng quan.
         </p>
       </div>
     </div>

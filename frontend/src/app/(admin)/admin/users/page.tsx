@@ -15,7 +15,7 @@ export default function AdminUsersPage() {
         </div>
         <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
         <p className="mt-1 text-sm text-muted">
-          Đang chờ kết nối API quản lý tài khoản và phân quyền ([FE][FR-USER-01/02]).
+          Đang chờ kết nối API quản lý tài khoản và phân quyền.
         </p>
       </div>
     </div>
