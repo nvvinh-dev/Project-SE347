@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -16,7 +17,7 @@ public class TokenService : ITokenService
         _configuration = configuration;
     }
 
-    public TokenResult GenerateToken(Guid userId, string roleClaim)
+    public TokenResult GenerateToken(Guid userId, string roleClaim, int tokenVersion)
     {
         var jwtSection = _configuration.GetSection("Jwt");
         var secretKey = jwtSection["Key"]
@@ -33,6 +34,10 @@ public class TokenService : ITokenService
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim("role", roleClaim), // tên "role" phải khớp RoleClaimType cấu hình ở Program.cs
+            // D48: ActiveUserMiddleware so claim này với users.token_version ở mỗi request
+            new Claim("tv",
+                tokenVersion.ToString(CultureInfo.InvariantCulture),
+                ClaimValueTypes.Integer32),
             new Claim(JwtRegisteredClaimNames.Iat,
                 DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
                 ClaimValueTypes.Integer64),
