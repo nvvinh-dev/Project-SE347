@@ -5,6 +5,7 @@ using FluentValidation;
 using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Auth;
 using NhaTre.Application.Interfaces;
+using NhaTre.Domain.Constants;
 using System.IdentityModel.Tokens.Jwt;
 
 namespace NhaTre.API.Controllers;
@@ -41,8 +42,9 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<LoginResponse>.Ok(result));
     }
 
+    // D43 mục 4: khai báo tường minh vai trò được phép, không để [Authorize] trống — ở đây là cả 5 vai trò
     [HttpGet("me")]
-    [Authorize]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Teacher},{Roles.Accountant},{Roles.Medical},{Roles.Parent}")]
     public async Task<ActionResult<ApiResponse<CurrentUserResponse>>> Me()
     {
         // ActiveUserMiddleware đã kiểm tra claim sub là Guid hợp lệ trước khi vào đây

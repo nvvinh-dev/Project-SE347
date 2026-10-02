@@ -22,6 +22,7 @@ public class AuthRepository : IAuthRepository
     public async Task<User?> FindByIdAsync(Guid userId)
     {
         return await _dbContext.Users
+            .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
     }
 }

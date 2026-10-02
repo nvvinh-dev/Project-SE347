@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using NhaTre.Application.Interfaces;
+using NhaTre.Domain.Constants;
 using NhaTre.Domain.Entities;
 
 namespace NhaTre.Infrastructure.Persistence.Repositories;
 
 public class NotificationRepository : INotificationRepository
 {
-    // role_id khớp RoleConfiguration và Roles.FromRoleId
-    private const short MedicalRoleId = 4;
-    private const short ParentRoleId = 5;
+    private static readonly short MedicalRoleId = Roles.ToRoleId(Roles.Medical);
+    private static readonly short ParentRoleId = Roles.ToRoleId(Roles.Parent);
 
     private readonly AppDbContext _dbContext;
 
