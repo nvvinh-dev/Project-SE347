@@ -324,6 +324,11 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("child_id");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
                     b.Property<DateTime>("IssuedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("issued_at");
@@ -342,6 +347,9 @@ namespace NhaTre.Infrastructure.Migrations
 
                     b.HasIndex("ChildId")
                         .HasDatabaseName("ix_invoices_child_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_invoices_status");
 
                     b.HasIndex("TuitionFeeId")
                         .HasDatabaseName("ix_invoices_tuition_fee_id");
@@ -460,9 +468,20 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("attendance_id");
 
-                    b.Property<Guid?>("PickupPersonId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("pickup_person_id");
+                    b.Property<string>("ConfirmedByName")
+                        .HasColumnType("text")
+                        .HasColumnName("confirmed_by_name");
+
+                    b.Property<string>("PickerFullName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("picker_full_name");
+
+                    b.Property<string>("PickupMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("pickup_method");
 
                     b.Property<DateTime>("PickupTime")
                         .HasColumnType("timestamp with time zone")
@@ -479,13 +498,15 @@ namespace NhaTre.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_pickups_attendance_id");
 
-                    b.HasIndex("PickupPersonId")
-                        .HasDatabaseName("ix_pickups_pickup_person_id");
-
                     b.HasIndex("RecordedByTeacherId")
                         .HasDatabaseName("ix_pickups_recorded_by_teacher_id");
 
-                    b.ToTable("pickups", (string)null);
+                    b.ToTable("pickups", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Pickup_ConfirmedByName", "(pickup_method = 'PhoneConfirmed' AND confirmed_by_name IS NOT NULL AND confirmed_by_name <> '') OR (pickup_method <> 'PhoneConfirmed' AND confirmed_by_name IS NULL)");
+
+                            t.HasCheckConstraint("CK_Pickup_Method", "pickup_method IN ('Primary', 'Backup', 'PhoneConfirmed')");
+                        });
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.QuickHealthStatus", b =>
@@ -551,18 +572,61 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("child_id");
 
-                    b.Property<string>("FullName")
+                    b.Property<string>("CitizenIdNumber")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("citizen_id_number");
+
+                    b.Property<DateTime>("ConsentConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consent_confirmed_at");
+
+                    b.Property<Guid>("ConsentConfirmedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("consent_confirmed_by_user_id");
+
+                    b.Property<string>("FacePhotoReference")
                         .IsRequired()
                         .HasColumnType("text")
+                        .HasColumnName("face_photo_reference");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("full_name");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("phone_number");
+
+                    b.Property<short>("Priority")
+                        .HasColumnType("smallint")
+                        .HasColumnName("priority");
+
+                    b.Property<string>("Relationship")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("relationship");
 
                     b.HasKey("Id")
                         .HasName("pk_registered_pickup_persons");
 
-                    b.HasIndex("ChildId")
-                        .HasDatabaseName("ix_registered_pickup_persons_child_id");
+                    b.HasIndex("ConsentConfirmedByUserId")
+                        .HasDatabaseName("ix_registered_pickup_persons_consent_confirmed_by_user_id");
 
-                    b.ToTable("registered_pickup_persons", (string)null);
+                    b.HasIndex("ChildId", "Priority")
+                        .IsUnique()
+                        .HasDatabaseName("ix_registered_pickup_persons_child_id_priority");
+
+                    b.ToTable("registered_pickup_persons", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RegisteredPickupPerson_Priority", "priority IN (1, 2)");
+                        });
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Role", b =>
@@ -999,12 +1063,6 @@ namespace NhaTre.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_pickups_attendances_attendance_id");
 
-                    b.HasOne("NhaTre.Domain.Entities.RegisteredPickupPerson", "PickupPerson")
-                        .WithMany("Pickups")
-                        .HasForeignKey("PickupPersonId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_pickups_registered_pickup_persons_pickup_person_id");
-
                     b.HasOne("NhaTre.Domain.Entities.Teacher", "RecordedByTeacher")
                         .WithMany("Pickups")
                         .HasForeignKey("RecordedByTeacherId")
@@ -1013,8 +1071,6 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasConstraintName("fk_pickups_teachers_recorded_by_teacher_id");
 
                     b.Navigation("Attendance");
-
-                    b.Navigation("PickupPerson");
 
                     b.Navigation("RecordedByTeacher");
                 });
@@ -1048,6 +1104,13 @@ namespace NhaTre.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_registered_pickup_persons_children_child_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ConsentConfirmedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_registered_pickup_persons_users_consent_confirmed_by_user_id");
 
                     b.Navigation("Child");
                 });
@@ -1128,11 +1191,6 @@ namespace NhaTre.Infrastructure.Migrations
             modelBuilder.Entity("NhaTre.Domain.Entities.Invoice", b =>
                 {
                     b.Navigation("Payments");
-                });
-
-            modelBuilder.Entity("NhaTre.Domain.Entities.RegisteredPickupPerson", b =>
-                {
-                    b.Navigation("Pickups");
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Role", b =>

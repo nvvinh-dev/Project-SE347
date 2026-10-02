@@ -10,6 +10,9 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
     {
         builder.Property(i => i.Amount).HasPrecision(12, 2);
 
+        // Lọc danh sách theo trạng thái và đếm hóa đơn chưa thanh toán cho báo cáo doanh thu
+        builder.HasIndex(i => i.Status);
+
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("CK_Invoice_AmountPositive", "amount > 0");
