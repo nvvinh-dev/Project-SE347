@@ -5,7 +5,7 @@ export default function MedicalHealthPage() {
     <div className="space-y-6">
       <PageHeader
         title="Theo dõi thể chất"
-        description="Đo lường và ghi nhận các chỉ số chiều cao, cân nặng định kỳ của trẻ"
+        description="Ghi nhận và theo dõi các chỉ số chiều cao, cân nặng theo từng lần đo của trẻ"
       />
       <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
@@ -15,7 +15,7 @@ export default function MedicalHealthPage() {
         </div>
         <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
         <p className="mt-1 text-sm text-muted">
-          Bảng theo dõi và thống kê thể chất học sinh đang được kết nối với API backend.
+          Bảng theo dõi thể chất học sinh theo từng lần đo đang được kết nối với API backend.
         </p>
       </div>
     </div>

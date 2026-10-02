@@ -5,7 +5,7 @@ export default function MedicalNotificationsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Thông báo sự cố"
-        description="Danh sách các thông báo sự cố y tế và cảnh báo sức khỏe gửi tới phụ huynh"
+        description="Danh sách thông báo nhận khi giáo viên ghi nhận sự cố sức khỏe mới của trẻ"
       />
       <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">

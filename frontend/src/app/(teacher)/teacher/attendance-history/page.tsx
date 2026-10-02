@@ -5,7 +5,7 @@ export default function AttendanceHistoryPage() {
     <div className="space-y-6">
       <PageHeader
         title="Lịch sử điểm danh"
-        description="Tra cứu và theo dõi lịch sử chuyên cần của học sinh theo ngày, tuần và tháng"
+        description="Tra cứu lịch sử chuyên cần của lớp theo một trẻ hoặc theo một ngày"
       />
       <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
