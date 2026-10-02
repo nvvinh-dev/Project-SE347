@@ -113,16 +113,18 @@ public class TuitionService : ITuitionService
         await _tuitionRepository.SaveChangesAsync();
 
         // D39 mục 6: hóa đơn mới gửi phụ huynh của đúng trẻ, sau khi hóa đơn đã lưu
-        await _notificationService.NotifyParentsOfChildAsync(child.Id, NewInvoiceMessage(invoice));
+        await _notificationService.NotifyParentsOfChildAsync(child.Id,
+            NewInvoiceMessage(child.FullName, invoice.Description, invoice.Amount));
 
         return new InvoiceResult(InvoiceOutcome.Success, ToResponse(invoice));
     }
 
     // Hóa đơn đã paid bị khóa: mọi yêu cầu sửa số tiền, mô tả hay trẻ → 409 (BR-TUITION-12, D44 mục 4).
     // Hóa đơn unpaid sửa được cả trẻ vì không có thao tác xóa, lập nhầm trẻ chỉ sửa được cách này.
-    // Thông báo hóa đơn mới đã gửi thì không thu hồi được và phụ huynh có thể thanh toán theo nội
-    // dung đó, nên sửa xong phải báo lại: đổi trẻ thì báo phụ huynh trẻ cũ không cần thanh toán và
-    // báo phụ huynh trẻ mới như hóa đơn mới; chỉ đổi số tiền hoặc mô tả thì báo hóa đơn đã cập nhật.
+    // Lưu bằng UPDATE có điều kiện status = 'unpaid', không sửa hóa đơn đã đọc rồi SaveChanges: người
+    // khác có thể ghi nhận thanh toán giữa lúc đọc và lúc lưu, khi đó không dòng nào được cập nhật
+    // → 409, không gửi thông báo. `invoice` giữ nguyên giá trị trước khi sửa để soạn thông báo.
+    // Thông báo khi sửa theo D39 mục 6, sự kiện 1.
     public async Task<InvoiceResult> UpdateInvoiceAsync(Guid id, InvoiceRequest request)
     {
         var invoice = await _tuitionRepository.FindInvoiceByIdAsync(id);
@@ -132,46 +134,40 @@ public class TuitionService : ITuitionService
         if (invoice.Status == InvoiceStatuses.Paid)
             return new InvoiceResult(InvoiceOutcome.InvoicePaid);
 
-        var oldChildId = invoice.ChildId;
-        var oldChildFullName = invoice.Child.FullName;
-        var oldAmount = invoice.Amount;
-        var oldDescription = invoice.Description;
-
+        Child? child = invoice.Child;
         if (request.ChildId != invoice.ChildId)
         {
-            var child = await _childRepository.FindByIdAsync(request.ChildId);
+            child = await _childRepository.FindByIdAsync(request.ChildId);
             if (child is null)
                 return new InvoiceResult(InvoiceOutcome.ChildNotFound);
-
-            invoice.ChildId = child.Id;
-            invoice.Child = child;
         }
 
-        invoice.Amount = request.Amount;
-        invoice.Description = request.Description.Trim();
+        var description = request.Description.Trim();
+        var updated = await _tuitionRepository.UpdateUnpaidInvoiceAsync(id, child.Id, request.Amount, description);
+        if (!updated)
+            return new InvoiceResult(InvoiceOutcome.InvoicePaid);
 
-        await _tuitionRepository.SaveChangesAsync();
-
-        if (invoice.ChildId != oldChildId)
-        {
-            await _notificationService.NotifyParentsOfChildAsync(oldChildId,
-                $"Hóa đơn của bé {oldChildFullName}: {oldDescription}, số tiền {FormatAmount(oldAmount)} đồng " +
-                "đã được Kế toán điều chỉnh sang bé khác. Phụ huynh không cần thanh toán hóa đơn này.");
-            await _notificationService.NotifyParentsOfChildAsync(invoice.ChildId, NewInvoiceMessage(invoice));
-        }
-        else if (invoice.Amount != oldAmount || invoice.Description != oldDescription)
+        if (child.Id != invoice.ChildId)
         {
             await _notificationService.NotifyParentsOfChildAsync(invoice.ChildId,
-                $"Hóa đơn của bé {invoice.Child.FullName} đã được cập nhật: {invoice.Description}, " +
-                $"số tiền {FormatAmount(invoice.Amount)} đồng.");
+                $"Hóa đơn của bé {invoice.Child.FullName}: {invoice.Description}, số tiền {FormatAmount(invoice.Amount)} đồng " +
+                "đã được Kế toán điều chỉnh sang bé khác. Phụ huynh không cần thanh toán hóa đơn này.");
+            await _notificationService.NotifyParentsOfChildAsync(child.Id,
+                NewInvoiceMessage(child.FullName, description, request.Amount));
+        }
+        else if (request.Amount != invoice.Amount || description != invoice.Description)
+        {
+            await _notificationService.NotifyParentsOfChildAsync(child.Id,
+                $"Hóa đơn của bé {child.FullName} đã được cập nhật: {description}, " +
+                $"số tiền {FormatAmount(request.Amount)} đồng.");
         }
 
-        return new InvoiceResult(InvoiceOutcome.Success, ToResponse(invoice));
+        return new InvoiceResult(InvoiceOutcome.Success, new InvoiceResponse(invoice.Id, child.Id, child.FullName,
+            request.Amount, description, InvoiceStatuses.Unpaid, invoice.IssuedAt));
     }
 
-    private static string NewInvoiceMessage(Invoice invoice)
-        => $"Có hóa đơn mới cho bé {invoice.Child.FullName}: {invoice.Description}, " +
-           $"số tiền {FormatAmount(invoice.Amount)} đồng.";
+    private static string NewInvoiceMessage(string childFullName, string description, decimal amount)
+        => $"Có hóa đơn mới cho bé {childFullName}: {description}, số tiền {FormatAmount(amount)} đồng.";
 
     private static string FormatAmount(decimal amount)
         => amount.ToString("#,##0.##", VietnameseNumberFormat);

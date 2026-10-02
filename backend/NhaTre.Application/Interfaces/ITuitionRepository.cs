@@ -14,5 +14,8 @@ public interface ITuitionRepository
     Task<Invoice?> FindInvoiceByIdAsync(Guid id);
     void AddInvoice(Invoice invoice);
 
+    // Sửa hóa đơn bằng một câu UPDATE chỉ khớp khi hóa đơn còn unpaid; false khi không dòng nào khớp
+    Task<bool> UpdateUnpaidInvoiceAsync(Guid id, Guid childId, decimal amount, string description);
+
     Task SaveChangesAsync();
 }
