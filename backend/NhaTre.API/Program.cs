@@ -123,6 +123,7 @@ builder.Services.AddScoped<ITuitionRepository, TuitionRepository>();
 builder.Services.AddScoped<ITuitionService, TuitionService>();
 builder.Services.AddScoped<IValidator<TuitionFeeRequest>, TuitionFeeRequestValidator>();
 builder.Services.AddScoped<IValidator<InvoiceRequest>, InvoiceRequestValidator>();
+builder.Services.AddHttpClient<IFileStorageService, SupabaseFileStorageService>(); // D22, D53: Supabase:Url và Supabase:ServiceKey đọc lúc gọi, không chặn khởi động
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -237,6 +238,7 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+app.UseMiddleware<SecurityHeadersMiddleware>(); // D55: đứng đầu pipeline để mọi response đều mang header, kể cả 307/429/500
 app.UseExceptionHandler();
 
 // D38: bọc nốt các response do framework sinh ra mà KHÔNG có body — 404 (route không
