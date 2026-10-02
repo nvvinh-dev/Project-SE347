@@ -25,7 +25,8 @@ public class SecurityEventRepository : ISecurityEventRepository
             // Mở scope mới để có DbContext và kết nối riêng, không dùng DbContext của request:
             // lưu hỏng trên DbContext chung thì entity lỗi vẫn bị theo dõi và làm hỏng lần
             // SaveChanges sau của nghiệp vụ; lưu trong transaction đang mở thì một câu lệnh lỗi
-            // làm Postgres hủy cả transaction đó.
+            // làm Postgres hủy cả transaction đó. Kết nối riêng KHÔNG làm cho việc gọi bên trong
+            // transaction trở nên an toàn — xem chú thích ở ISecurityEventService.
             await using var scope = _scopeFactory.CreateAsyncScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
