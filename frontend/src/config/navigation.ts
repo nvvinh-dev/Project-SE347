@@ -31,3 +31,19 @@ export const adminNav: NavItem[] = [
   { title: "Quản lý tài khoản", href: "/admin/users", icon: "teachers" },
   { title: "Xếp lớp & Phân công", href: "/admin/classes", icon: "students" },
 ];
+
+export const teacherNav: NavItem[] = [
+  { title: "Điểm danh vào lớp", href: "/teacher/attendance", icon: "attendance", exact: true },
+  { title: "Lịch sử điểm danh", href: "/teacher/attendance-history", icon: "history" },
+  { title: "Đón trẻ buổi chiều", href: "/teacher/pickup", icon: "pickups" },
+  { title: "Lưu ý sức khỏe lớp", href: "/teacher/class-children", icon: "students" },
+  { title: "Sức khỏe & Sự cố", href: "/teacher/incidents", icon: "health" },
+  { title: "Ảnh hoạt động lớp", href: "/teacher/media", icon: "photos" },
+];
+
+export const medicalNav: NavItem[] = [
+  { title: "Theo dõi thể chất", href: "/medical/health", icon: "health", exact: true },
+  { title: "Sổ lưu ý & Dị ứng", href: "/medical/health-notes", icon: "notes" },
+  { title: "Hồ sơ sức khỏe & Sự cố", href: "/medical/health-history", icon: "history" },
+  { title: "Thông báo", href: "/medical/notifications", icon: "notifications" },
+];
