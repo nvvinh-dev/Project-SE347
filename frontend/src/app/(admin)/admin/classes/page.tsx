@@ -1,10 +1,23 @@
+import { PageHeader } from "@/components/layout/PageHeader";
+
 export default function AdminClassesPage() {
   return (
-    <div className="bg-[#FEFEFE] rounded-3xl p-8 border border-[#ECEDEC] shadow-sm">
-      <h1 className="text-xl font-bold text-[#121314]">Xếp lớp &amp; Phân công</h1>
-      <p className="text-sm text-[#606363] mt-2">
-        Đang chờ kết nối API xếp lớp và phân công giáo viên ([FE][FR-CLASS-01]).
-      </p>
+    <div className="space-y-6">
+      <PageHeader
+        title="Xếp lớp & Phân công"
+        description="Quản lý 3 khối lớp và phân công giáo viên chủ nhiệm"
+      />
+      <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </div>
+        <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
+        <p className="mt-1 text-sm text-muted">
+          Đang chờ kết nối API xếp lớp và phân công giáo viên ([FE][FR-CLASS-01]).
+        </p>
+      </div>
     </div>
   );
 }

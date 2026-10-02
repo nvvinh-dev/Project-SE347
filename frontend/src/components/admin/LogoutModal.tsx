@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { apiClient } from "@/lib/axios";
 
 interface LogoutModalProps {
   isOpen: boolean;
@@ -11,7 +9,6 @@ interface LogoutModalProps {
 }
 
 export function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
-  const router = useRouter();
   const { logout } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,16 +31,11 @@ export function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
   async function handleConfirmLogout() {
     setIsSubmitting(true);
     try {
-      // D48: Gọi API POST /api/auth/logout để backend thu hồi token.
-      // TODO: Sau khi PR #9 của Trang merge vào develop, logout() trong AuthContext sẽ tự gọi API này.
-      // Lúc đó bỏ dòng apiClient.post("/api/auth/logout") dưới đây để tránh gọi 2 lần.
-      await apiClient.post("/api/auth/logout");
-    } catch {
-      // Ngay cả khi request lỗi mạng hoặc 404, client vẫn dọn dẹp state và chuyển trang an toàn
-    } finally {
-      logout();
+      // D48: AuthContext trên develop đã tự gọi POST /api/auth/logout và chuyển về /login
+      await logout();
       onClose();
-      router.push("/login");
+    } catch {
+      onClose();
     }
   }
 
@@ -52,22 +44,22 @@ export function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
       onClick={() => {
         if (!isSubmitting) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200"
       aria-modal="true"
       role="dialog"
     >
       <div
-        className="w-full max-w-md bg-[#FEFEFE] rounded-3xl p-6 sm:p-7 shadow-[0_8px_30px_rgba(30,60,50,0.12)] border border-[#ECEDEC] relative animate-in zoom-in-95 duration-200"
+        className="w-full max-w-md bg-card rounded-2xl p-6 sm:p-7 shadow-xl border border-border relative animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Soft Peach Warning Icon */}
-        <div className="w-14 h-14 rounded-2xl bg-[#FBE8E2] text-[#E8916E] flex items-center justify-center mb-5 mx-auto">
+        {/* Soft Warning Icon */}
+        <div className="w-12 h-12 rounded-full bg-danger-bg text-danger flex items-center justify-center mb-4 mx-auto border border-danger-border">
           <svg
-            className="w-7 h-7"
+            className="w-6 h-6"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.2"
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
@@ -78,12 +70,11 @@ export function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
         </div>
 
         <div className="text-center space-y-2 mb-6">
-          <h2 className="text-xl font-bold text-[#121314]">
+          <h2 className="text-lg font-bold text-foreground">
             Xác nhận đăng xuất
           </h2>
-          <p className="text-sm text-[#606363] leading-relaxed">
+          <p className="text-sm text-muted leading-relaxed">
             Bạn có chắc chắn muốn kết thúc phiên làm việc Quản trị viên hiện tại không?
-            Mọi thao tác chưa lưu có thể bị gián đoạn.
           </p>
         </div>
 
@@ -93,7 +84,7 @@ export function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
             type="button"
             disabled={isSubmitting}
             onClick={onClose}
-            className="flex-1 py-3 px-5 rounded-full text-sm font-semibold border border-[#ECEDEC] text-[#606363] hover:bg-[#F8F8F9] hover:text-[#121314] transition-colors disabled:opacity-50"
+            className="flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold border border-border text-muted hover:bg-background hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer"
           >
             Hủy bỏ
           </button>
@@ -101,7 +92,7 @@ export function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
             type="button"
             disabled={isSubmitting}
             onClick={handleConfirmLogout}
-            className="flex-1 py-3 px-5 rounded-full text-sm font-semibold bg-[#E8916E] hover:bg-[#D96B43] text-white shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold bg-danger hover:bg-danger/90 text-white shadow-xs transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
             {isSubmitting ? (
               <>
