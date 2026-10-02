@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/context/AuthContext";
-import { toApiError } from "@/lib/axios";
+import { ApiError, toApiError } from "@/lib/axios";
 
 interface LoginFormInputs {
   email: string;
@@ -43,25 +43,17 @@ export default function LoginPage() {
 
     try {
       await login(data.email, data.password);
-      // Đăng nhập thành công chỉ gọi router.replace("/") theo quy ước §4.0.1
+      // Đăng nhập thành công chỉ gọi router.replace("/"), trang chủ / lo chuyển tới trang đầu của vai trò
       router.replace("/");
     } catch (err) {
-      const apiErr = toApiError(err);
-
-      // Bắt mã lỗi HTTP 429 khi vượt ngưỡng giới hạn tần suất đăng nhập (D54: 5 lần/phút)
-      if (apiErr.status === 429) {
-        setServerError(
-          apiErr.message ||
-            "Bạn đã thử đăng nhập quá nhiều lần (tối đa 5 lần/phút). Vui lòng thử lại sau 1 phút."
-        );
-        return;
-      }
+      // login() đã ném sẵn ApiError, chuyển đổi lần nữa sẽ mất message và status
+      const apiErr = err instanceof ApiError ? err : toApiError(err);
 
       if (apiErr.errors && apiErr.errors.length > 0) {
         setServerFieldErrors(apiErr.errors);
       }
 
-      setServerError(apiErr.message ?? "Đăng nhập thất bại. Vui lòng thử lại.");
+      setServerError(apiErr.message);
     }
   }
 
