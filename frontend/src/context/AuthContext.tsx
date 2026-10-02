@@ -19,7 +19,7 @@ import {
 } from "@/lib/axios";
 import type { ApiResponse, LoginResponseData, CurrentUserResponseData, Role } from "@/types/auth";
 
-interface AuthUser {
+export interface AuthUser {
   userId: string;
   fullName: string;
   role: Role;
@@ -30,7 +30,7 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -41,11 +41,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const logout = useCallback(() => {
+  // D48: Thu hồi token qua POST /api/auth/logout trước khi xóa Context và localStorage
+  const logout = useCallback(async () => {
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
-    setToken(null);
-    setUser(null);
-    setAuthToken(null);
+    try {
+      await apiClient.post("/api/auth/logout");
+    } catch (err) {
+      // Bắt lỗi qua toApiError; nếu server chưa có endpoint hoặc lỗi mạng thì vẫn dọn dẹp an toàn
+      const apiErr = toApiError(err);
+      console.warn("Lỗi khi đăng xuất ở máy chủ:", apiErr.message);
+    } finally {
+      setToken(null);
+      setUser(null);
+      setAuthToken(null);
+      if (typeof window !== "undefined") {
+        window.location.replace("/login");
+      }
+    }
   }, []);
 
   // Đặt timer tự logout đúng lúc token hết hạn
@@ -54,10 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
       const msUntilExpiry = new Date(expiresAtUtc).getTime() - Date.now();
       if (msUntilExpiry <= 0) {
-        logout();
+        void logout();
         return;
       }
-      logoutTimerRef.current = setTimeout(logout, msUntilExpiry);
+      logoutTimerRef.current = setTimeout(() => {
+        void logout();
+      }, msUntilExpiry);
     },
     [logout]
   );
@@ -93,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedExpiry) {
           scheduleAutoLogout(storedExpiry);
         } else {
-          logout();
+          void logout();
         }
       } catch {
         setAuthToken(null);
