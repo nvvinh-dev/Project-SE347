@@ -7,6 +7,10 @@ public static class Roles
     public const string Accountant = "Accountant";
     public const string Medical = "Medical";
     public const string Parent = "Parent";
+
+    // Cho [Authorize(Roles = ...)] của chức năng mọi vai trò đều có, như đăng xuất. D43 mục 4
+    // vẫn yêu cầu khai báo tường minh: không dùng [Authorize] trống thay cho hằng số này.
+    public const string All = Admin + "," + Teacher + "," + Accountant + "," + Medical + "," + Parent;
     private static readonly Dictionary<short, string> RoleIdToClaim = new()
     {
         [1] = Admin,

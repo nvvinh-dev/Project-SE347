@@ -9,15 +9,18 @@ public class AuthService : IAuthService
     private readonly IAuthRepository _authRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
+    private readonly ISecurityEventService _securityEventService;
 
     public AuthService(
         IAuthRepository authRepository,
         IPasswordHasher passwordHasher,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        ISecurityEventService securityEventService)
     {
         _authRepository = authRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
+        _securityEventService = securityEventService;
     }
 
     public async Task<LoginResponse?> LoginAsync(LoginRequest request)
@@ -28,17 +31,31 @@ public class AuthService : IAuthService
         var user = await _authRepository.FindByLoginIdentifierAsync(normalizedEmail);
 
         if (user is null)
+        {
+            await RecordLoginFailedAsync(normalizedEmail, targetUserId: null);
             return null;
+        }
 
         if (!_passwordHasher.Verify(user.CredentialReference, request.Password))
+        {
+            await RecordLoginFailedAsync(normalizedEmail, user.Id);
             return null;
+        }
 
         // D20: chặn ngay tại lúc login nếu tài khoản đã bị khóa
         if (!user.IsActive)
+        {
+            await RecordLoginFailedAsync(normalizedEmail, user.Id);
             return null;
+        }
 
         var roleClaim = Roles.FromRoleId(user.RoleId);
-        var tokenResult = _tokenService.GenerateToken(user.Id, roleClaim);
+        var tokenResult = _tokenService.GenerateToken(user.Id, roleClaim, user.TokenVersion);
+
+        await _securityEventService.RecordAsync(
+            SecurityEventTypes.LoginSucceeded,
+            actorUserId: user.Id,
+            targetUserId: user.Id);
 
         return new LoginResponse(
             tokenResult.Token,
@@ -60,5 +77,28 @@ public class AuthService : IAuthService
             user.Id,
             user.FullName,
             Roles.FromRoleId(user.RoleId));
+    }
+
+    // D48: tăng token_version làm mọi token đã phát của người dùng mất hiệu lực trên mọi thiết
+    // bị ngay từ request kế tiếp. Không lưu token trong database (NFR-SEC-25).
+    public async Task LogoutAsync(Guid userId)
+    {
+        await _authRepository.IncrementTokenVersionAsync(userId);
+
+        await _securityEventService.RecordAsync(
+            SecurityEventTypes.Logout,
+            actorUserId: userId,
+            targetUserId: userId);
+    }
+
+    // D50: chưa xác định được ai đăng nhập nên actor rỗng; target là tài khoản mang email đó
+    // nếu có, để tra được các lần đoán mật khẩu nhắm vào một tài khoản
+    private Task RecordLoginFailedAsync(string normalizedEmail, Guid? targetUserId)
+    {
+        return _securityEventService.RecordAsync(
+            SecurityEventTypes.LoginFailed,
+            actorUserId: null,
+            targetUserId: targetUserId,
+            targetReference: normalizedEmail);
     }
 }

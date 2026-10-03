@@ -11,9 +11,10 @@ interface MobileNavProps {
   roleLabel: string;
   userName: string;
   onLogout: () => Promise<void>;
+  notificationsHref?: string;
 }
 
-export function MobileNav({ items, roleLabel, userName, onLogout }: MobileNavProps) {
+export function MobileNav({ items, roleLabel, userName, onLogout, notificationsHref }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
@@ -36,21 +37,34 @@ export function MobileNav({ items, roleLabel, userName, onLogout }: MobileNavPro
           <span className="text-sm font-bold text-foreground">{APP_NAME}</span>
           <span className="text-[10px] font-semibold bg-brand-subtle text-brand-text px-2 py-0.5 rounded-full border border-brand-border">{roleLabel}</span>
         </div>
-        <button
-          onClick={() => setOpen(!open)}
-          className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-background text-foreground transition-colors cursor-pointer"
-          aria-label="Toggle menu"
-        >
-          {open ? (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+        <div className="flex items-center gap-1.5">
+          {notificationsHref && (
+            <Link
+              href={notificationsHref}
+              className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-background text-muted hover:text-brand-text transition-colors cursor-pointer"
+              title="Thông báo"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </Link>
           )}
-        </button>
+          <button
+            onClick={() => setOpen(!open)}
+            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-background text-foreground transition-colors cursor-pointer"
+            aria-label="Toggle menu"
+          >
+            {open ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Overlay drawer */}

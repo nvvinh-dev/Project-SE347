@@ -42,9 +42,8 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<LoginResponse>.Ok(result));
     }
 
-    // D43 mục 4: khai báo tường minh vai trò được phép, không để [Authorize] trống — ở đây là cả 5 vai trò
     [HttpGet("me")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Teacher},{Roles.Accountant},{Roles.Medical},{Roles.Parent}")]
+    [Authorize(Roles = Roles.All)]
     public async Task<ActionResult<ApiResponse<CurrentUserResponse>>> Me()
     {
         // ActiveUserMiddleware đã kiểm tra claim sub là Guid hợp lệ trước khi vào đây
@@ -56,5 +55,19 @@ public class AuthController : ControllerBase
             return NotFound(ApiResponse<CurrentUserResponse>.Fail("Không tìm thấy tài khoản."));
 
         return Ok(ApiResponse<CurrentUserResponse>.Ok(result));
+    }
+
+    [HttpPost("logout")]
+    [Authorize(Roles = Roles.All)]
+    public async Task<ActionResult<ApiResponse<object?>>> Logout()
+    {
+        // D44: chỉ kết thúc phiên của chính mình — định danh lấy từ token, không nhận từ client.
+        // Token đã mất hiệu lực thì ActiveUserMiddleware trả 401 trước khi vào đây.
+        var userId = Guid.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
+
+        await _authService.LogoutAsync(userId);
+
+        // D45: chỉ xác nhận thành công, không trả dữ liệu nào khác
+        return Ok(ApiResponse<object?>.Ok(null, "Đăng xuất thành công."));
     }
 }
