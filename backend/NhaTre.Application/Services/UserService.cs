@@ -9,11 +9,16 @@ public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly ISecurityEventService _securityEventService;
 
-    public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher)
+    public UserService(
+        IUserRepository userRepository,
+        IPasswordHasher passwordHasher,
+        ISecurityEventService securityEventService)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
+        _securityEventService = securityEventService;
     }
 
     public async Task<IReadOnlyList<UserResponse>> GetUsersAsync()
@@ -90,10 +95,17 @@ public class UserService : IUserService
         if (outcome != UserOutcome.Success)
             return new UserResult(outcome);
 
+        // D50: ghi sau khi repository đã commit — gọi trong transaction đang khóa các Admin sẽ treo request
+        await _securityEventService.RecordAsync(
+            SecurityEventTypes.AccountActivationChanged,
+            actorUserId: actorUserId,
+            targetUserId: id,
+            detail: SecurityEventDetails.Deactivated);
+
         return new UserResult(UserOutcome.Success, ToResponse(user) with { IsActive = false });
     }
 
-    public async Task<UserResult> ActivateUserAsync(Guid id)
+    public async Task<UserResult> ActivateUserAsync(Guid id, Guid actorUserId)
     {
         var user = await _userRepository.FindByIdAsync(id);
 
@@ -107,11 +119,17 @@ public class UserService : IUserService
         if (!await _userRepository.ActivateAsync(id))
             return new UserResult(UserOutcome.AlreadyActive);
 
+        await _securityEventService.RecordAsync(
+            SecurityEventTypes.AccountActivationChanged,
+            actorUserId: actorUserId,
+            targetUserId: id,
+            detail: SecurityEventDetails.Activated);
+
         return new UserResult(UserOutcome.Success, ToResponse(user) with { IsActive = true });
     }
 
     // Đặt lại được cả tài khoản đang bị vô hiệu hóa; trạng thái giữ nguyên
-    public async Task<UserResult> ResetPasswordAsync(Guid id, ResetPasswordRequest request)
+    public async Task<UserResult> ResetPasswordAsync(Guid id, ResetPasswordRequest request, Guid actorUserId)
     {
         var user = await _userRepository.FindByIdAsync(id);
 
@@ -119,6 +137,12 @@ public class UserService : IUserService
             return new UserResult(UserOutcome.UserNotFound);
 
         await _userRepository.ResetPasswordAsync(id, _passwordHasher.Hash(request.NewPassword));
+
+        // D50: sự kiện này không có detail; không bao giờ ghi mật khẩu hay hash
+        await _securityEventService.RecordAsync(
+            SecurityEventTypes.PasswordResetByAdmin,
+            actorUserId: actorUserId,
+            targetUserId: id);
 
         return new UserResult(UserOutcome.Success, ToResponse(user));
     }

@@ -87,17 +87,14 @@ public class UsersController : ControllerBase
     [HttpPost("{id:guid}/deactivate")]
     public async Task<ActionResult<ApiResponse<UserResponse>>> DeactivateUser(Guid id)
     {
-        // ActiveUserMiddleware đã kiểm tra claim sub là Guid hợp lệ trước khi vào đây
-        var actorUserId = Guid.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
-
-        var result = await _userService.DeactivateUserAsync(id, actorUserId);
+        var result = await _userService.DeactivateUserAsync(id, GetActorUserId());
         return ToActionResult(result);
     }
 
     [HttpPost("{id:guid}/activate")]
     public async Task<ActionResult<ApiResponse<UserResponse>>> ActivateUser(Guid id)
     {
-        var result = await _userService.ActivateUserAsync(id);
+        var result = await _userService.ActivateUserAsync(id, GetActorUserId());
         return ToActionResult(result);
     }
 
@@ -111,9 +108,13 @@ public class UsersController : ControllerBase
             return BadRequest(ApiResponse<UserResponse>.Fail(errors));
         }
 
-        var result = await _userService.ResetPasswordAsync(id, request);
+        var result = await _userService.ResetPasswordAsync(id, request, GetActorUserId());
         return ToActionResult(result);
     }
+
+    // Người thực hiện lấy từ token, không nhận từ client (D44). ActiveUserMiddleware đã kiểm tra
+    // claim sub là Guid hợp lệ trước khi vào đây
+    private Guid GetActorUserId() => Guid.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
 
     // Dịch kết quả của Service sang status code cho các thao tác trả 200 khi thành công
     private ActionResult<ApiResponse<UserResponse>> ToActionResult(UserResult result)
