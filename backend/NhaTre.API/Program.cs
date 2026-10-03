@@ -19,6 +19,8 @@ using NhaTre.Application.Validators.Tuition;
 using NhaTre.Application.DTOs.Tuition;
 using NhaTre.Application.Validators.Users;
 using NhaTre.Application.DTOs.Users;
+using NhaTre.Application.Validators.Attendance;
+using NhaTre.Application.DTOs.Attendance;
 using NhaTre.Application.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -135,6 +137,9 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IValidator<CreateUserRequest>, CreateUserRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateUserRequest>, UpdateUserRequestValidator>();
 builder.Services.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>();
+builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
+builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+builder.Services.AddScoped<IValidator<CheckInRequest>, CheckInRequestValidator>();
 builder.Services.AddHttpClient<IFileStorageService, SupabaseFileStorageService>(); // D22, D53: Supabase:Url và Supabase:ServiceKey đọc lúc gọi, không chặn khởi động
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
