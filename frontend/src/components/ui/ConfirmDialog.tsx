@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, ReactNode } from "react";
+import React, { useEffect, useRef, useId, useCallback, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
 
@@ -27,13 +27,28 @@ export function ConfirmDialog({
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
-  // Lắng nghe phím ESC để đóng dialog
+  const titleId = useId();
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // Bọc onClose trong ref để tránh re-register event khi reference thay đổi
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const handleClose = useCallback(() => {
+    if (!isLoading) {
+      onCloseRef.current();
+    }
+  }, [isLoading]);
+
   useEffect(() => {
     if (!isOpen) return;
 
+    // Lưu lại giá trị overflow cũ để khôi phục khi đóng
+    const previousOverflow = document.body.style.overflow;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !isLoading) {
-        onClose();
+        onCloseRef.current();
       }
     };
 
@@ -41,11 +56,17 @@ export function ConfirmDialog({
     // Khóa cuộn trang khi dialog mở
     document.body.style.overflow = "hidden";
 
+    // Focus vào nút Hủy khi mở dialog
+    requestAnimationFrame(() => {
+      cancelRef.current?.focus();
+    });
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "unset";
+      // Trả overflow về giá trị cũ thay vì "unset"
+      document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen, isLoading, onClose]);
+  }, [isOpen, isLoading]);
 
   if (!isOpen) return null;
 
@@ -54,14 +75,12 @@ export function ConfirmDialog({
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       aria-modal="true"
       role="dialog"
-      aria-labelledby="dialog-title"
+      aria-labelledby={titleId}
     >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
-        onClick={() => {
-          if (!isLoading) onClose();
-        }}
+        onClick={handleClose}
       />
 
       {/* Modal Dialog Card */}
@@ -97,7 +116,7 @@ export function ConfirmDialog({
           </div>
 
           <div className="flex-1">
-            <h3 id="dialog-title" className="text-base font-semibold text-foreground">
+            <h3 id={titleId} className="text-base font-semibold text-foreground">
               {title}
             </h3>
             <div className="mt-2 text-sm text-muted">{description}</div>
@@ -106,10 +125,10 @@ export function ConfirmDialog({
 
         <div className="mt-6 flex items-center justify-end gap-3">
           <Button
-            type="button"
+            ref={cancelRef}
             variant="secondary"
             disabled={isLoading}
-            onClick={onClose}
+            onClick={handleClose}
           >
             {cancelText}
           </Button>
