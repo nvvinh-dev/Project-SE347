@@ -5,7 +5,7 @@ export function useApiError() {
   const [error, setError] = useState<ApiError | null>(null);
 
   const handleError = useCallback((err: unknown): ApiError => {
-    const apiErr = toApiError(err);
+    const apiErr = err instanceof ApiError ? err : toApiError(err);
     setError(apiErr);
     return apiErr;
   }, []);
@@ -18,7 +18,6 @@ export function useApiError() {
     error,
     errorMessage: error?.message || null,
     validationErrors: error?.errors || null,
-    statusCode: error?.status || null,
     handleError,
     clearError,
     setError,

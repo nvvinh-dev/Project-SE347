@@ -1,63 +1,111 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { apiClient, toApiError } from "@/lib/axios";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 
-export interface SignedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
-  storagePath?: string | null;
+export interface SignedImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {
+  /** URL ký sẵn có từ API list/detail (nếu có). */
+  src?: string | null;
+  /**
+   * Callback xin URL ký hạn mới từ API theo id của module.
+   * Ví dụ: `() => apiClient.get(`/api/media/photos/${id}/url`).then(r => r.data.data.url)`
+   * Component sẽ gọi hàm này khi:
+   * - Không có `src` ban đầu
+   * - URL ảnh bị lỗi (hết hạn) — gọi lại tối đa 1 lần rồi hiện fallback
+   */
+  getUrl?: () => Promise<string>;
   fallbackIcon?: React.ReactNode;
   fallbackText?: string;
 }
 
 export function SignedImage({
-  storagePath,
   src,
+  getUrl,
   alt = "Ảnh",
   className,
   fallbackIcon,
   fallbackText,
   ...props
 }: SignedImageProps) {
-  const [fetchedUrl, setFetchedUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(Boolean(storagePath));
+  const [displayUrl, setDisplayUrl] = useState<string | null>(src ?? null);
+  const [isLoading, setIsLoading] = useState<boolean>(!src && !!getUrl);
   const [hasError, setHasError] = useState<boolean>(false);
-
-  const displayUrl = storagePath ? fetchedUrl : (src as string || null);
+  // Đếm số lần đã retry xin URL mới khi ảnh lỗi (tối đa 1 lần)
+  const retryCountRef = useRef(0);
+  // Theo dõi mounted để tránh setState sau unmount
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    if (!storagePath) return;
-
-    let isMounted = true;
-    // Bắt đầu fetch URL ký hạn (D53)
-    apiClient
-      .get<{ data?: { url?: string }; url?: string }>("/api/media/download-url", {
-        params: { path: storagePath },
-      })
-      .then((res) => {
-        if (!isMounted) return;
-        const url = res.data?.data?.url || res.data?.url;
-        if (url) {
-          setFetchedUrl(url);
-        } else {
-          setHasError(true);
-        }
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        console.warn("Lỗi khi xin URL ký hạn ảnh:", toApiError(err).message);
-        setHasError(true);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-
+    mountedRef.current = true;
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
     };
-  }, [storagePath]);
+  }, []);
 
-  if (storagePath && isLoading) {
+  // Khi src thay đổi (ví dụ chuyển ảnh khác), đặt lại toàn bộ state
+  useEffect(() => {
+    retryCountRef.current = 0;
+    setHasError(false);
+
+    if (src) {
+      setDisplayUrl(src);
+      setIsLoading(false);
+    } else if (getUrl) {
+      // Không có src sẵn → gọi getUrl lần đầu
+      setIsLoading(true);
+      setDisplayUrl(null);
+      getUrl()
+        .then((url) => {
+          if (mountedRef.current) {
+            setDisplayUrl(url);
+          }
+        })
+        .catch(() => {
+          if (mountedRef.current) {
+            setHasError(true);
+          }
+        })
+        .finally(() => {
+          if (mountedRef.current) {
+            setIsLoading(false);
+          }
+        });
+    } else {
+      // Không có src lẫn getUrl → hiện fallback
+      setDisplayUrl(null);
+      setIsLoading(false);
+    }
+  }, [src, getUrl]);
+
+  // Xử lý khi ảnh lỗi (URL hết hạn): gọi getUrl() lại tối đa 1 lần
+  const handleImageError = useCallback(() => {
+    if (getUrl && retryCountRef.current < 1) {
+      retryCountRef.current += 1;
+      setIsLoading(true);
+      getUrl()
+        .then((url) => {
+          if (mountedRef.current) {
+            setDisplayUrl(url);
+          }
+        })
+        .catch(() => {
+          if (mountedRef.current) {
+            setHasError(true);
+          }
+        })
+        .finally(() => {
+          if (mountedRef.current) {
+            setIsLoading(false);
+          }
+        });
+    } else {
+      setHasError(true);
+    }
+  }, [getUrl]);
+
+  // --- Render ---
+
+  if (isLoading) {
     return (
       <div
         className={cn(
@@ -112,13 +160,9 @@ export function SignedImage({
     <img
       src={displayUrl}
       alt={alt}
-      onError={() => setHasError(true)}
+      onError={handleImageError}
       className={className}
       {...props}
     />
   );
 }
-
-// Alias tương thích
-export const SecureImage = SignedImage;
-export type SecureImageProps = SignedImageProps;

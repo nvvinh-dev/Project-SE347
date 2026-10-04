@@ -4,26 +4,28 @@ import {
   UseQueryOptions,
   UseMutationOptions,
   QueryKey,
+  QueryFunctionContext,
 } from "@tanstack/react-query";
 import { toApiError, ApiError } from "@/lib/axios";
 
 /**
  * useApiQuery: Wrapper của TanStack useQuery (D13)
- * Tự động chuyển AxiosError sang ApiError có thông điệp tiếng Việt
+ * Tự động chuyển lỗi sang ApiError có thông điệp tiếng Việt.
+ * Truyền context của TanStack vào queryFn để còn signal hủy request.
  */
 export function useApiQuery<TData = unknown>(
   options: Omit<UseQueryOptions<TData, ApiError, TData, QueryKey>, "queryKey" | "queryFn"> & {
     queryKey: QueryKey;
-    queryFn: () => Promise<TData>;
+    queryFn: (context: QueryFunctionContext<QueryKey>) => Promise<TData>;
   }
 ) {
   return useQuery<TData, ApiError>({
     ...options,
-    queryFn: async () => {
+    queryFn: async (context) => {
       try {
-        return await options.queryFn();
+        return await options.queryFn(context);
       } catch (error) {
-        throw toApiError(error);
+        throw error instanceof ApiError ? error : toApiError(error);
       }
     },
   });
@@ -31,22 +33,21 @@ export function useApiQuery<TData = unknown>(
 
 /**
  * useApiMutation: Wrapper của TanStack useMutation (D13)
- * Tự động chuyển AxiosError sang ApiError có thông điệp tiếng Việt
+ * Tự động chuyển lỗi sang ApiError có thông điệp tiếng Việt.
+ * mutationFn là bắt buộc trong kiểu.
  */
 export function useApiMutation<TData = unknown, TVariables = void, TContext = unknown>(
-  options: UseMutationOptions<TData, ApiError, TVariables, TContext>
+  options: Omit<UseMutationOptions<TData, ApiError, TVariables, TContext>, "mutationFn"> & {
+    mutationFn: (variables: TVariables) => Promise<TData>;
+  }
 ) {
   return useMutation<TData, ApiError, TVariables, TContext>({
     ...options,
-    mutationFn: async (...args) => {
+    mutationFn: async (variables) => {
       try {
-        if (!options.mutationFn) {
-          throw new Error("mutationFn is required");
-        }
-        // Gọi mutationFn gốc với các tham số truyền vào
-        return await (options.mutationFn as (...params: unknown[]) => Promise<TData>)(...args);
+        return await options.mutationFn(variables);
       } catch (error) {
-        throw toApiError(error);
+        throw error instanceof ApiError ? error : toApiError(error);
       }
     },
   });
