@@ -97,9 +97,9 @@ export function DataTable<T>({
                 >
                   {col.render
                     ? col.render(row, index)
-                    : (row as Record<string, unknown>)[col.key] !== undefined
-                    ? String((row as Record<string, unknown>)[col.key])
-                    : null}
+                    : ((row as Record<string, unknown>)[col.key] == null
+                      ? "—"
+                      : String((row as Record<string, unknown>)[col.key]))}
                 </td>
               ))}
             </tr>

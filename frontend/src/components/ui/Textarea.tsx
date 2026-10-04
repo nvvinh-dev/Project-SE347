@@ -6,6 +6,10 @@ export interface TextareaProps
   error?: string;
   showCount?: boolean;
   maxLength?: number;
+  /**
+   * Độ dài hiện tại của nội dung. Nơi gọi phải tự `watch` field rồi truyền vào.
+   * Ví dụ: `currentLength={watch("content")?.length ?? 0}`
+   */
   currentLength?: number;
 }
 
@@ -58,6 +62,3 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 );
 
 Textarea.displayName = "Textarea";
-
-// Alias
-export const FormTextarea = Textarea;
