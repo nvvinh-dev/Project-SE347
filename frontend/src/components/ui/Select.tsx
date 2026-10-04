@@ -48,7 +48,6 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             </svg>
           </div>
         </div>
-        {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
       </div>
     );
   }

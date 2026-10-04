@@ -41,12 +41,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           )}
           {...props}
         />
-        <div className="mt-1 flex items-center justify-between text-xs">
-          {error ? <p className="text-danger">{error}</p> : <span />}
-          {showCount && maxLength !== undefined && (
+        {showCount && maxLength !== undefined && (
+          <div className="mt-1 flex justify-end text-xs">
             <span
               className={cn(
-                "ml-auto text-[11px]",
+                "text-[11px]",
                 currentLength >= maxLength
                   ? "font-semibold text-danger"
                   : "text-muted"
@@ -54,8 +53,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             >
               {currentLength}/{maxLength} ký tự
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     );
   }

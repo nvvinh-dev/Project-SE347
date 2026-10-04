@@ -32,7 +32,9 @@ export function ConfirmDialog({
 
   // Bọc onClose trong ref để tránh re-register event khi reference thay đổi
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   const handleClose = useCallback(() => {
     if (!isLoading) {

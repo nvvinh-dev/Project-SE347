@@ -10,8 +10,11 @@ export interface SignedImageProps extends Omit<React.ImgHTMLAttributes<HTMLImage
    * Callback xin URL ký hạn mới từ API theo id của module.
    * Ví dụ: `() => apiClient.get(`/api/media/photos/${id}/url`).then(r => r.data.data.url)`
    * Component sẽ gọi hàm này khi:
-   * - Không có `src` ban đầu
-   * - URL ảnh bị lỗi (hết hạn) — gọi lại tối đa 1 lần rồi hiện fallback
+   * - Không có `src` ban đầu (gọi 1 lần khi mount)
+   * - URL ảnh bị lỗi (hết hạn) — gọi lại tối đa 1 lần rồi mới hiện ảnh dự phòng
+   *
+   * Lưu ý: Khi chuyển đổi sang ảnh khác trong danh sách/album, hãy truyền prop `key={photo.id}`
+   * để component re-mount và đặt lại state sạch sẽ, tránh dùng effect phụ thuộc hàm inline.
    */
   getUrl?: () => Promise<string>;
   fallbackIcon?: React.ReactNode;
@@ -35,6 +38,12 @@ export function SignedImage({
   // Theo dõi mounted để tránh setState sau unmount
   const mountedRef = useRef(true);
 
+  // Giữ getUrl trong ref và cập nhật trong useEffect để tránh re-render phụ thuộc reference hàm
+  const getUrlRef = useRef(getUrl);
+  useEffect(() => {
+    getUrlRef.current = getUrl;
+  });
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -42,47 +51,42 @@ export function SignedImage({
     };
   }, []);
 
-  // Khi src thay đổi (ví dụ chuyển ảnh khác), đặt lại toàn bộ state
+  // Xin URL ký hạn lần đầu nếu chưa có src sẵn
   useEffect(() => {
-    retryCountRef.current = 0;
-    setHasError(false);
+    if (src) return;
+    const fetcher = getUrlRef.current;
+    if (!fetcher) return;
 
-    if (src) {
-      setDisplayUrl(src);
-      setIsLoading(false);
-    } else if (getUrl) {
-      // Không có src sẵn → gọi getUrl lần đầu
-      setIsLoading(true);
-      setDisplayUrl(null);
-      getUrl()
-        .then((url) => {
-          if (mountedRef.current) {
-            setDisplayUrl(url);
-          }
-        })
-        .catch(() => {
-          if (mountedRef.current) {
-            setHasError(true);
-          }
-        })
-        .finally(() => {
-          if (mountedRef.current) {
-            setIsLoading(false);
-          }
-        });
-    } else {
-      // Không có src lẫn getUrl → hiện fallback
-      setDisplayUrl(null);
-      setIsLoading(false);
-    }
-  }, [src, getUrl]);
+    let isMounted = true;
+    fetcher()
+      .then((url) => {
+        if (isMounted) {
+          setDisplayUrl(url);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setHasError(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [src]);
 
   // Xử lý khi ảnh lỗi (URL hết hạn): gọi getUrl() lại tối đa 1 lần
   const handleImageError = useCallback(() => {
-    if (getUrl && retryCountRef.current < 1) {
+    const fetcher = getUrlRef.current;
+    if (fetcher && retryCountRef.current < 1) {
       retryCountRef.current += 1;
       setIsLoading(true);
-      getUrl()
+      fetcher()
         .then((url) => {
           if (mountedRef.current) {
             setDisplayUrl(url);
@@ -101,7 +105,7 @@ export function SignedImage({
     } else {
       setHasError(true);
     }
-  }, [getUrl]);
+  }, []);
 
   // --- Render ---
 
@@ -146,7 +150,7 @@ export function SignedImage({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={1.5}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
         )}

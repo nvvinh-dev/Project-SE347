@@ -25,7 +25,7 @@ export function useApiQuery<TData = unknown>(
       try {
         return await options.queryFn(context);
       } catch (error) {
-        throw error instanceof ApiError ? error : toApiError(error);
+        throw toApiError(error);
       }
     },
   });
@@ -47,7 +47,7 @@ export function useApiMutation<TData = unknown, TVariables = void, TContext = un
       try {
         return await options.mutationFn(variables);
       } catch (error) {
-        throw error instanceof ApiError ? error : toApiError(error);
+        throw toApiError(error);
       }
     },
   });
