@@ -112,6 +112,38 @@ public class UserRepository : IUserRepository
         return UserOutcome.Success;
     }
 
+    // Khóa giống vô hiệu hóa: hai Admin hạ vai trò nhau cùng lúc, hoặc một người hạ vai trò trong lúc người kia
+    // vô hiệu hóa, không được làm mất Admin đang hoạt động cuối cùng
+    public async Task<UserOutcome> ChangeRoleAsync(Guid id, short newRoleId)
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
+        var activeAdminIds = await LockActiveAdminIdsAsync();
+
+        var target = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.Id == id)
+            .Select(u => new { u.RoleId, u.IsActive })
+            .FirstOrDefaultAsync();
+
+        if (target is null)
+            return UserOutcome.UserNotFound;
+
+        var outcome = UserAccountRules.CheckRoleChange(target.RoleId, target.IsActive, newRoleId, activeAdminIds.Count);
+        if (outcome != UserOutcome.Success)
+            return outcome;
+
+        // D48: tăng token_version cùng câu UPDATE, buộc người này đăng nhập lại để nhận token mang vai trò mới
+        await _dbContext.Users
+            .Where(u => u.Id == id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(u => u.RoleId, newRoleId)
+                .SetProperty(u => u.TokenVersion, u => u.TokenVersion + 1));
+
+        await transaction.CommitAsync();
+        return UserOutcome.Success;
+    }
+
     // Mở lại không tăng token_version: tài khoản đang bị vô hiệu hóa thì không còn token nào dùng được
     public async Task<bool> ActivateAsync(Guid id)
     {

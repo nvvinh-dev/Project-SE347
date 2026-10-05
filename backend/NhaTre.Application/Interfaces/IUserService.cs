@@ -11,4 +11,5 @@ public interface IUserService
     Task<UserResult> DeactivateUserAsync(Guid id, Guid actorUserId);
     Task<UserResult> ActivateUserAsync(Guid id, Guid actorUserId);
     Task<UserResult> ResetPasswordAsync(Guid id, ResetPasswordRequest request, Guid actorUserId);
+    Task<UserResult> ChangeRoleAsync(Guid id, ChangeRoleRequest request, Guid actorUserId);
 }

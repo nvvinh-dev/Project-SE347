@@ -147,6 +147,33 @@ public class UserService : IUserService
         return new UserResult(UserOutcome.Success, ToResponse(user));
     }
 
+    // Đổi được cả tài khoản đang bị vô hiệu hóa; trạng thái giữ nguyên
+    public async Task<UserResult> ChangeRoleAsync(Guid id, ChangeRoleRequest request, Guid actorUserId)
+    {
+        // BR-USER-05: Admin không đổi vai trò của chính mình. Không phụ thuộc dữ liệu nên xét trước khi đọc DB
+        if (id == actorUserId)
+            return new UserResult(UserOutcome.SelfRoleChange);
+
+        var user = await _userRepository.FindByIdAsync(id);
+
+        if (user is null)
+            return new UserResult(UserOutcome.UserNotFound);
+
+        // Trùng vai trò hay là Admin đang hoạt động cuối cùng do repository xét khi đã khóa các Admin
+        var outcome = await _userRepository.ChangeRoleAsync(id, Roles.ToRoleId(request.Role));
+
+        if (outcome != UserOutcome.Success)
+            return new UserResult(outcome);
+
+        // D50: ghi sau khi repository đã commit, như vô hiệu hóa. Sự kiện này không có detail
+        await _securityEventService.RecordAsync(
+            SecurityEventTypes.RoleChanged,
+            actorUserId: actorUserId,
+            targetUserId: id);
+
+        return new UserResult(UserOutcome.Success, ToResponse(user) with { Role = request.Role });
+    }
+
     // D20: email là login_identifier, chuẩn hóa trước khi lưu và trước khi so trùng
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 
