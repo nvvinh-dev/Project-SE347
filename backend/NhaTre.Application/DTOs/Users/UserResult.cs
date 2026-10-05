@@ -10,7 +10,10 @@ public enum UserOutcome
     SelfDeactivation,
     LastActiveAdmin,
     AlreadyInactive,
-    AlreadyActive
+    AlreadyActive,
+    SelfRoleChange,
+    LastActiveAdminDemotion,
+    AlreadyHasRole
 }
 
 public record UserResult(UserOutcome Outcome, UserResponse? User = null);

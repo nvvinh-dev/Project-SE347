@@ -15,8 +15,10 @@ public interface IUserRepository
     Task<bool> AddAsync(User user);
     Task<bool> UpdateProfileAsync(Guid id, string fullName, string normalizedEmail);
 
-    // Khóa các Admin đang hoạt động rồi mới xét quy tắc và ghi, trong cùng một transaction (D39 mục 7)
+    // Hai method này khóa các Admin đang hoạt động rồi mới xét quy tắc và ghi, trong cùng một transaction
+    // (D39 mục 7)
     Task<UserOutcome> DeactivateAsync(Guid id);
+    Task<UserOutcome> ChangeRoleAsync(Guid id, short newRoleId);
 
     // false khi tài khoản đã hoạt động lúc UPDATE chạy
     Task<bool> ActivateAsync(Guid id);

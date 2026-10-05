@@ -20,4 +20,18 @@ public static class UserAccountRules
 
         return UserOutcome.Success;
     }
+
+    // Đổi sang vai trò đang có là thao tác lặp → 409, không tăng token_version (giống vô hiệu hóa hai lần).
+    // Chỉ Admin đang hoạt động mới được tính khi hạ vai trò; hạ một Admin đã bị vô hiệu hóa không làm giảm
+    // số Admin đang hoạt động. activeAdminCount tính cả tài khoản đích nếu đó là Admin đang hoạt động
+    public static UserOutcome CheckRoleChange(short currentRoleId, bool isActive, short newRoleId, int activeAdminCount)
+    {
+        if (currentRoleId == newRoleId)
+            return UserOutcome.AlreadyHasRole;
+
+        if (currentRoleId == AdminRoleId && isActive && activeAdminCount <= 1)
+            return UserOutcome.LastActiveAdminDemotion;
+
+        return UserOutcome.Success;
+    }
 }

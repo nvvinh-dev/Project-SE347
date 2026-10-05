@@ -153,6 +153,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IValidator<CreateUserRequest>, CreateUserRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateUserRequest>, UpdateUserRequestValidator>();
 builder.Services.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>();
+builder.Services.AddScoped<IValidator<ChangeRoleRequest>, ChangeRoleRequestValidator>();
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IValidator<CheckInRequest>, CheckInRequestValidator>();
