@@ -165,11 +165,14 @@ public class UserService : IUserService
         if (outcome != UserOutcome.Success)
             return new UserResult(outcome);
 
-        // D50: ghi sau khi repository đã commit, như vô hiệu hóa. Sự kiện này không có detail
+        // D50: ghi sau khi repository đã commit, như vô hiệu hóa. detail là vai trò mới (hằng số Roles,
+        // validator đã chặn giá trị khác): users chỉ giữ vai trò hiện tại, nên đây là chỗ duy nhất tra
+        // được ai đã đổi vai trò của tài khoản, kể cả nâng lên Admin
         await _securityEventService.RecordAsync(
             SecurityEventTypes.RoleChanged,
             actorUserId: actorUserId,
-            targetUserId: id);
+            targetUserId: id,
+            detail: request.Role);
 
         return new UserResult(UserOutcome.Success, ToResponse(user) with { Role = request.Role });
     }
