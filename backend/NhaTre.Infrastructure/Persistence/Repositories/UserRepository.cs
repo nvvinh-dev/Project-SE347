@@ -81,18 +81,11 @@ public class UserRepository : IUserRepository
         }
     }
 
-    // D39 mục 7: số Admin đang hoạt động phải được đếm khi đã khóa, trong cùng transaction với câu UPDATE.
-    // Chỉ đếm trong transaction thì chưa đủ: ở mức READ COMMITTED, hai Admin vô hiệu hóa nhau cùng lúc
-    // đều thấy còn 2 Admin và cả hai cùng ghi. Khóa FOR UPDATE buộc request sau chờ request trước commit
-    // rồi mới đếm lại.
     public async Task<UserOutcome> DeactivateAsync(Guid id)
     {
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
-        // EF Core không có toán tử FOR UPDATE nên viết SQL; giá trị truyền dạng tham số, không ghép chuỗi
-        var activeAdminIds = await _dbContext.Database
-            .SqlQuery<Guid>($"SELECT id AS \"Value\" FROM users WHERE role_id = {AdminRoleId} AND is_active FOR UPDATE")
-            .ToListAsync();
+        var activeAdminIds = await LockActiveAdminIdsAsync();
 
         var target = await _dbContext.Users
             .AsNoTracking()
@@ -137,6 +130,21 @@ public class UserRepository : IUserRepository
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(u => u.CredentialReference, passwordHash)
                 .SetProperty(u => u.TokenVersion, u => u.TokenVersion + 1));
+    }
+
+    // D39 mục 7: số Admin đang hoạt động phải được đếm khi đã khóa, trong cùng transaction với câu UPDATE.
+    // Chỉ đếm trong transaction thì chưa đủ: ở mức READ COMMITTED, hai Admin vô hiệu hóa nhau cùng lúc
+    // đều thấy còn 2 Admin và cả hai cùng ghi. Khóa FOR UPDATE buộc request sau chờ request trước commit
+    // rồi mới đếm lại. Phải gọi bên trong transaction.
+    // ORDER BY id để mọi request khóa các dòng theo cùng một thứ tự: không có thứ tự cố định thì hai
+    // transaction có thể khóa ngược chiều nhau (dòng vừa bị UPDATE đổi vị trí), Postgres hủy một bên vì
+    // deadlock và request đó ra 500
+    private async Task<List<Guid>> LockActiveAdminIdsAsync()
+    {
+        // EF Core không có toán tử FOR UPDATE nên viết SQL; giá trị truyền dạng tham số, không ghép chuỗi
+        return await _dbContext.Database
+            .SqlQuery<Guid>($"SELECT id AS \"Value\" FROM users WHERE role_id = {AdminRoleId} AND is_active ORDER BY id FOR UPDATE")
+            .ToListAsync();
     }
 
     // Unique index của login_identifier chặn: request khác vừa dùng email này giữa lúc Service kiểm tra
