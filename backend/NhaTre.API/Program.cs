@@ -22,6 +22,8 @@ using NhaTre.Application.Validators.Users;
 using NhaTre.Application.DTOs.Users;
 using NhaTre.Application.Validators.Attendance;
 using NhaTre.Application.DTOs.Attendance;
+using NhaTre.Application.Validators.Health;
+using NhaTre.Application.DTOs.Health;
 using NhaTre.Application.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -157,6 +159,9 @@ builder.Services.AddScoped<IValidator<ChangeRoleRequest>, ChangeRoleRequestValid
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IValidator<CheckInRequest>, CheckInRequestValidator>();
+builder.Services.AddScoped<IHealthRepository, HealthRepository>();
+builder.Services.AddScoped<IHealthService, HealthService>();
+builder.Services.AddScoped<IValidator<QuickHealthStatusRequest>, QuickHealthStatusRequestValidator>();
 builder.Services.AddHttpClient<IFileStorageService, SupabaseFileStorageService>(); // D22, D53: Supabase:Url và Supabase:ServiceKey đọc lúc gọi, không chặn khởi động
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
