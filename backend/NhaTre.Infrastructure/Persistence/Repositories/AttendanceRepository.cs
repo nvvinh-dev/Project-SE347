@@ -35,6 +35,36 @@ public class AttendanceRepository : IAttendanceRepository
                 && a.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
     }
 
+    public async Task<bool> IsHomeroomClassAsync(Guid classId, Guid teacherUserId)
+    {
+        return await _dbContext.Classes
+            .AnyAsync(c => c.Id == classId && c.HomeroomTeacher!.UserId == teacherUserId);
+    }
+
+    // Phạm vi lớp chủ nhiệm luôn có trong câu truy vấn; trẻ, lớp, ngày chỉ thu hẹp thêm
+    public async Task<IReadOnlyList<Attendance>> GetInHomeroomClassesAsync(
+        Guid teacherUserId, Guid? childId, Guid? classId, DateOnly? date)
+    {
+        var query = _dbContext.Attendances
+            .AsNoTracking()
+            .Include(a => a.Child)
+            .Where(a => a.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
+
+        if (childId is not null)
+            query = query.Where(a => a.ChildId == childId.Value);
+
+        if (classId is not null)
+            query = query.Where(a => a.Child.ClassId == classId.Value);
+
+        if (date is not null)
+            query = query.Where(a => a.AttendanceDate == date.Value);
+
+        return await query
+            .OrderByDescending(a => a.AttendanceDate)
+            .ThenBy(a => a.Child.FullName)
+            .ToListAsync();
+    }
+
     public async Task<bool> ExistsAsync(Guid childId, DateOnly attendanceDate)
     {
         return await _dbContext.Attendances

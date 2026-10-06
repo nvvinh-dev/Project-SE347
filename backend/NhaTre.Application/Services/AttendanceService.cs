@@ -22,6 +22,29 @@ public class AttendanceService : IAttendanceService
         return attendance is null ? null : ToResponse(attendance, attendance.Child.FullName);
     }
 
+    // FR-ATT-03. Phạm vi là các lớp tài khoản này chủ nhiệm (classes.homeroom_teacher_id, D40 mục 2),
+    // tính theo lớp hiện tại của trẻ như FR-ATT-01. classId client gửi chỉ thu hẹp trong phạm vi đó:
+    // lớp không do mình chủ nhiệm → 404 (AC-ATT-09). Giáo viên chưa chủ nhiệm lớp nào xem theo ngày
+    // thì nhận danh sách rỗng, xem theo trẻ thì nhận 404 (UC-ATT-03 E1, D46 mục 3)
+    public async Task<AttendanceHistoryResult> GetHistoryAsync(
+        Guid? childId, Guid? classId, DateOnly? date, Guid teacherUserId)
+    {
+        if (classId is not null && !await _attendanceRepository.IsHomeroomClassAsync(classId.Value, teacherUserId))
+            return new AttendanceHistoryResult(AttendanceHistoryOutcome.ClassNotFound);
+
+        // Kiểm riêng trẻ để phân biệt trẻ ngoài phạm vi (404) với trẻ trong lớp chưa có bản ghi nào (danh sách rỗng)
+        if (childId is not null)
+        {
+            var child = await _attendanceRepository.FindChildInHomeroomClassAsync(childId.Value, teacherUserId);
+            if (child is null || (classId is not null && child.ClassId != classId))
+                return new AttendanceHistoryResult(AttendanceHistoryOutcome.ChildNotFound);
+        }
+
+        var attendances = await _attendanceRepository.GetInHomeroomClassesAsync(teacherUserId, childId, classId, date);
+        return new AttendanceHistoryResult(AttendanceHistoryOutcome.Success,
+            attendances.Select(a => ToResponse(a, a.Child.FullName)).ToList());
+    }
+
     // FR-ATT-01. Trẻ không tồn tại, chưa xếp lớp hay thuộc lớp khác đều ngoài phạm vi → 404
     // (BR-ATTENDANCE-02, D40 mục 2). Ngày, giờ và người ghi nhận do server đặt (D23, D44 mục 2)
     public async Task<AttendanceResult> CheckInAsync(CheckInRequest request, Guid teacherUserId)
