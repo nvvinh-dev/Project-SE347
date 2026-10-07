@@ -1,8 +1,9 @@
 namespace NhaTre.Domain.Constants;
 
 /// Giá trị cột security_events.detail của các sự kiện có detail cố định (D50).
-/// Sự kiện không có trong danh sách này thì để detail rỗng.
-/// KHÔNG gõ chuỗi tay ở Service hay Controller — luôn dùng hằng số ở đây.
+/// role_changed không có hằng số ở đây: detail là tên vai trò mới, lấy từ Roles (ví dụ Roles.Admin).
+/// Sự kiện khác không có trong danh sách này thì để detail rỗng.
+/// KHÔNG gõ chuỗi tay ở Service hay Controller — luôn dùng hằng số ở đây hoặc ở Roles.
 public static class SecurityEventDetails
 {
     public const string Linked = "linked";           // guardian_link_changed: tạo liên kết phụ huynh–trẻ

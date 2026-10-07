@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NhaTre.Application.Interfaces;
 using NhaTre.Infrastructure.Persistence;
@@ -17,8 +18,17 @@ using NhaTre.Application.Validators.Children;
 using NhaTre.Application.DTOs.Children;
 using NhaTre.Application.Validators.Tuition;
 using NhaTre.Application.DTOs.Tuition;
+using NhaTre.Application.Validators.Users;
+using NhaTre.Application.DTOs.Users;
+using NhaTre.Application.Validators.Classes;
+using NhaTre.Application.DTOs.Classes;
+using NhaTre.Application.Validators.Attendance;
+using NhaTre.Application.DTOs.Attendance;
+using NhaTre.Application.Validators.Health;
+using NhaTre.Application.DTOs.Health;
 using NhaTre.Application.Common;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 Log.Logger = new LoggerConfiguration()
@@ -85,11 +95,25 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
         // .NET nhét cả tên class DTO và vị trí byte vào đó (VD: "The JSON value could not
         // be converted to NhaTre.Application.DTOs.Auth.LoginRequest. Path: $.email...").
         // Lộ cấu trúc nội bộ cho client là vi phạm NFR-SEC-03 — chỉ trả tên trường.
+        //
+        // Body không đọc được (JSON hỏng, sai kiểu, rỗng) thì ngoài lỗi thật ở khóa "$..." .NET
+        // còn thêm một lỗi mang tên tham số [FromBody] của action ("request"). Tên tham số là chi
+        // tiết nội bộ, không phải trường client gửi, nên bỏ khóa đó.
+        var bodyParameterNames = context.ActionDescriptor.Parameters
+            .Where(parameter => parameter.BindingInfo?.BindingSource == BindingSource.Body)
+            .Select(parameter => parameter.Name)
+            .ToHashSet();
+
         var errors = context.ModelState
             .Where(entry => entry.Value is not null && entry.Value.Errors.Count > 0)
+            .Where(entry => !bodyParameterNames.Contains(entry.Key))
             .Select(entry =>
             {
-                var field = entry.Key.TrimStart('$', '.');
+                // Lỗi sai kiểu có khóa theo tên trong JSON ("$.role"), còn lỗi thiếu trường của
+                // record có khóa theo tên property C# ("Role"). Đổi từng đoạn về camelCase (JSON
+                // mặc định của dự án) để cả hai cùng là tên client gửi
+                var field = string.Join('.', entry.Key.TrimStart('$', '.').Split('.')
+                    .Select(JsonNamingPolicy.CamelCase.ConvertName));
                 return string.IsNullOrEmpty(field)
                     ? "Dữ liệu gửi lên không đọc được (JSON không hợp lệ)."
                     : $"Trường '{field}' bị thiếu hoặc sai kiểu dữ liệu.";
@@ -128,6 +152,22 @@ builder.Services.AddScoped<ITuitionRepository, TuitionRepository>();
 builder.Services.AddScoped<ITuitionService, TuitionService>();
 builder.Services.AddScoped<IValidator<TuitionFeeRequest>, TuitionFeeRequestValidator>();
 builder.Services.AddScoped<IValidator<InvoiceRequest>, InvoiceRequestValidator>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IValidator<CreateUserRequest>, CreateUserRequestValidator>();
+builder.Services.AddScoped<IValidator<UpdateUserRequest>, UpdateUserRequestValidator>();
+builder.Services.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>();
+builder.Services.AddScoped<IValidator<ChangeRoleRequest>, ChangeRoleRequestValidator>();
+builder.Services.AddScoped<IClassRepository, ClassRepository>();
+builder.Services.AddScoped<IClassService, ClassService>();
+builder.Services.AddScoped<IValidator<AssignClassRequest>, AssignClassRequestValidator>();
+builder.Services.AddScoped<IValidator<AssignHomeroomTeacherRequest>, AssignHomeroomTeacherRequestValidator>();
+builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
+builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+builder.Services.AddScoped<IValidator<CheckInRequest>, CheckInRequestValidator>();
+builder.Services.AddScoped<IHealthRepository, HealthRepository>();
+builder.Services.AddScoped<IHealthService, HealthService>();
+builder.Services.AddScoped<IValidator<QuickHealthStatusRequest>, QuickHealthStatusRequestValidator>();
 builder.Services.AddHttpClient<IFileStorageService, SupabaseFileStorageService>(); // D22, D53: Supabase:Url và Supabase:ServiceKey đọc lúc gọi, không chặn khởi động
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();

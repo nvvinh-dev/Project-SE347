@@ -20,10 +20,24 @@ public static class Roles
         [5] = Parent,
     };
 
+    // Phải đứng sau RoleIdToClaim: field tĩnh khởi tạo theo thứ tự trong file
+    private static readonly Dictionary<string, short> ClaimToRoleId =
+        RoleIdToClaim.ToDictionary(pair => pair.Value, pair => pair.Key);
+
     public static string FromRoleId(short roleId)
     {
         if (!RoleIdToClaim.TryGetValue(roleId, out var claim))
             throw new ArgumentOutOfRangeException(nameof(roleId), $"role_id không hợp lệ: {roleId}");
         return claim;
+    }
+
+    // Phân biệt hoa thường: chỉ nhận đúng 5 hằng số ở trên
+    public static bool IsValid(string? role) => role is not null && ClaimToRoleId.ContainsKey(role);
+
+    public static short ToRoleId(string role)
+    {
+        if (!ClaimToRoleId.TryGetValue(role, out var roleId))
+            throw new ArgumentOutOfRangeException(nameof(role), $"Vai trò không hợp lệ: {role}");
+        return roleId;
     }
 }
