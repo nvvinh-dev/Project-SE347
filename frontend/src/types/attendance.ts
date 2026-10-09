@@ -20,13 +20,12 @@ export interface AttendanceResponse {
   status: AttendanceStatus;
 }
 
-export interface StudentAttendanceItem {
+export interface AttendanceChild {
   childId: string;
   fullName: string;
-  gender: "Nam" | "Nữ";
-  dateOfBirth: string;
-  status: AttendanceStatus | null;
-  attendanceId: string | null;
-  checkInTime: string | null;
   healthNotes?: string | null;
+}
+
+export interface StudentAttendanceItem extends AttendanceChild {
+  attendance: AttendanceResponse | null;
 }
