@@ -19,6 +19,13 @@ public class ChildService : IChildService
         return children.Select(ToResponse).ToList();
     }
 
+    // BR-SCOPE-01: chỉ trẻ có liên kết với chính phụ huynh đang đăng nhập; chưa liên kết trẻ nào thì
+    // danh sách rỗng
+    public async Task<IReadOnlyList<MyChildResponse>> GetMineAsync(Guid parentUserId)
+    {
+        return await _childRepository.GetByGuardianAsync(parentUserId);
+    }
+
     public async Task<ChildResponse?> GetByIdAsync(Guid id)
     {
         var child = await _childRepository.FindByIdAsync(id);
