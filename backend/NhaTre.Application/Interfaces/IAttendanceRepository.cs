@@ -19,6 +19,12 @@ public interface IAttendanceRepository
     Task<IReadOnlyList<Attendance>> GetInHomeroomClassesAsync(
         Guid teacherUserId, Guid? childId, Guid? classId, DateOnly? date);
 
+    // true khi trẻ có liên kết với tài khoản phụ huynh này trong child_guardians (D39 mục 10)
+    Task<bool> IsGuardianOfChildAsync(Guid childId, Guid parentUserId);
+
+    // Các bản điểm danh của trẻ, chỉ khi trẻ có liên kết với tài khoản phụ huynh này. Ngày mới nhất trước
+    Task<IReadOnlyList<Attendance>> GetByChildForGuardianAsync(Guid childId, Guid parentUserId);
+
     Task<bool> ExistsAsync(Guid childId, DateOnly attendanceDate);
 
     // Thêm và lưu ngay; false khi trẻ đã có bản điểm danh ngày đó (vi phạm UNIQUE child_id, attendance_date)
