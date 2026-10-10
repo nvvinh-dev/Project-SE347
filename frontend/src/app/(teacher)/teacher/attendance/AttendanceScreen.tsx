@@ -57,15 +57,14 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<PendingCheckIn | null>(null);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string; errors?: string[] | null } | null>(null);
-  const [needsRecheck, setNeedsRecheck] = useState(false);
-  const [accessBlocked, setAccessBlocked] = useState(false);
   const [showHealth, setShowHealth] = useState(true);
   const [expandedHealthId, setExpandedHealthId] = useState<string | null>(null);
+  // Chặn hai lần xác nhận liên tiếp trước khi trạng thái đang gửi được render.
   const submitLock = useRef(false);
   const trigger = useRef<HTMLElement | null>(null);
   const pendingIndexRef = useRef<number>(-1);
   const screenRef = useRef<HTMLDivElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  // Đợi danh sách cập nhật để trả focus về nút cũ hoặc trẻ kế tiếp còn chưa điểm danh.
   const focusRestore = useRef<{ next: boolean; index: number } | null>(null);
 
   const { register, control, reset } = useForm<Filters>({
@@ -113,7 +112,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
 
   useEffect(() => {
     const restore = focusRestore.current;
-    if (!restore || pending || query.isFetching || submitLock.current) return;
+    if (!restore || pending || submitLock.current) return;
     const available = (element: HTMLElement | null): element is HTMLElement =>
       Boolean(element?.isConnected && element.getClientRects().length &&
         !element.matches(":disabled"));
@@ -128,11 +127,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
     focusRestore.current = null;
   });
 
-  const recheck = async () => {
-    const result = await query.refetch();
-    if (result.isSuccess) setNeedsRecheck(false);
-    return result.isSuccess;
-  };
+  const recheck = () => query.refetch();
 
   const mutation = useApiMutation<AttendanceResponse, PendingCheckIn>({
     mutationFn: ({ child, status: targetStatus }) => checkInStudent(child.childId, targetStatus),
@@ -155,15 +150,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
     onError: async (error) => {
       setFeedback({ kind: "error", text: error.message, errors: error.errors });
       closeDialog(false);
-      if (error.status === 403 || error.status === 404) setAccessBlocked(true);
-      if (
-        error.status === 409 ||
-        error.status === null ||
-        (error.status !== null && (error.status >= 500 || (error.status >= 200 && error.status < 300)))
-      ) {
-        setNeedsRecheck(true);
-        await recheck();
-      }
+      await queryClient.invalidateQueries({ queryKey: ["teacher-attendance", user?.userId] });
     },
     onSettled: () => {
       submitLock.current = false;
@@ -173,10 +160,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
   const canWrite =
     roster !== undefined &&
     query.isSuccess &&
-    !query.isFetching &&
-    !mutation.isPending &&
-    !needsRecheck &&
-    !accessBlocked;
+    !mutation.isPending;
 
   const requestCheckIn = (child: AttendanceChild, targetStatus: AttendanceStatus) => {
     if (!canWrite || recordByChild.has(child.childId)) return;
@@ -194,7 +178,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
       pending.date !== getVietnamDate() ||
       recordByChild.has(pending.child.childId)
     ) {
-      if (!mutation.isPending) closeDialog(false);
       return;
     }
     submitLock.current = true;
@@ -244,16 +227,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
   ];
 
   const metrics = [
-    {
-      label: hasRoster ? "Sĩ số lớp" : "Bản ghi hôm nay",
-      value: hasRoster ? roster.length : hasCurrentData ? records.length : null,
-      percentage:
-        hasRoster && hasCurrentData && roster.length > 0
-          ? "100%"
-          : "—",
-      unit: "học sinh",
-      color: "text-foreground",
-    },
     {
       label: "Có mặt",
       value: hasCurrentData ? count("Present") : null,
@@ -444,13 +417,16 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
 
   return (
     <div ref={screenRef} className="w-full min-w-0 space-y-5">
-      {/* Page Header */}
       <PageHeader
         title="Điểm danh vào lớp"
         description="Ghi nhận trạng thái đến lớp hàng ngày của học sinh lớp chủ nhiệm"
       >
-        <span className="inline-flex min-h-9 items-center rounded-lg border border-border bg-card px-3 text-xs font-medium text-muted">
-          Lớp chủ nhiệm
+        <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-subtle px-3 text-xs font-medium text-brand-text">
+          Lớp chủ nhiệm:
+          <span className="font-bold tabular-nums">
+            {hasRoster ? roster.length : "—"}
+          </span>
+          <span>học sinh</span>
         </span>
         <span className="inline-flex min-h-9 items-center rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground">
           {dateLabel}
@@ -463,14 +439,11 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
         </Link>
       </PageHeader>
 
-      {/* Summary Metrics */}
-      <section aria-label="Tình hình điểm danh hôm nay" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        {metrics.map((metric, index) => (
+      <section aria-label="Tình hình điểm danh hôm nay" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {metrics.map((metric) => (
           <div
             key={metric.label}
-            className={`min-w-0 rounded-xl border border-border bg-card p-4 shadow-xs ${
-              index === 4 ? "col-span-2 sm:col-span-1" : ""
-            }`}
+            className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-xs"
           >
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs font-medium text-muted">{metric.label}</p>
@@ -488,7 +461,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
         ))}
       </section>
 
-      {/* Roster Alert */}
       {roster === undefined && (
         <div
           role="status"
@@ -501,7 +473,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
         </div>
       )}
 
-      {/* Feedback Alert */}
       {feedback && (
         <div
           role={feedback.kind === "error" ? "alert" : "status"}
@@ -522,61 +493,45 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
         </div>
       )}
 
-      {needsRecheck && (
-        <div role="alert" className="rounded-xl border border-warning-border bg-warning-bg p-4 text-sm text-warning">
-          Cần tải lại điểm danh để kiểm tra kết quả trước khi gửi tiếp.
-        </div>
-      )}
-
-      {accessBlocked && (
-        <div role="alert" className="rounded-xl border border-danger-border bg-danger-bg p-4 text-sm text-danger">
-          Chưa thể gửi điểm danh. Vui lòng kiểm tra lại quyền và danh sách học sinh của lớp.
-        </div>
-      )}
-
-      {/* Main Content: Attendance Table & Health Sidebar */}
       <div
         className={`grid min-w-0 items-start gap-4 ${
           showHealth ? "xl:grid-cols-[minmax(0,1fr)_340px]" : "xl:grid-cols-[minmax(0,1fr)_64px]"
         }`}
       >
-        {/* Left Column: Attendance Table */}
         <section
           aria-label="Danh sách điểm danh hôm nay"
           className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs"
         >
-          {/* Toolbar: Expanded Search Bar on Left, Filter and Reload pinned to Right */}
           <form
-            className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-border p-3.5 sm:p-4"
+            className="flex w-full min-w-0 items-center gap-1.5 border-b border-border p-3 sm:gap-2.5 sm:p-4"
             onSubmit={(event) => event.preventDefault()}
           >
-            {/* Expanded Search Bar */}
-            <div className="flex-1 min-w-[200px] w-full sm:w-auto">
+            <div className="min-w-0 flex-1">
               <label htmlFor="attendance-search" className="sr-only">
                 Tìm học sinh theo họ tên
               </label>
               <Input
                 id="attendance-search"
                 type="search"
-                placeholder="Tìm họ tên học sinh..."
-                className="min-h-9 text-xs w-full"
+                placeholder="Tìm họ tên..."
+                className="min-h-11 w-full px-2 text-xs sm:px-3.5"
                 {...register("search")}
               />
             </div>
 
-            {/* Right group: Filter, Reload, Clear Filter pinned to right edge */}
-            <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
-              <div className="w-44 sm:w-48 shrink-0">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+              <div className="w-20 shrink-0 sm:w-48">
                 <label htmlFor="attendance-filter" className="sr-only">
                   Lọc trạng thái điểm danh
                 </label>
                 <Select
                   id="attendance-filter"
+                  title={filters.find((filter) => filter.value === status)?.label}
                   options={filters.map((filter) => ({
                     value: filter.value,
                     label: `${filter.label} (${filter.total ?? "—"})`,
                   }))}
-                  className="min-h-9 text-xs"
+                  className="min-h-11 pl-2 text-[11px] sm:pl-3.5 sm:text-xs"
                   {...register("status")}
                 />
               </div>
@@ -584,30 +539,28 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
               <Button
                 variant="secondary"
                 size="sm"
-                className="min-h-9 shrink-0 text-xs font-medium"
+                className="h-11 w-11 shrink-0 p-0 text-xs font-medium sm:w-auto sm:px-3"
+                aria-label={query.isFetching ? "Đang tải điểm danh" : "Tải lại"}
+                title={query.isFetching ? "Đang tải điểm danh" : "Tải lại"}
                 disabled={query.isFetching || mutation.isPending}
                 onClick={() => {
                   void recheck();
                 }}
               >
-                {query.isFetching ? "Đang tải..." : "Tải lại"}
-              </Button>
-
-              {(search || status !== "All") && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => reset()}
-                  className="h-9 px-2 text-xs font-medium text-muted hover:text-foreground whitespace-nowrap"
+                <svg
+                  aria-hidden="true"
+                  className={`h-4 w-4 shrink-0 ${query.isFetching ? "animate-spin" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  Xóa bộ lọc
-                </Button>
-              )}
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.55-1.3L20 8M4 16l2.35 2.3A7 7 0 0 0 17.9 17" />
+                </svg>
+                <span className="hidden sm:inline">{query.isFetching ? "Đang tải..." : "Tải lại"}</span>
+              </Button>
             </div>
           </form>
 
-          {/* Table State Handling */}
           {!query.isSuccess && !query.isError ? (
             <StatusMessage status="loading" title="Đang tải điểm danh hôm nay..." />
           ) : query.isError ? (
@@ -644,7 +597,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
             />
           ) : (
             <>
-              {/* Desktop Table View */}
               <div
                 role="region"
                 aria-label="Bảng điểm danh"
@@ -659,7 +611,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
                 />
               </div>
 
-              {/* Mobile / Card List View */}
               <ul className="divide-y divide-border/60 lg:hidden">
                 {filtered.map((student, index) => (
                   <li key={student.childId} className="space-y-3 p-4">
@@ -669,7 +620,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
                 ))}
               </ul>
 
-              {/* Footer */}
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-muted">
                 <span>
                   Hiển thị {filtered.length} / {students.length} học sinh
@@ -678,18 +628,27 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
                     ? ` · ${filters.find((filter) => filter.value === status)?.label}`
                     : ""}
                 </span>
+                {(search || status !== "All") && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => reset()}
+                    className="h-9 px-2 text-xs font-medium text-muted hover:text-foreground whitespace-nowrap"
+                  >
+                    Xóa bộ lọc
+                  </Button>
+                )}
                 <span>Bản ghi không thể sửa hoặc xóa</span>
               </div>
             </>
           )}
         </section>
 
-        {/* Right Column: Health Notes Sidebar (Clean & High Readability) */}
         <aside
           aria-label="Lưu ý sức khỏe của học sinh"
-          className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs"
+          className="hidden min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs xl:block"
         >
-          {/* Header */}
           <div
             className={`flex items-center justify-between border-b border-border transition-colors ${
               showHealth ? "p-3.5" : "p-3.5 xl:flex-col xl:p-2 xl:py-3"
@@ -725,7 +684,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
             </Button>
           </div>
 
-          {/* Content */}
           <div id="attendance-health-content" hidden={!showHealth} className="bg-background/70">
             {!healthAvailable ? (
               <div className="p-4 text-center">
@@ -769,7 +727,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
                           </span>
                         )}
                       </div>
-                      {/* Health note box with subtle warm tint, border and accent edge */}
                       <div className="whitespace-pre-wrap break-words rounded-md border border-warning-border/60 border-l-3 border-l-warning bg-warning-bg/40 px-2.5 py-2 text-xs leading-relaxed text-foreground shadow-2xs">
                         {student.healthNotes}
                       </div>
@@ -791,27 +748,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
         </aside>
       </div>
 
-      {/* Confirmation Dialog */}
-      <div
-        ref={dialogRef}
-        tabIndex={-1}
-        onKeyDown={(event) => {
-          if (event.key !== "Tab" || !pending) return;
-          const buttons = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []);
-          const first = buttons[0];
-          const last = buttons.at(-1);
-          if (!first || !last) {
-            event.preventDefault();
-            dialogRef.current?.focus();
-          } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
-            event.preventDefault();
-            last.focus();
-          } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) {
-            event.preventDefault();
-            first.focus();
-          }
-        }}
-      >
       <ConfirmDialog
         isOpen={pending !== null && pending.date === date}
         title="Xác nhận điểm danh"
@@ -830,7 +766,6 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
         onClose={() => closeDialog(false)}
         onConfirm={confirmCheckIn}
       />
-      </div>
     </div>
   );
 }

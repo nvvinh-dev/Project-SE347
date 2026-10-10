@@ -1,4 +1,4 @@
-import { apiClient, ApiError, toApiError } from "@/lib/axios";
+import { apiClient, ApiError } from "@/lib/axios";
 import type { ApiResponse } from "@/types/auth";
 import type { AttendanceResponse, AttendanceStatus, CheckInRequest } from "@/types/attendance";
 
@@ -17,15 +17,11 @@ export async function getAttendanceForDate(
   date: string,
   signal?: AbortSignal,
 ): Promise<AttendanceResponse[]> {
-  try {
-    const response = await apiClient.get<ApiResponse<AttendanceResponse[]>>(
-      "/api/attendances",
-      { params: { date }, signal },
-    );
-    return readData(response.data, response.status);
-  } catch (error) {
-    throw toApiError(error);
-  }
+  const response = await apiClient.get<ApiResponse<AttendanceResponse[]>>(
+    "/api/attendances",
+    { params: { date }, signal },
+  );
+  return readData(response.data, response.status);
 }
 
 export async function checkInStudent(
@@ -33,15 +29,11 @@ export async function checkInStudent(
   status: AttendanceStatus,
 ): Promise<AttendanceResponse> {
   const payload: CheckInRequest = { childId, status };
-  try {
-    const response = await apiClient.post<ApiResponse<AttendanceResponse>>(
-      "/api/attendances",
-      payload,
-    );
-    return readData(response.data, response.status);
-  } catch (error) {
-    throw toApiError(error);
-  }
+  const response = await apiClient.post<ApiResponse<AttendanceResponse>>(
+    "/api/attendances",
+    payload,
+  );
+  return readData(response.data, response.status);
 }
 
 export function getVietnamDate(now = new Date()): string {
