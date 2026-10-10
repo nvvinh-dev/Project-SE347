@@ -29,8 +29,9 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const titleId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Bọc onClose trong ref để tránh re-register event khi reference thay đổi
+  // Giữ callback mới nhất mà không đăng ký lại sự kiện khi màn hình render.
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -49,8 +50,46 @@ export function ConfirmDialog({
     const previousOverflow = document.body.style.overflow;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (e.key === "Escape" && !isLoading) {
         onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          "a[href], button, input, select, textarea, [tabindex], [contenteditable='true']"
+        )
+      ).filter((element) =>
+        element.tabIndex >= 0 &&
+        !element.matches(":disabled") &&
+        !element.closest("[hidden], [inert]") &&
+        element.getClientRects().length > 0 &&
+        window.getComputedStyle(element).visibility !== "hidden"
+      ).sort((a, b) =>
+        (a.tabIndex > 0 ? a.tabIndex : Infinity) -
+        (b.tabIndex > 0 ? b.tabIndex : Infinity)
+      );
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      const active = document.activeElement;
+
+      // Khi đang gửi, các nút bị khóa nên giữ focus ở hộp thoại để Tab không thoát ra trang.
+      if (!first || !last) {
+        e.preventDefault();
+        dialog.focus();
+      } else if (!dialog.contains(active) || active === dialog) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
 
@@ -58,12 +97,14 @@ export function ConfirmDialog({
     // Khóa cuộn trang khi dialog mở
     document.body.style.overflow = "hidden";
 
-    // Focus vào nút Hủy khi mở dialog
-    requestAnimationFrame(() => {
-      cancelRef.current?.focus();
+    // Ưu tiên nút Hủy; khi đang gửi thì hộp thoại nhận focus vì các nút đã bị khóa.
+    const focusFrame = requestAnimationFrame(() => {
+      if (isLoading) dialogRef.current?.focus();
+      else cancelRef.current?.focus();
     });
 
     return () => {
+      cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", handleKeyDown);
       // Trả overflow về giá trị cũ thay vì "unset"
       document.body.style.overflow = previousOverflow;
@@ -74,18 +115,18 @@ export function ConfirmDialog({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       aria-modal="true"
       role="dialog"
       aria-labelledby={titleId}
     >
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
         onClick={handleClose}
       />
 
-      {/* Modal Dialog Card */}
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl transition-all">
         <div className="flex items-start gap-4">
           <div
