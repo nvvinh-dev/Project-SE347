@@ -57,6 +57,26 @@ public class NotificationRepository : INotificationRepository
         await _dbContext.SaveChangesAsync();
     }
 
+    public async Task<int> CountByRecipientAsync(Guid recipientUserId)
+    {
+        return await _dbContext.Notifications
+            .CountAsync(n => n.RecipientUserId == recipientUserId);
+    }
+
+    // Mới nhất trước (D25). Hai thông báo có thể trùng created_at, nên xếp thêm theo id để thứ tự cố
+    // định giữa các lần gọi, nhờ đó các trang không trùng hay sót thông báo
+    public async Task<IReadOnlyList<Notification>> GetByRecipientAsync(Guid recipientUserId, int skip, int take)
+    {
+        return await _dbContext.Notifications
+            .AsNoTracking()
+            .Where(n => n.RecipientUserId == recipientUserId)
+            .OrderByDescending(n => n.CreatedAt)
+            .ThenByDescending(n => n.Id)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+    }
+
     private async Task<IReadOnlyList<Guid>> GetActiveUserIdsByRoleAsync(short roleId)
     {
         return await _dbContext.Users

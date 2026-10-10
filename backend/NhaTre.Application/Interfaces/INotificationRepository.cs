@@ -10,4 +10,7 @@ public interface INotificationRepository
     Task<IReadOnlyList<Guid>> GetActiveParentIdsAsync();
     void AddRange(IEnumerable<Notification> notifications);
     Task SaveChangesAsync();
+
+    Task<int> CountByRecipientAsync(Guid recipientUserId);
+    Task<IReadOnlyList<Notification>> GetByRecipientAsync(Guid recipientUserId, int skip, int take);
 }
