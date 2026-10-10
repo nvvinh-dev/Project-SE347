@@ -45,6 +45,22 @@ public class AttendanceService : IAttendanceService
             attendances.Select(a => ToResponse(a, a.Child.FullName)).ToList());
     }
 
+    // FR-ATT-02. Phạm vi là các trẻ có liên kết với tài khoản này trong child_guardians (BR-SCOPE-01,
+    // D39 mục 10), không phụ thuộc lớp. null khi trẻ không tồn tại hoặc không liên kết, để Controller
+    // trả 404 mà không lộ trẻ đó có tồn tại hay không (AC-ATT-04)
+    public async Task<IReadOnlyList<ChildAttendanceResponse>?> GetChildHistoryForGuardianAsync(
+        Guid childId, Guid parentUserId)
+    {
+        // Kiểm riêng liên kết để phân biệt trẻ ngoài phạm vi (404) với con mình chưa có bản ghi nào (danh sách rỗng)
+        if (!await _attendanceRepository.IsGuardianOfChildAsync(childId, parentUserId))
+            return null;
+
+        var attendances = await _attendanceRepository.GetByChildForGuardianAsync(childId, parentUserId);
+        return attendances
+            .Select(a => new ChildAttendanceResponse(a.Id, a.AttendanceDate, a.CheckInTime, a.Status))
+            .ToList();
+    }
+
     // FR-ATT-01. Trẻ không tồn tại, chưa xếp lớp hay thuộc lớp khác đều ngoài phạm vi → 404
     // (BR-ATTENDANCE-02, D40 mục 2). Ngày, giờ và người ghi nhận do server đặt (D23, D44 mục 2)
     public async Task<AttendanceResult> CheckInAsync(CheckInRequest request, Guid teacherUserId)

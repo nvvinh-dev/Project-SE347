@@ -65,6 +65,24 @@ public class AttendanceRepository : IAttendanceRepository
             .ToListAsync();
     }
 
+    public async Task<bool> IsGuardianOfChildAsync(Guid childId, Guid parentUserId)
+    {
+        return await _dbContext.ChildGuardians
+            .AnyAsync(cg => cg.ChildId == childId && cg.GuardianUserId == parentUserId);
+    }
+
+    // Liên kết phụ huynh–trẻ luôn có trong câu truy vấn, như phạm vi lớp chủ nhiệm ở phía giáo viên.
+    // Mỗi trẻ chỉ có một bản điểm danh mỗi ngày nên sắp theo ngày là đủ
+    public async Task<IReadOnlyList<Attendance>> GetByChildForGuardianAsync(Guid childId, Guid parentUserId)
+    {
+        return await _dbContext.Attendances
+            .AsNoTracking()
+            .Where(a => a.ChildId == childId
+                && a.Child.ChildGuardians.Any(cg => cg.GuardianUserId == parentUserId))
+            .OrderByDescending(a => a.AttendanceDate)
+            .ToListAsync();
+    }
+
     public async Task<bool> ExistsAsync(Guid childId, DateOnly attendanceDate)
     {
         return await _dbContext.Attendances
