@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
   useUsers,
@@ -11,6 +11,7 @@ import { toApiError } from "@/lib/axios";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusMessage } from "@/components/ui/StatusMessage";
+import { Pagination } from "@/components/ui/Pagination";
 import { UserRoleBadge } from "@/components/admin/users/UserRoleBadge";
 import { UserStatusBadge } from "@/components/admin/users/UserStatusBadge";
 import { AddUserModal } from "@/components/admin/users/AddUserModal";
@@ -30,6 +31,14 @@ export default function AdminUsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [staffRoleFilter, setStaffRoleFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Dropdown Menu State per row
+  const [openMenuUserId, setOpenMenuUserId] = useState<string | null>(null);
+  const menuContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Notification Alerts
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -55,6 +64,29 @@ export default function AdminUsersPage() {
     }, 6000);
   };
 
+  // Click outside to close row action menu
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (
+        menuContainerRef.current &&
+        !menuContainerRef.current.contains(e.target as Node)
+      ) {
+        setOpenMenuUserId(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpenMenuUserId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleDocumentClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   // Split users into Staff and Parents
   const staffList = useMemo(() => {
     if (!users) return [];
@@ -65,6 +97,31 @@ export default function AdminUsersPage() {
     if (!users) return [];
     return users.filter((u) => u.role === "Parent");
   }, [users]);
+
+  // Counts for Staff role filters
+  const staffRoleCounts = useMemo(() => {
+    return {
+      Admin: staffList.filter((u) => u.role === "Admin").length,
+      Teacher: staffList.filter((u) => u.role === "Teacher").length,
+      Accountant: staffList.filter((u) => u.role === "Accountant").length,
+      Medical: staffList.filter((u) => u.role === "Medical").length,
+    };
+  }, [staffList]);
+
+  // Counts for Status filters
+  const staffStatusCounts = useMemo(() => {
+    return {
+      active: staffList.filter((u) => u.isActive).length,
+      inactive: staffList.filter((u) => !u.isActive).length,
+    };
+  }, [staffList]);
+
+  const parentStatusCounts = useMemo(() => {
+    return {
+      active: parentList.filter((u) => u.isActive).length,
+      inactive: parentList.filter((u) => !u.isActive).length,
+    };
+  }, [parentList]);
 
   // Filtered List based on Active Tab
   const filteredUsers = useMemo(() => {
@@ -94,15 +151,15 @@ export default function AdminUsersPage() {
     });
   }, [activeTab, staffList, parentList, searchTerm, staffRoleFilter, statusFilter]);
 
-  // Stats for the active tab
-  const tabStats = useMemo(() => {
-    const sourceList = activeTab === "staff" ? staffList : parentList;
-    return {
-      total: sourceList.length,
-      active: sourceList.filter((u) => u.isActive).length,
-      inactive: sourceList.filter((u) => !u.isActive).length,
-    };
-  }, [activeTab, staffList, parentList]);
+  // Calculate safe page to prevent out-of-range when filtering
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+
+  // Paginated records
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (safePage - 1) * pageSize;
+    return filteredUsers.slice(startIndex, startIndex + pageSize);
+  }, [filteredUsers, safePage, pageSize]);
 
   const hasActiveFilters =
     searchTerm !== "" ||
@@ -113,6 +170,7 @@ export default function AdminUsersPage() {
     setSearchTerm("");
     setStaffRoleFilter("ALL");
     setStatusFilter("ALL");
+    setPage(1);
   };
 
   // Handle Confirm Deactivate
@@ -173,7 +231,7 @@ export default function AdminUsersPage() {
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            <span>+ Thêm tài khoản mới</span>
+            <span>Thêm tài khoản mới</span>
           </button>
         </div>
       </div>
@@ -214,7 +272,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* 4. TAB NAVIGATION: Tách biệt Nhân sự nhà trường & Phụ huynh học sinh */}
+      {/* 4. TAB NAVIGATION: Đồng nhất màu sắc thương hiệu (#42B591) khi Active */}
       <div className="flex items-center gap-2.5 border-b border-border/60 pb-2">
         <button
           type="button"
@@ -222,6 +280,7 @@ export default function AdminUsersPage() {
             setActiveTab("staff");
             setSearchTerm("");
             setStatusFilter("ALL");
+            setStaffRoleFilter("ALL");
           }}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === "staff"
@@ -229,7 +288,7 @@ export default function AdminUsersPage() {
               : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
           }`}
         >
-          <span>🧑‍🏫 Nhân sự nhà trường</span>
+          <span>Nhân sự nhà trường</span>
           <span
             className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
               activeTab === "staff"
@@ -250,11 +309,11 @@ export default function AdminUsersPage() {
           }}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === "parents"
-              ? "bg-[#71C8E4] text-white shadow-xs shadow-[#71C8E4]/25"
+              ? "bg-[#42B591] text-white shadow-xs shadow-[#42B591]/25"
               : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
           }`}
         >
-          <span>👨‍👩‍👧 Phụ huynh học sinh</span>
+          <span>Phụ huynh học sinh</span>
           <span
             className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
               activeTab === "parents"
@@ -267,12 +326,11 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      {/* 5. Filter & Search Controls */}
+      {/* 5. Filter & Search Controls: Tích hợp số đếm trực tiếp vào các nút lọc */}
       <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
-        {/* Search & Quick Stats */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative w-full lg:w-96">
+        {/* Search Input & Reset */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="relative w-full sm:w-96">
             <input
               type="text"
               placeholder={
@@ -298,44 +356,31 @@ export default function AdminUsersPage() {
             </svg>
           </div>
 
-          {/* Quick Stats Badges for Current Tab */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 text-xs">
-            <span className="px-3 py-1 rounded-full bg-background border border-border text-muted font-medium">
-              {activeTab === "staff" ? "Nhân sự" : "Phụ huynh"}:{" "}
-              <strong className="text-foreground font-bold">{tabStats.total}</strong>
-            </span>
-            <span className="px-3 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#18794E] font-medium">
-              Hoạt động: <strong className="font-bold">{tabStats.active}</strong>
-            </span>
-            <span className="px-3 py-1 rounded-full bg-[#F8F8F9] border border-[#E8E8EC] text-[#737373] font-medium">
-              Đã khóa: <strong className="font-bold">{tabStats.inactive}</strong>
-            </span>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="px-3 py-1 rounded-full bg-card hover:bg-background border border-border text-xs font-semibold text-muted hover:text-foreground transition-all cursor-pointer"
-              >
-                ✕ Đặt lại lọc
-              </button>
-            )}
-          </div>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="px-3.5 py-2 rounded-full bg-background hover:bg-card border border-border text-xs font-semibold text-muted hover:text-foreground transition-all cursor-pointer self-start sm:self-auto shrink-0"
+            >
+              ✕ Đặt lại bộ lọc
+            </button>
+          )}
         </div>
 
-        {/* Detailed Filters / Tab Sub-info */}
-        <div className="pt-2 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {/* Tab 1: Role Filters for Staff */}
+        {/* Detailed Filters with Integrated Counts */}
+        <div className="pt-3 border-t border-border/50 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          {/* Tab 1: Role Filters for Staff (Integrated Counts) */}
           {activeTab === "staff" ? (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
               <span className="text-[11px] font-bold text-muted mr-1 uppercase tracking-wider shrink-0">
                 Vai trò:
               </span>
               {[
-                { label: "Tất cả", value: "ALL" },
-                { label: "Admin", value: "Admin" },
-                { label: "Giáo viên", value: "Teacher" },
-                { label: "Kế toán", value: "Accountant" },
-                { label: "Y tế", value: "Medical" },
+                { label: `Tất cả (${staffList.length})`, value: "ALL" },
+                { label: `Admin (${staffRoleCounts.Admin})`, value: "Admin" },
+                { label: `Giáo viên (${staffRoleCounts.Teacher})`, value: "Teacher" },
+                { label: `Kế toán (${staffRoleCounts.Accountant})`, value: "Accountant" },
+                { label: `Y tế (${staffRoleCounts.Medical})`, value: "Medical" },
               ].map((r) => {
                 const isActive = staffRoleFilter === r.value;
                 return (
@@ -355,47 +400,101 @@ export default function AdminUsersPage() {
               })}
             </div>
           ) : (
-            /* Tab 2: Guidance note for Parents */
             <div className="text-xs text-muted flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#71C8E4]" />
+              <span className="w-2 h-2 rounded-full bg-[#42B591]" />
               <span>
                 Tài khoản Phụ huynh liên kết dữ liệu đón trả & học phí của trẻ tại văn phòng nhập học
               </span>
             </div>
           )}
 
-          {/* Status Filter Chips */}
-          <div className="flex items-center gap-1.5">
+          {/* Status Filter Chips (Integrated Counts) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 shrink-0">
             <span className="text-[11px] font-bold text-muted mr-1 uppercase tracking-wider shrink-0">
               Trạng thái:
             </span>
-            {[
-              { label: "Tất cả", value: "ALL" },
-              { label: "Hoạt động", value: "ACTIVE" },
-              { label: "Đã vô hiệu hóa", value: "INACTIVE" },
-            ].map((s) => {
-              const isActive = statusFilter === s.value;
-              return (
+            {activeTab === "staff" ? (
+              <>
                 <button
-                  key={s.value}
                   type="button"
-                  onClick={() => setStatusFilter(s.value)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                    isActive
+                  onClick={() => setStatusFilter("ALL")}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "ALL"
                       ? "bg-foreground text-background"
                       : "bg-background text-muted hover:text-foreground hover:bg-border/40"
                   }`}
                 >
-                  {s.label}
+                  Tất cả ({staffList.length})
                 </button>
-              );
-            })}
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("ACTIVE")}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "ACTIVE"
+                      ? "bg-[#18794E] text-white"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
+                >
+                  Hoạt động ({staffStatusCounts.active})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("INACTIVE")}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "INACTIVE"
+                      ? "bg-foreground text-background"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
+                >
+                  Đã khóa ({staffStatusCounts.inactive})
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("ALL")}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "ALL"
+                      ? "bg-foreground text-background"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
+                >
+                  Tất cả ({parentList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("ACTIVE")}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "ACTIVE"
+                      ? "bg-[#18794E] text-white"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
+                >
+                  Hoạt động ({parentStatusCounts.active})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("INACTIVE")}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "INACTIVE"
+                      ? "bg-foreground text-background"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
+                >
+                  Đã khóa ({parentStatusCounts.inactive})
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 6. Data Table Section with 3 UI States */}
-      <div className="rounded-3xl border border-border bg-card shadow-xs overflow-hidden">
+      {/* 6. Data Table Section with Refined Action Menu & Client-side Pagination */}
+      <div
+        ref={menuContainerRef}
+        className="rounded-3xl border border-border bg-card shadow-xs overflow-visible"
+      >
         {isLoading ? (
           <div className="p-8">
             <StatusMessage
@@ -438,128 +537,205 @@ export default function AdminUsersPage() {
             />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-background/60 border-b border-border text-muted uppercase font-bold tracking-wider">
-                <tr>
-                  <th className="py-3.5 px-6">
-                    {activeTab === "staff" ? "Nhân sự nhà trường" : "Phụ huynh học sinh"}
-                  </th>
-                  <th className="py-3.5 px-4 text-center">Vai trò hệ thống</th>
-                  <th className="py-3.5 px-4 text-center">Trạng thái</th>
-                  <th className="py-3.5 px-6 text-center">Thao tác tài khoản</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {filteredUsers.map((u) => {
-                  const isCurrentAdmin = currentUser?.userId === u.id;
+          <div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-background/60 border-b border-border text-muted uppercase font-bold tracking-wider">
+                  <tr>
+                    <th className="py-3.5 px-6">
+                      {activeTab === "staff" ? "Nhân sự nhà trường" : "Phụ huynh học sinh"}
+                    </th>
+                    {/* Cột Vai trò chỉ hiển thị ở Tab Nhân sự */}
+                    {activeTab === "staff" && (
+                      <th className="py-3.5 px-4 text-center">Vai trò hệ thống</th>
+                    )}
+                    <th className="py-3.5 px-4 text-center">Trạng thái</th>
+                    <th className="py-3.5 px-6 text-center">Thao tác tài khoản</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {paginatedUsers.map((u) => {
+                    const isCurrentAdmin = currentUser?.userId === u.id;
+                    const isMenuOpen = openMenuUserId === u.id;
 
-                  return (
-                    <tr
-                      key={u.id}
-                      className="hover:bg-background/40 transition-colors"
-                    >
-                      {/* Name, Email, Avatar */}
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 border ${
-                              activeTab === "staff"
-                                ? "bg-brand-subtle text-brand border-brand-border/40"
-                                : "bg-[#FFF0EB] text-[#E8916E] border-[#FAC4CD]/40"
-                            }`}
-                          >
-                            {u.fullName.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="font-bold text-foreground text-sm">
-                                {u.fullName}
+                    return (
+                      <tr
+                        key={u.id}
+                        className="hover:bg-background/40 transition-colors"
+                      >
+                        {/* Name, Email, Avatar */}
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 border ${
+                                activeTab === "staff"
+                                  ? "bg-brand-subtle text-brand border-brand-border/40"
+                                  : "bg-[#FFF0EB] text-[#E8916E] border-[#FAC4CD]/40"
+                              }`}
+                            >
+                              {u.fullName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="font-bold text-foreground text-sm">
+                                  {u.fullName}
+                                </p>
+                                {isCurrentAdmin && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8F8F1] text-[#1A624C] border border-[#A7E5D2]">
+                                    Bạn
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-muted mt-0.5">
+                                {u.email}
                               </p>
-                              {isCurrentAdmin && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8F8F1] text-[#1A624C] border border-[#A7E5D2]">
-                                  Bạn
-                                </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Role Badge (Chỉ hiển thị ở Tab Nhân sự) */}
+                        {activeTab === "staff" && (
+                          <td className="py-4 px-4 text-center align-middle">
+                            <UserRoleBadge role={u.role} />
+                          </td>
+                        )}
+
+                        {/* Status Badge */}
+                        <td className="py-4 px-4 text-center align-middle">
+                          <UserStatusBadge isActive={u.isActive} />
+                        </td>
+
+                        {/* Tinh chỉnh Thao tác: Giảm visual noise với nút Sửa trực tiếp + Menu Thao tác 3 chấm (⋮) */}
+                        <td className="py-4 px-6 text-center align-middle relative">
+                          <div className="inline-flex items-center justify-center gap-2">
+                            {/* Nút thao tác chính: Sửa thông tin */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenMenuUserId(null);
+                                setEditingUser(u);
+                              }}
+                              className="px-3 py-1 rounded-full text-xs font-semibold bg-background hover:bg-card text-foreground border border-border hover:border-border-hover transition-all cursor-pointer"
+                            >
+                              Sửa
+                            </button>
+
+                            {/* Dropdown Menu Trigger (3 chấm ⋮) */}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuUserId(isMenuOpen ? null : u.id);
+                                }}
+                                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
+                                  isMenuOpen
+                                    ? "bg-foreground text-background"
+                                    : "bg-background text-muted hover:text-foreground hover:bg-card border border-border"
+                                }`}
+                                aria-label="Thao tác khác"
+                                title="Thao tác khác"
+                              >
+                                ⋮
+                              </button>
+
+                              {/* Action Dropdown Popup */}
+                              {isMenuOpen && (
+                                <div
+                                  className="absolute right-0 top-8 z-30 w-48 rounded-2xl border border-border bg-card p-1.5 shadow-xl animate-in zoom-in-95 duration-150 text-left"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {/* Đổi vai trò (Chỉ ở tab Nhân sự, ẩn nếu là chính Admin đang đăng nhập) */}
+                                  {activeTab === "staff" && !isCurrentAdmin && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenMenuUserId(null);
+                                        setRoleModalUser(u);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-[#F5F0FF] hover:text-[#583F8C] transition-colors cursor-pointer"
+                                    >
+                                      <span>🛡️</span>
+                                      <span>Đổi vai trò</span>
+                                    </button>
+                                  )}
+
+                                  {/* Đặt lại mật khẩu */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenMenuUserId(null);
+                                      setPasswordModalUser(u);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-[#FFF9E6] hover:text-[#7A5B00] transition-colors cursor-pointer"
+                                  >
+                                    <span>🔑</span>
+                                    <span>Đặt lại mật khẩu</span>
+                                  </button>
+
+                                  {/* Vô hiệu hóa / Kích hoạt lại (Ẩn hoàn toàn trên tài khoản Admin đang đăng nhập) */}
+                                  {isCurrentAdmin ? (
+                                    <div className="px-3 py-1.5 text-[10px] text-muted italic border-t border-border/50 mt-1">
+                                      (Tài khoản hiện hành)
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="h-px bg-border/60 my-1" />
+                                      {u.isActive ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenMenuUserId(null);
+                                            setDeactivatingUser(u);
+                                          }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-danger hover:bg-danger-bg transition-colors cursor-pointer"
+                                        >
+                                          <span>🔒</span>
+                                          <span>Vô hiệu hóa</span>
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenMenuUserId(null);
+                                            setActivatingUser(u);
+                                          }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#18794E] hover:bg-[#E8F8F1] transition-colors cursor-pointer"
+                                        >
+                                          <span>🔓</span>
+                                          <span>Kích hoạt lại</span>
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               )}
                             </div>
-                            <p className="text-[11px] text-muted mt-0.5">
-                              {u.email}
-                            </p>
                           </div>
-                        </div>
-                      </td>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-                      {/* Role Badge (Centered) */}
-                      <td className="py-4 px-4 text-center align-middle">
-                        <UserRoleBadge role={u.role} />
-                      </td>
-
-                      {/* Status Badge (Centered) */}
-                      <td className="py-4 px-4 text-center align-middle">
-                        <UserStatusBadge isActive={u.isActive} />
-                      </td>
-
-                      {/* Action Buttons (Centered) */}
-                      <td className="py-4 px-6 text-center align-middle">
-                        <div className="inline-flex items-center justify-center gap-2 flex-wrap">
-                          {/* 1. Sửa thông tin */}
-                          <button
-                            type="button"
-                            onClick={() => setEditingUser(u)}
-                            className="px-3 py-1 rounded-full text-xs font-semibold bg-background hover:bg-card text-foreground border border-border hover:border-border-hover transition-all cursor-pointer"
-                          >
-                            Sửa thông tin
-                          </button>
-
-                          {/* 2. Đổi vai trò (ẨN HOÀN TOÀN TRÊN TÀI KHOẢN HIỆN HÀNH: AC-USER-08 & D39 MỤC 7) */}
-                          {!isCurrentAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => setRoleModalUser(u)}
-                              className="px-3 py-1 rounded-full text-xs font-semibold bg-[#F5F0FF] hover:bg-[#ECE4FF] text-[#583F8C] border border-[#E3D8FF] transition-all cursor-pointer"
-                            >
-                              Đổi vai trò
-                            </button>
-                          )}
-
-                          {/* 3. Đặt lại mật khẩu */}
-                          <button
-                            type="button"
-                            onClick={() => setPasswordModalUser(u)}
-                            className="px-3 py-1 rounded-full text-xs font-semibold bg-[#FFF9E6] hover:bg-[#FFF3DD] text-[#7A5B00] border border-[#FFE8B8] transition-all cursor-pointer"
-                          >
-                            Đặt lại MK
-                          </button>
-
-                          {/* 4. Vô hiệu hóa / Kích hoạt lại (ẨN HOÀN TOÀN TRÊN TÀI KHOẢN HIỆN HÀNH: AC-USER-08 & D39 MỤC 7) */}
-                          {isCurrentAdmin ? (
-                            <span className="text-[11px] text-muted italic ml-1">
-                              (Tài khoản hiện hành)
-                            </span>
-                          ) : u.isActive ? (
-                            <button
-                              type="button"
-                              onClick={() => setDeactivatingUser(u)}
-                              className="px-3 py-1 rounded-full text-xs font-semibold bg-[#FFF0F2] hover:bg-[#FFE3EC] text-[#E5484D] border border-[#FECACA] transition-all cursor-pointer"
-                            >
-                              Khóa
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setActivatingUser(u)}
-                              className="px-3 py-1 rounded-full text-xs font-semibold bg-[#E8F8F1] hover:bg-[#D1F2E3] text-[#1A624C] border border-[#A7E5D2] transition-all cursor-pointer"
-                            >
-                              Mở lại
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {/* Pagination Component (Chỉ hiện khi có từ 1 bản ghi trở lên) */}
+            {filteredUsers.length > 0 && (
+              <div className="p-4 border-t border-border/60">
+                <Pagination
+                  page={safePage}
+                  pageSize={pageSize}
+                  totalCount={filteredUsers.length}
+                  pageSizeOptions={[5, 10, 20]}
+                  onPageChange={setPage}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
