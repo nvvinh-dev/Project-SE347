@@ -1,3 +1,4 @@
+using NhaTre.Application.DTOs.Notifications;
 using NhaTre.Application.Interfaces;
 using NhaTre.Domain.Entities;
 
@@ -38,6 +39,24 @@ public class NotificationService : INotificationService
         EnsureMessage(message);
         var recipientIds = await _notificationRepository.GetActiveParentIdsAsync();
         await SaveAsync(recipientIds, message);
+    }
+
+    public async Task<NotificationPageResponse> GetMyNotificationsAsync(Guid recipientUserId, NotificationListQuery query)
+    {
+        var totalCount = await _notificationRepository.CountByRecipientAsync(recipientUserId);
+
+        // Tính bằng long vì page rất lớn nhân pageSize vượt int. Trang nằm sau trang cuối thì
+        // không cần truy vấn; còn lại skip nhỏ hơn totalCount nên ép về int an toàn
+        var skip = (long)(query.Page - 1) * query.PageSize;
+        IReadOnlyList<Notification> notifications = [];
+        if (skip < totalCount)
+            notifications = await _notificationRepository.GetByRecipientAsync(recipientUserId, (int)skip, query.PageSize);
+
+        var items = notifications
+            .Select(n => new NotificationResponse(n.Id, n.Message, n.CreatedAt))
+            .ToList();
+
+        return new NotificationPageResponse(items, query.Page, query.PageSize, totalCount);
     }
 
     // Message do backend soạn, rỗng là lỗi lập trình của module gọi, không phải lỗi người dùng
