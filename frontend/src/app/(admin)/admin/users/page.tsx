@@ -78,15 +78,6 @@ export default function AdminUsersPage() {
     return users.filter((u) => u.role === "Parent");
   }, [users]);
 
-  // Counts for Staff role filters
-  const staffRoleCounts = useMemo(() => {
-    return {
-      Admin: staffList.filter((u) => u.role === "Admin").length,
-      Teacher: staffList.filter((u) => u.role === "Teacher").length,
-      Accountant: staffList.filter((u) => u.role === "Accountant").length,
-      Medical: staffList.filter((u) => u.role === "Medical").length,
-    };
-  }, [staffList]);
 
   // Counts for Status filters
   const staffStatusCounts = useMemo(() => {
@@ -263,15 +254,15 @@ export default function AdminUsersPage() {
             setStaffRoleFilter("ALL");
           }}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === "staff"
-              ? "bg-[#42B591] text-white shadow-xs shadow-[#42B591]/25"
-              : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
+            ? "bg-[#42B591] text-white shadow-xs shadow-[#42B591]/25"
+            : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
             }`}
         >
           <span>Nhân sự nhà trường</span>
           <span
             className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === "staff"
-                ? "bg-white/20 text-white"
-                : "bg-background text-muted"
+              ? "bg-white/20 text-white"
+              : "bg-background text-muted"
               }`}
           >
             {staffList.length}
@@ -286,15 +277,15 @@ export default function AdminUsersPage() {
             setStatusFilter("ALL");
           }}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === "parents"
-              ? "bg-[#42B591] text-white shadow-xs shadow-[#42B591]/25"
-              : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
+            ? "bg-[#42B591] text-white shadow-xs shadow-[#42B591]/25"
+            : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
             }`}
         >
           <span>Phụ huynh học sinh</span>
           <span
             className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === "parents"
-                ? "bg-white/20 text-white"
-                : "bg-background text-muted"
+              ? "bg-white/20 text-white"
+              : "bg-background text-muted"
               }`}
           >
             {parentList.length}
@@ -352,11 +343,11 @@ export default function AdminUsersPage() {
                 Vai trò:
               </span>
               {[
-                { label: `Tất cả (${staffList.length})`, value: "ALL" },
-                { label: `Admin (${staffRoleCounts.Admin})`, value: "Admin" },
-                { label: `Giáo viên (${staffRoleCounts.Teacher})`, value: "Teacher" },
-                { label: `Kế toán (${staffRoleCounts.Accountant})`, value: "Accountant" },
-                { label: `Y tế (${staffRoleCounts.Medical})`, value: "Medical" },
+                { label: `Tất cả`, value: "ALL" },
+                { label: `Admin`, value: "Admin" },
+                { label: `Giáo viên`, value: "Teacher" },
+                { label: `Kế toán`, value: "Accountant" },
+                { label: `Y tế`, value: "Medical" },
               ].map((r) => {
                 const isActive = staffRoleFilter === r.value;
                 return (
@@ -365,8 +356,8 @@ export default function AdminUsersPage() {
                     type="button"
                     onClick={() => setStaffRoleFilter(r.value)}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isActive
-                        ? "bg-[#42B591] text-white shadow-2xs"
-                        : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                      ? "bg-[#42B591] text-white shadow-2xs"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
                       }`}
                   >
                     {r.label}
@@ -389,8 +380,8 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={() => setStatusFilter("ALL")}
                   className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "ALL"
-                      ? "bg-foreground text-background"
-                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                    ? "bg-foreground text-background"
+                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
                     }`}
                 >
                   Tất cả ({staffList.length})
@@ -399,8 +390,8 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={() => setStatusFilter("ACTIVE")}
                   className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "ACTIVE"
-                      ? "bg-[#18794E] text-white"
-                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                    ? "bg-[#18794E] text-white"
+                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
                     }`}
                 >
                   Hoạt động ({staffStatusCounts.active})
@@ -409,8 +400,8 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={() => setStatusFilter("INACTIVE")}
                   className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "INACTIVE"
-                      ? "bg-foreground text-background"
-                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                    ? "bg-foreground text-background"
+                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
                     }`}
                 >
                   Đã khóa ({staffStatusCounts.inactive})
@@ -422,8 +413,8 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={() => setStatusFilter("ALL")}
                   className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "ALL"
-                      ? "bg-foreground text-background"
-                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                    ? "bg-foreground text-background"
+                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
                     }`}
                 >
                   Tất cả ({parentList.length})
@@ -432,8 +423,8 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={() => setStatusFilter("ACTIVE")}
                   className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "ACTIVE"
-                      ? "bg-[#18794E] text-white"
-                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                    ? "bg-[#18794E] text-white"
+                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
                     }`}
                 >
                   Hoạt động ({parentStatusCounts.active})
@@ -442,8 +433,8 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={() => setStatusFilter("INACTIVE")}
                   className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "INACTIVE"
-                      ? "bg-foreground text-background"
-                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                    ? "bg-foreground text-background"
+                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
                     }`}
                 >
                   Đã khóa ({parentStatusCounts.inactive})
@@ -511,7 +502,7 @@ export default function AdminUsersPage() {
                       <th className="py-3.5 px-4 text-center">Vai trò hệ thống</th>
                     )}
                     <th className="py-3.5 px-4 text-center">Trạng thái</th>
-                    <th className="py-3.5 px-6 text-center">Thao tác tài khoản</th>
+                    <th className="py-3.5 px-6 text-center min-w-[240px]">Thao tác tài khoản</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -528,8 +519,8 @@ export default function AdminUsersPage() {
                           <div className="flex items-center gap-3">
                             <div
                               className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 border ${activeTab === "staff"
-                                  ? "bg-brand-subtle text-brand border-brand-border/40"
-                                  : "bg-[#FFF0EB] text-[#E8916E] border-[#FAC4CD]/40"
+                                ? "bg-brand-subtle text-brand border-brand-border/40"
+                                : "bg-[#FFF0EB] text-[#E8916E] border-[#FAC4CD]/40"
                                 }`}
                             >
                               {u.fullName.charAt(0).toUpperCase()}
@@ -564,71 +555,91 @@ export default function AdminUsersPage() {
                           <UserStatusBadge isActive={u.isActive} />
                         </td>
 
-                        {/* Thao tác tài khoản: Bộ icon nút tròn chuẩn theo thiết kế Hình 2 */}
+                        {/* Thao tác tài khoản: Căn giữa hoàn hảo dưới tiêu đề cột và thẳng hàng laser */}
                         <td className="py-4 px-6 text-center align-middle">
-                          <div className="inline-flex items-center justify-center gap-2.5">
-                            {/* 1. Sửa thông tin: Tone màu xám */}
+                          <div
+                            className={`mx-auto flex items-center gap-2.5 text-left overflow-visible ${activeTab === "staff" ? "w-[158px]" : "w-[116px]"
+                              }`}
+                          >
+                            {/* 1. Sửa thông tin (luôn ở vị trí đầu tiên) */}
                             <button
                               type="button"
                               onClick={() => setEditingUser(u)}
-                              className="w-8 h-8 rounded-full bg-[#E5E7EB]/70 hover:bg-[#D1D5DB] border border-[#D1D5DB]/80 flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xs cursor-pointer"
+                              className="w-8 h-8 rounded-full bg-[#E5E7EB]/80 hover:bg-[#D1D5DB] border border-[#D1D5DB] flex items-center justify-center shrink-0 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
                               aria-label="Sửa thông tin"
                               title="Sửa thông tin"
                             >
-                              <EditUserIcon className="w-4 h-4" />
+                              <EditUserIcon className="w-[18px] h-[18px]" />
                             </button>
 
-                            {/* 2. Đổi vai trò: Icon người dùng tone tím và mũi tên xám (Chỉ tab Nhân sự, ẩn trên Admin đang đăng nhập) */}
-                            {activeTab === "staff" && !isCurrentAdmin && (
-                              <button
-                                type="button"
-                                onClick={() => setRoleModalUser(u)}
-                                className="w-8 h-8 rounded-full bg-[#F3E8FF]/80 hover:bg-[#E9D5FF] border border-[#DDD6FE] flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xs cursor-pointer"
-                                aria-label="Đổi vai trò"
-                                title="Đổi vai trò"
-                              >
-                                <ChangeRoleIcon className="w-4 h-4" />
-                              </button>
-                            )}
-
-                            {/* 3. Đặt lại MK: Chìa khóa vàng kèm mũi tên reset xám */}
-                            <button
-                              type="button"
-                              onClick={() => setPasswordModalUser(u)}
-                              className="w-8 h-8 rounded-full bg-[#FEF9C3]/90 hover:bg-[#FEF08A] border border-[#FDE047]/60 flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xs cursor-pointer"
-                              aria-label="Đặt lại mật khẩu"
-                              title="Đặt lại mật khẩu"
-                            >
-                              <ResetPasswordIcon className="w-4 h-4" />
-                            </button>
-
-                            {/* 4. Khóa / Mở khóa (Ẩn hoàn toàn trên tài khoản Admin đang đăng nhập) */}
+                            {/* Nếu là Admin hiện hành: Hiển thị ngay [Đặt lại MK] ở vị trí 2 rồi đến chữ (Tài khoản hiện hành) */}
                             {isCurrentAdmin ? (
-                              <span className="text-xs text-muted font-normal italic ml-1">
-                                (Tài khoản hiện hành)
-                              </span>
-                            ) : u.isActive ? (
-                              /* Khóa (Khóa đóng): Ổ khóa đóng màu đỏ */
-                              <button
-                                type="button"
-                                onClick={() => setDeactivatingUser(u)}
-                                className="w-8 h-8 rounded-full bg-[#FEE2E2]/90 hover:bg-[#FECACA] border border-[#FCA5A5]/60 flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xs cursor-pointer"
-                                aria-label="Khóa tài khoản"
-                                title="Khóa tài khoản"
-                              >
-                                <LockUserIcon className="w-4 h-4" />
-                              </button>
+                              <>
+                                {/* Nút Đặt lại MK thẳng hàng với vị trí thứ 2 */}
+                                <button
+                                  type="button"
+                                  onClick={() => setPasswordModalUser(u)}
+                                  className="w-8 h-8 rounded-full bg-[#FEF9C3] hover:bg-[#FEF08A] border border-[#FDE047]/70 flex items-center justify-center shrink-0 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
+                                  aria-label="Đặt lại mật khẩu"
+                                  title="Đặt lại mật khẩu"
+                                >
+                                  <ResetPasswordIcon className="w-[18px] h-[18px]" />
+                                </button>
+
+                                {/* Chữ (Tài khoản hiện hành) bắt đầu thẳng hàng với vị trí thứ 3 */}
+                                <span className="text-xs text-muted font-normal italic whitespace-nowrap shrink-0 select-none">
+                                  (Tài khoản hiện hành)
+                                </span>
+                              </>
                             ) : (
-                              /* Mở khóa: Ổ khóa mở màu xanh lá cây */
-                              <button
-                                type="button"
-                                onClick={() => setActivatingUser(u)}
-                                className="w-8 h-8 rounded-full bg-[#DCFCE7]/90 hover:bg-[#BBF7D0] border border-[#86EFAC]/60 flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xs cursor-pointer"
-                                aria-label="Mở khóa tài khoản"
-                                title="Mở khóa tài khoản"
-                              >
-                                <UnlockUserIcon className="w-4 h-4" />
-                              </button>
+                              <>
+                                {/* 2. Đổi vai trò (Chỉ ở tab Nhân sự) */}
+                                {activeTab === "staff" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setRoleModalUser(u)}
+                                    className="w-8 h-8 rounded-full bg-[#F3E8FF]/90 hover:bg-[#E9D5FF] border border-[#DDD6FE] flex items-center justify-center shrink-0 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
+                                    aria-label="Đổi vai trò"
+                                    title="Đổi vai trò"
+                                  >
+                                    <ChangeRoleIcon className="w-[18px] h-[18px]" />
+                                  </button>
+                                )}
+
+                                {/* 3. Đặt lại MK */}
+                                <button
+                                  type="button"
+                                  onClick={() => setPasswordModalUser(u)}
+                                  className="w-8 h-8 rounded-full bg-[#FEF9C3] hover:bg-[#FEF08A] border border-[#FDE047]/70 flex items-center justify-center shrink-0 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
+                                  aria-label="Đặt lại mật khẩu"
+                                  title="Đặt lại mật khẩu"
+                                >
+                                  <ResetPasswordIcon className="w-[18px] h-[18px]" />
+                                </button>
+
+                                {/* 4. Khóa / Mở khóa */}
+                                {u.isActive ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeactivatingUser(u)}
+                                    className="w-8 h-8 rounded-full bg-[#FEE2E2] hover:bg-[#FECACA] border border-[#FCA5A5] flex items-center justify-center shrink-0 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
+                                    aria-label="Khóa tài khoản"
+                                    title="Khóa tài khoản"
+                                  >
+                                    <LockUserIcon className="w-[18px] h-[18px]" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setActivatingUser(u)}
+                                    className="w-8 h-8 rounded-full bg-[#DCFCE7] hover:bg-[#BBF7D0] border border-[#86EFAC] flex items-center justify-center shrink-0 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
+                                    aria-label="Mở khóa tài khoản"
+                                    title="Mở khóa tài khoản"
+                                  >
+                                    <UnlockUserIcon className="w-[18px] h-[18px]" />
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         </td>
