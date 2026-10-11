@@ -23,9 +23,12 @@ export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
   const { data: users, isLoading, isError, error, refetch } = useUsers();
 
+  // Tab State: Tách biệt Nhân sự nhà trường & Phụ huynh học sinh
+  const [activeTab, setActiveTab] = useState<"staff" | "parents">("staff");
+
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>("ALL");
+  const [staffRoleFilter, setStaffRoleFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   // Notification Alerts
@@ -52,20 +55,34 @@ export default function AdminUsersPage() {
     }, 6000);
   };
 
-  // Filtered User List
-  const filteredUsers = useMemo(() => {
+  // Split users into Staff and Parents
+  const staffList = useMemo(() => {
     if (!users) return [];
+    return users.filter((u) => u.role !== "Parent");
+  }, [users]);
 
-    return users.filter((u) => {
+  const parentList = useMemo(() => {
+    if (!users) return [];
+    return users.filter((u) => u.role === "Parent");
+  }, [users]);
+
+  // Filtered List based on Active Tab
+  const filteredUsers = useMemo(() => {
+    const sourceList = activeTab === "staff" ? staffList : parentList;
+    const term = searchTerm.trim().toLowerCase();
+
+    return sourceList.filter((u) => {
       // 1. Search term (fullName or email)
-      const term = searchTerm.trim().toLowerCase();
       const matchesSearch =
         term === "" ||
         u.fullName.toLowerCase().includes(term) ||
         u.email.toLowerCase().includes(term);
 
-      // 2. Role filter
-      const matchesRole = roleFilter === "ALL" || u.role === roleFilter;
+      // 2. Role filter (chỉ áp dụng cho Staff)
+      const matchesRole =
+        activeTab === "parents" ||
+        staffRoleFilter === "ALL" ||
+        u.role === staffRoleFilter;
 
       // 3. Status filter
       const matchesStatus =
@@ -75,23 +92,26 @@ export default function AdminUsersPage() {
 
       return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [users, searchTerm, roleFilter, statusFilter]);
+  }, [activeTab, staffList, parentList, searchTerm, staffRoleFilter, statusFilter]);
 
-  // Summary counts
-  const stats = useMemo(() => {
-    if (!users) return { total: 0, active: 0, inactive: 0 };
+  // Stats for the active tab
+  const tabStats = useMemo(() => {
+    const sourceList = activeTab === "staff" ? staffList : parentList;
     return {
-      total: users.length,
-      active: users.filter((u) => u.isActive).length,
-      inactive: users.filter((u) => !u.isActive).length,
+      total: sourceList.length,
+      active: sourceList.filter((u) => u.isActive).length,
+      inactive: sourceList.filter((u) => !u.isActive).length,
     };
-  }, [users]);
+  }, [activeTab, staffList, parentList]);
 
-  const hasActiveFilters = searchTerm !== "" || roleFilter !== "ALL" || statusFilter !== "ALL";
+  const hasActiveFilters =
+    searchTerm !== "" ||
+    (activeTab === "staff" && staffRoleFilter !== "ALL") ||
+    statusFilter !== "ALL";
 
   const handleResetFilters = () => {
     setSearchTerm("");
-    setRoleFilter("ALL");
+    setStaffRoleFilter("ALL");
     setStatusFilter("ALL");
   };
 
@@ -133,7 +153,7 @@ export default function AdminUsersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <PageHeader
           title="Quản lý tài khoản"
-          description="Danh sách người dùng và phân quyền 5 vai trò hệ thống"
+          description="Quản trị nhân sự nhà trường và tài khoản phụ huynh theo từng phân hệ nghiệp vụ"
         />
         <div className="flex items-center gap-3 shrink-0">
           <button
@@ -194,15 +214,72 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* 4. Filter Toolbar Card */}
+      {/* 4. TAB NAVIGATION: Tách biệt Nhân sự nhà trường & Phụ huynh học sinh */}
+      <div className="flex items-center gap-2.5 border-b border-border/60 pb-2">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab("staff");
+            setSearchTerm("");
+            setStatusFilter("ALL");
+          }}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "staff"
+              ? "bg-[#42B591] text-white shadow-xs shadow-[#42B591]/25"
+              : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
+          }`}
+        >
+          <span>🧑‍🏫 Nhân sự nhà trường</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+              activeTab === "staff"
+                ? "bg-white/20 text-white"
+                : "bg-background text-muted"
+            }`}
+          >
+            {staffList.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab("parents");
+            setSearchTerm("");
+            setStatusFilter("ALL");
+          }}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "parents"
+              ? "bg-[#71C8E4] text-white shadow-xs shadow-[#71C8E4]/25"
+              : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
+          }`}
+        >
+          <span>👨‍👩‍👧 Phụ huynh học sinh</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+              activeTab === "parents"
+                ? "bg-white/20 text-white"
+                : "bg-background text-muted"
+            }`}
+          >
+            {parentList.length}
+          </span>
+        </button>
+      </div>
+
+      {/* 5. Filter & Search Controls */}
       <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
-        {/* Search & Status Counts */}
+        {/* Search & Quick Stats */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           {/* Search Input */}
           <div className="relative w-full lg:w-96">
             <input
               type="text"
-              placeholder="Tìm theo họ tên hoặc email..."
+              placeholder={
+                activeTab === "staff"
+                  ? "Tìm theo họ tên hoặc email nhân sự..."
+                  : "Tìm theo họ tên hoặc email phụ huynh..."
+              }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full h-10 pl-9 pr-4 rounded-xl bg-background border border-border text-xs text-foreground placeholder:text-muted focus:outline-none focus:border-[#42B591] focus:ring-2 focus:ring-[#42B591]/20 transition-all"
@@ -221,16 +298,17 @@ export default function AdminUsersPage() {
             </svg>
           </div>
 
-          {/* Quick Stats Badges */}
+          {/* Quick Stats Badges for Current Tab */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 text-xs">
             <span className="px-3 py-1 rounded-full bg-background border border-border text-muted font-medium">
-              Tổng số: <strong className="text-foreground font-bold">{stats.total}</strong>
+              {activeTab === "staff" ? "Nhân sự" : "Phụ huynh"}:{" "}
+              <strong className="text-foreground font-bold">{tabStats.total}</strong>
             </span>
             <span className="px-3 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#18794E] font-medium">
-              Hoạt động: <strong className="font-bold">{stats.active}</strong>
+              Hoạt động: <strong className="font-bold">{tabStats.active}</strong>
             </span>
             <span className="px-3 py-1 rounded-full bg-[#F8F8F9] border border-[#E8E8EC] text-[#737373] font-medium">
-              Đã khóa: <strong className="font-bold">{stats.inactive}</strong>
+              Đã khóa: <strong className="font-bold">{tabStats.inactive}</strong>
             </span>
             {hasActiveFilters && (
               <button
@@ -244,40 +322,49 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        {/* Filter Selection Chips */}
+        {/* Detailed Filters / Tab Sub-info */}
         <div className="pt-2 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {/* Role Filter Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <span className="text-[11px] font-bold text-muted mr-1 uppercase tracking-wider shrink-0">
-              Vai trò:
-            </span>
-            {[
-              { label: "Tất cả", value: "ALL" },
-              { label: "Admin", value: "Admin" },
-              { label: "Giáo viên", value: "Teacher" },
-              { label: "Kế toán", value: "Accountant" },
-              { label: "Y tế", value: "Medical" },
-              { label: "Phụ huynh", value: "Parent" },
-            ].map((r) => {
-              const isActive = roleFilter === r.value;
-              return (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => setRoleFilter(r.value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                    isActive
-                      ? "bg-[#42B591] text-white shadow-2xs"
-                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
-                  }`}
-                >
-                  {r.label}
-                </button>
-              );
-            })}
-          </div>
+          {/* Tab 1: Role Filters for Staff */}
+          {activeTab === "staff" ? (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              <span className="text-[11px] font-bold text-muted mr-1 uppercase tracking-wider shrink-0">
+                Vai trò:
+              </span>
+              {[
+                { label: "Tất cả", value: "ALL" },
+                { label: "Admin", value: "Admin" },
+                { label: "Giáo viên", value: "Teacher" },
+                { label: "Kế toán", value: "Accountant" },
+                { label: "Y tế", value: "Medical" },
+              ].map((r) => {
+                const isActive = staffRoleFilter === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setStaffRoleFilter(r.value)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-[#42B591] text-white shadow-2xs"
+                        : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            /* Tab 2: Guidance note for Parents */
+            <div className="text-xs text-muted flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#71C8E4]" />
+              <span>
+                Tài khoản Phụ huynh liên kết dữ liệu đón trả & học phí của trẻ tại văn phòng nhập học
+              </span>
+            </div>
+          )}
 
-          {/* Status Filter Dropdown / Chips */}
+          {/* Status Filter Chips */}
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-bold text-muted mr-1 uppercase tracking-wider shrink-0">
               Trạng thái:
@@ -307,11 +394,14 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* 5. Data Table Section with 3 UI States */}
+      {/* 6. Data Table Section with 3 UI States */}
       <div className="rounded-3xl border border-border bg-card shadow-xs overflow-hidden">
         {isLoading ? (
           <div className="p-8">
-            <StatusMessage status="loading" title="Đang tải danh sách người dùng..." />
+            <StatusMessage
+              status="loading"
+              title={`Đang tải danh sách ${activeTab === "staff" ? "nhân sự" : "phụ huynh"}...`}
+            />
           </div>
         ) : isError ? (
           <div className="p-8">
@@ -326,11 +416,13 @@ export default function AdminUsersPage() {
           <div className="p-12 text-center">
             <StatusMessage
               status="empty"
-              title="Không tìm thấy tài khoản phù hợp"
+              title={`Không tìm thấy ${activeTab === "staff" ? "nhân sự" : "phụ huynh"} phù hợp`}
               message={
                 hasActiveFilters
                   ? "Không có tài khoản nào khớp với điều kiện tìm kiếm hoặc bộ lọc hiện tại."
-                  : "Hệ thống chưa có người dùng nào được tạo."
+                  : activeTab === "staff"
+                  ? "Chưa có tài khoản nhân sự nào trong hệ thống."
+                  : "Chưa có tài khoản phụ huynh nào trong hệ thống."
               }
               action={
                 hasActiveFilters ? (
@@ -350,7 +442,9 @@ export default function AdminUsersPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-background/60 border-b border-border text-muted uppercase font-bold tracking-wider">
                 <tr>
-                  <th className="py-3.5 px-6">Người dùng</th>
+                  <th className="py-3.5 px-6">
+                    {activeTab === "staff" ? "Nhân sự nhà trường" : "Phụ huynh học sinh"}
+                  </th>
                   <th className="py-3.5 px-4 text-center">Vai trò hệ thống</th>
                   <th className="py-3.5 px-4 text-center">Trạng thái</th>
                   <th className="py-3.5 px-6 text-center">Thao tác tài khoản</th>
@@ -358,8 +452,7 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-border/60">
                 {filteredUsers.map((u) => {
-                  const isCurrentAdmin =
-                    currentUser?.userId === u.id || (currentUser?.role === "Admin" && currentUser?.userId === u.id);
+                  const isCurrentAdmin = currentUser?.userId === u.id;
 
                   return (
                     <tr
@@ -369,7 +462,13 @@ export default function AdminUsersPage() {
                       {/* Name, Email, Avatar */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-brand-subtle text-brand font-bold text-xs flex items-center justify-center shrink-0 border border-brand-border/40">
+                          <div
+                            className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 border ${
+                              activeTab === "staff"
+                                ? "bg-brand-subtle text-brand border-brand-border/40"
+                                : "bg-[#FFF0EB] text-[#E8916E] border-[#FAC4CD]/40"
+                            }`}
+                          >
                             {u.fullName.charAt(0).toUpperCase()}
                           </div>
                           <div>
@@ -465,7 +564,7 @@ export default function AdminUsersPage() {
         )}
       </div>
 
-      {/* 6. MODALS & DIALOGS */}
+      {/* 7. MODALS & DIALOGS */}
       {/* Modal Thêm tài khoản mới */}
       <AddUserModal
         isOpen={isAddModalOpen}
