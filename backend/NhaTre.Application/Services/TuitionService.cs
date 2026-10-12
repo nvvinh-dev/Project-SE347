@@ -15,6 +15,9 @@ public class TuitionService : ITuitionService
         NumberDecimalSeparator = ","
     };
 
+    // Tháng của báo cáo doanh thu tính theo giờ Việt Nam, không theo múi giờ của máy chủ
+    private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+
     private readonly ITuitionRepository _tuitionRepository;
     private readonly IChildRepository _childRepository;
     private readonly INotificationService _notificationService;
@@ -164,6 +167,33 @@ public class TuitionService : ITuitionService
 
         return new InvoiceResult(InvoiceOutcome.Success, new InvoiceResponse(invoice.Id, child.Id, child.FullName,
             request.Amount, description, InvoiceStatuses.Unpaid, invoice.IssuedAt));
+    }
+
+    // FR-TUITION-03, D39 mục 12: kỳ báo cáo là tháng hiện tại, không có bộ lọc khoảng ngày.
+    // Tổng thu tính theo thời điểm thanh toán (D39 mục 4), không theo kỳ thu ghi trong mô tả hóa đơn.
+    // Số hóa đơn chưa thanh toán đếm mọi hóa đơn còn unpaid lúc sinh báo cáo: hóa đơn không có cột kỳ,
+    // lọc theo issued_at thì khoản nợ của tháng trước biến mất khỏi báo cáo
+    public async Task<RevenueReportResponse> GetRevenueReportAsync()
+    {
+        var generatedAtUtc = DateTime.UtcNow;
+        var (year, month, periodStartUtc, periodEndUtc) = GetMonthPeriod(generatedAtUtc);
+
+        var totalCollected = await _tuitionRepository.SumPaymentsAsync(periodStartUtc, periodEndUtc);
+        var unpaidInvoiceCount = await _tuitionRepository.CountUnpaidInvoicesAsync();
+
+        return new RevenueReportResponse(year, month, periodStartUtc, periodEndUtc, generatedAtUtc,
+            totalCollected, unpaidInvoiceCount);
+    }
+
+    // Tháng chứa thời điểm nowUtc theo giờ Việt Nam, trả ra ranh giới UTC dạng nửa mở [start, end)
+    private static (int Year, int Month, DateTime StartUtc, DateTime EndUtc) GetMonthPeriod(DateTime nowUtc)
+    {
+        var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, VietnamTimeZone);
+        var startVietnam = new DateTime(nowVietnam.Year, nowVietnam.Month, 1, 0, 0, 0, DateTimeKind.Unspecified);
+
+        return (startVietnam.Year, startVietnam.Month,
+            TimeZoneInfo.ConvertTimeToUtc(startVietnam, VietnamTimeZone),
+            TimeZoneInfo.ConvertTimeToUtc(startVietnam.AddMonths(1), VietnamTimeZone));
     }
 
     private static string NewInvoiceMessage(string childFullName, string description, decimal amount)
