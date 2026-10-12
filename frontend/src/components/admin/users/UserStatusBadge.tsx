@@ -11,11 +11,11 @@ export function UserStatusBadge({ isActive, className }: UserStatusBadgeProps) {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#ECFDF5] text-[#18794E] border border-[#A7F3D0]",
+          "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-success-bg text-success border border-success-border",
           className
         )}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-[#30A46C]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-success" />
         Đang hoạt động
       </span>
     );
@@ -24,11 +24,11 @@ export function UserStatusBadge({ isActive, className }: UserStatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F8F8F9] text-[#737373] border border-[#E8E8EC]",
+        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-background text-muted border border-border",
         className
       )}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-[#9E9AA9]" />
+      <span className="h-1.5 w-1.5 rounded-full bg-muted-light" />
       Đã vô hiệu hóa
     </span>
   );

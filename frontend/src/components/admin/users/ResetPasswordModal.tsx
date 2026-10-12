@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useResetPassword } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
@@ -18,6 +18,7 @@ interface ResetPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (message: string) => void;
+  isCurrentUser?: boolean;
 }
 
 export function ResetPasswordModal({
@@ -25,10 +26,12 @@ export function ResetPasswordModal({
   isOpen,
   onClose,
   onSuccess,
+  isCurrentUser = false,
 }: ResetPasswordModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const resetPassword = useResetPassword();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const {
     register,
@@ -41,13 +44,13 @@ export function ResetPasswordModal({
     },
   });
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (resetPassword.isPending) return;
     setServerError(null);
     setShowPassword(false);
     reset({ newPassword: "" });
     onClose();
-  };
+  }, [resetPassword.isPending, reset, onClose]);
 
   useEffect(() => {
     if (!isOpen || !user) return;
@@ -56,17 +59,46 @@ export function ResetPasswordModal({
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !resetPassword.isPending) {
-        onClose();
+      if (e.key === "Escape") {
+        if (!resetPassword.isPending) {
+          handleClose();
+        }
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+
+        const focusableElements = dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = prevOverflow;
     };
-  }, [isOpen, user, onClose, resetPassword.isPending]);
+  }, [isOpen, user, handleClose, resetPassword.isPending]);
 
   if (!isOpen || !user) return null;
 
@@ -99,19 +131,23 @@ export function ResetPasswordModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="reset-password-modal-title"
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#121314]/40 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
         onClick={handleClose}
+        aria-hidden="true"
       />
 
       {/* Modal Dialog Card */}
-      <div className="relative z-10 w-full max-w-lg rounded-3xl border border-border bg-card p-6 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200">
+      <div
+        ref={dialogRef}
+        className="relative z-10 w-full max-w-lg my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/60 pb-4">
           <div className="flex items-center gap-2.5">
@@ -154,13 +190,19 @@ export function ResetPasswordModal({
         </div>
 
         {/* Warning Box Pastel (D48 Token Revocation) */}
-        <div className="mt-4 rounded-2xl bg-[#FFF9E6] border border-[#FFF3DD] p-3.5 text-xs text-[#7A5B00]">
+        <div className="mt-4 rounded-2xl bg-warning-bg border border-warning-border p-3.5 text-xs text-[#7A5B00]">
           <p className="font-bold flex items-center gap-1.5">
             <span>⚠️</span>
-            <span>Cảnh báo thu hồi phiên đăng nhập (D48):</span>
+            <span>Cảnh báo thu hồi phiên đăng nhập:</span>
           </p>
           <p className="mt-1 text-[11px] leading-relaxed">
-            Đặt lại mật khẩu sẽ thu hồi lập tức tất cả token đăng nhập hiện có của người dùng trên mọi thiết bị. Người dùng sẽ phải đăng nhập lại với mật khẩu mới.
+            {isCurrentUser ? (
+              <span className="font-semibold text-danger">
+                Bạn đang đặt lại mật khẩu cho chính tài khoản đang đăng nhập. Sau khi hoàn tất, phiên làm việc sẽ bị thu hồi và bạn sẽ phải đăng nhập lại với mật khẩu mới.
+              </span>
+            ) : (
+              "Đặt lại mật khẩu sẽ thu hồi lập tức tất cả token đăng nhập hiện có của người dùng trên mọi thiết bị. Người dùng sẽ phải đăng nhập lại với mật khẩu mới."
+            )}
           </p>
         </div>
 
@@ -170,37 +212,35 @@ export function ResetPasswordModal({
             id="newPassword"
             label="Mật khẩu mới"
             required
-            hint="Từ 8 đến 128 ký tự"
             error={errors.newPassword?.message}
           >
-            <Input
-              id="newPassword"
-              type={showPassword ? "text" : "password"}
-              placeholder="Nhập mật khẩu mới cho người dùng..."
-              error={errors.newPassword?.message}
-              disabled={resetPassword.isPending}
-              rightIcon={
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-muted hover:text-foreground text-xs font-semibold px-1 py-0.5 cursor-pointer"
-                >
-                  {showPassword ? "Ẩn" : "Hiện"}
-                </button>
-              }
-              {...register("newPassword", {
-                required: "Mật khẩu không được để trống.",
-                minLength: {
-                  value: 8,
-                  message: "Mật khẩu phải từ 8 đến 128 ký tự.",
-                },
-                maxLength: {
-                  value: 128,
-                  message: "Mật khẩu phải từ 8 đến 128 ký tự.",
-                },
-              })}
-            />
+            <div className="relative">
+              <Input
+                id="newPassword"
+                type={showPassword ? "text" : "password"}
+                placeholder="Nhập từ 8 đến 128 ký tự..."
+                disabled={resetPassword.isPending}
+                className="pr-12"
+                {...register("newPassword", {
+                  required: "Vui lòng nhập mật khẩu mới.",
+                  minLength: {
+                    value: 8,
+                    message: "Mật khẩu mới phải có tối thiểu 8 ký tự.",
+                  },
+                  maxLength: {
+                    value: 128,
+                    message: "Mật khẩu mới không được vượt quá 128 ký tự.",
+                  },
+                })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted hover:text-foreground cursor-pointer px-1 py-0.5"
+              >
+                {showPassword ? "Ẩn" : "Hiện"}
+              </button>
+            </div>
           </FormField>
 
           {/* Action buttons */}
@@ -220,7 +260,7 @@ export function ResetPasswordModal({
               isLoading={resetPassword.isPending}
               className="rounded-full px-6 py-2 text-xs font-bold"
             >
-              Lưu mật khẩu mới
+              Xác nhận đặt lại mật khẩu
             </Button>
           </div>
         </form>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useUpdateUser } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
@@ -24,11 +24,13 @@ interface EditUserModalProps {
 export function EditUserModal({ user, isOpen, onClose, onSuccess }: EditUserModalProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const updateUser = useUpdateUser();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
+  // Form is mounted with key={user.id} at parent level, so defaultValues initializes freshly per user
+  // and is NOT overwritten during form submission (preventing loss of edits on 409 Conflict)
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors },
   } = useForm<EditUserFormData>({
     defaultValues: {
@@ -37,36 +39,59 @@ export function EditUserModal({ user, isOpen, onClose, onSuccess }: EditUserModa
     },
   });
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (updateUser.isPending) return;
     setServerError(null);
     onClose();
-  };
+  }, [updateUser.isPending, onClose]);
 
   useEffect(() => {
     if (!isOpen || !user) return;
-
-    // Sync form values when user changes without causing state loop
-    reset({
-      fullName: user.fullName,
-      email: user.email,
-    });
 
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !updateUser.isPending) {
-        onClose();
+      if (e.key === "Escape") {
+        if (!updateUser.isPending) {
+          handleClose();
+        }
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+
+        const focusableElements = dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = prevOverflow;
     };
-  }, [isOpen, user, reset, onClose, updateUser.isPending]);
+  }, [isOpen, user, handleClose, updateUser.isPending]);
 
   if (!isOpen || !user) return null;
 
@@ -100,19 +125,23 @@ export function EditUserModal({ user, isOpen, onClose, onSuccess }: EditUserModa
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-user-modal-title"
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#121314]/40 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
         onClick={handleClose}
+        aria-hidden="true"
       />
 
       {/* Modal Dialog Card */}
-      <div className="relative z-10 w-full max-w-lg rounded-3xl border border-border bg-card p-6 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200">
+      <div
+        ref={dialogRef}
+        className="relative z-10 w-full max-w-lg my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/60 pb-4">
           <div className="flex items-center gap-2.5">
@@ -121,10 +150,10 @@ export function EditUserModal({ user, isOpen, onClose, onSuccess }: EditUserModa
             </span>
             <div>
               <h3 id="edit-user-modal-title" className="text-base font-bold text-foreground">
-                Sửa thông tin tài khoản
+                Chỉnh sửa thông tin
               </h3>
               <p className="text-xs text-muted">
-                Cập nhật họ tên và địa chỉ email định danh của người dùng
+                Cập nhật họ tên hoặc địa chỉ email của người dùng
               </p>
             </div>
           </div>
@@ -147,64 +176,72 @@ export function EditUserModal({ user, isOpen, onClose, onSuccess }: EditUserModa
           </div>
         )}
 
+        {/* Current info note */}
+        <div className="mt-4 rounded-2xl bg-background/60 border border-border p-3.5 flex items-center justify-between">
+          <div>
+            <span className="text-[11px] text-muted block">Mã tài khoản (ID):</span>
+            <span className="text-xs font-mono font-medium text-foreground">{user.id}</span>
+          </div>
+          <div className="text-right">
+            <span className="text-[11px] text-muted block">Vai trò:</span>
+            <span className="text-xs font-bold text-brand-text">{user.role}</span>
+          </div>
+        </div>
+
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4">
           {/* Full Name */}
           <FormField
-            id="editFullName"
+            id="fullName"
             label="Họ và tên"
             required
-            hint="Tối đa 100 ký tự"
             error={errors.fullName?.message}
           >
             <Input
-              id="editFullName"
+              id="fullName"
               placeholder="Nhập họ và tên..."
-              error={errors.fullName?.message}
               disabled={updateUser.isPending}
               {...register("fullName", {
-                required: "Họ tên không được để trống.",
-                validate: (val) => {
-                  const trimmed = val.trim();
-                  if (trimmed.length === 0) return "Họ tên không được để trống.";
-                  if (trimmed.length > 100) return "Họ tên không được dài quá 100 ký tự.";
-                  return true;
+                required: "Họ và tên không được để trống.",
+                minLength: {
+                  value: 1,
+                  message: "Họ và tên phải có ít nhất 1 ký tự.",
                 },
+                maxLength: {
+                  value: 100,
+                  message: "Họ và tên không được vượt quá 100 ký tự.",
+                },
+                validate: (v) =>
+                  v.trim().length > 0 || "Họ và tên không được chỉ chứa khoảng trắng.",
               })}
             />
           </FormField>
 
           {/* Email */}
           <FormField
-            id="editEmail"
-            label="Email công vụ / liên hệ"
+            id="email"
+            label="Địa chỉ email"
             required
-            hint="Tối đa 254 ký tự"
             error={errors.email?.message}
           >
             <Input
-              id="editEmail"
+              id="email"
               type="email"
-              placeholder="Nhập email..."
-              error={errors.email?.message}
+              placeholder="Nhập địa chỉ email..."
               disabled={updateUser.isPending}
               {...register("email", {
-                required: "Email không được để trống.",
-                validate: (val) => {
-                  const trimmed = val.trim();
-                  if (trimmed.length === 0) return "Email không được để trống.";
-                  if (trimmed.length > 254) return "Email không được dài quá 254 ký tự.";
-                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                  if (!emailRegex.test(trimmed)) return "Email không đúng định dạng.";
-                  return true;
+                required: "Địa chỉ email không được để trống.",
+                maxLength: {
+                  value: 254,
+                  message: "Email không được vượt quá 254 ký tự.",
+                },
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: "Định dạng email không hợp lệ.",
                 },
               })}
             />
           </FormField>
-
-          <p className="text-[11px] text-muted italic">
-            * Lưu ý: Thay đổi email sẽ áp dụng khi người dùng đăng nhập lần tiếp theo. Để đổi vai trò hoặc đặt lại mật khẩu, vui lòng sử dụng nút chức năng tương ứng trên bảng.
-          </p>
 
           {/* Action buttons */}
           <div className="mt-6 flex items-center justify-end gap-3 pt-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useChangeRole } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
 import { Button } from "@/components/ui/Button";
@@ -20,13 +20,14 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
   const [selectedRole, setSelectedRole] = useState<Role | "">("");
   const [serverError, setServerError] = useState<string | null>(null);
   const changeRole = useChangeRole();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (changeRole.isPending) return;
     setSelectedRole("");
     setServerError(null);
     onClose();
-  };
+  }, [changeRole.isPending, onClose]);
 
   useEffect(() => {
     if (!isOpen || !user) return;
@@ -35,17 +36,46 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !changeRole.isPending) {
-        onClose();
+      if (e.key === "Escape") {
+        if (!changeRole.isPending) {
+          handleClose();
+        }
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+
+        const focusableElements = dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = prevOverflow;
     };
-  }, [isOpen, user, onClose, changeRole.isPending]);
+  }, [isOpen, user, handleClose, changeRole.isPending]);
 
   if (!isOpen || !user) return null;
 
@@ -85,19 +115,23 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="change-role-modal-title"
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#121314]/40 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
         onClick={handleClose}
+        aria-hidden="true"
       />
 
       {/* Modal Dialog Card */}
-      <div className="relative z-10 w-full max-w-lg rounded-3xl border border-border bg-card p-6 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200">
+      <div
+        ref={dialogRef}
+        className="relative z-10 w-full max-w-lg my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/60 pb-4">
           <div className="flex items-center gap-2.5">
@@ -133,7 +167,7 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
         )}
 
         {/* User Info Overview */}
-        <div className="mt-4 rounded-2xl bg-background/60 border border-border p-3.5 flex items-center justify-between">
+        <div className="mt-3 rounded-2xl bg-background/60 border border-border p-3 flex items-center justify-between">
           <div>
             <p className="text-xs text-muted">Tài khoản được điều chỉnh:</p>
             <p className="text-sm font-bold text-foreground mt-0.5">{user.fullName}</p>
@@ -146,23 +180,23 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
         </div>
 
         {/* Warning Box Pastel (D48 Token Revocation) */}
-        <div className="mt-4 rounded-2xl bg-[#FFF9E6] border border-[#FFF3DD] p-3.5 text-xs text-[#7A5B00]">
+        <div className="mt-3 rounded-2xl bg-warning-bg border border-warning-border p-3 text-xs text-[#7A5B00]">
           <p className="font-bold flex items-center gap-1.5">
             <span>⚠️</span>
-            <span>Cảnh báo thu hồi phiên đăng nhập (D48):</span>
+            <span>Cảnh báo thu hồi phiên đăng nhập:</span>
           </p>
           <p className="mt-1 text-[11px] leading-relaxed">
             Khi đổi vai trò, mọi phiên đăng nhập cũ của tài khoản này trên tất cả các thiết bị sẽ bị thu hồi lập tức. Người dùng sẽ phải đăng nhập lại để nhận quyền hạn mới.
           </p>
         </div>
 
-        {/* Role Selection Form */}
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        {/* Role Selection Form: 2 cột ngay từ màn nhỏ theo review Lead */}
+        <form onSubmit={handleSubmit} className="mt-3 sm:mt-5 space-y-3 sm:space-y-4">
           <div>
-            <label className="text-xs font-bold text-foreground block mb-2">
+            <label className="text-xs font-bold text-foreground block mb-1.5">
               Chọn vai trò công tác mới: <span className="text-danger">*</span>
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {USER_ROLES.map((r) => {
                 const isCurrent = r.value === user.role;
                 const isSelected = selectedRole === r.value;
@@ -175,23 +209,23 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
                       setSelectedRole(r.value);
                       setServerError(null);
                     }}
-                    className={`p-3 rounded-2xl border text-left transition-all ${
+                    className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ${
                       isCurrent
                         ? "bg-background/40 border-border/50 text-muted opacity-60 cursor-not-allowed"
                         : isSelected
-                        ? "bg-[#E8F8F1] border-[#55B38F] text-[#1A624C] ring-2 ring-[#55B38F]/20 shadow-xs"
+                        ? "bg-brand-subtle border-brand text-brand-text ring-2 ring-brand/20 shadow-xs"
                         : "bg-card border-border text-foreground hover:bg-background/80 hover:border-border-hover cursor-pointer"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <p className="font-bold text-xs">{r.label}</p>
                       {isCurrent && (
-                        <span className="text-[10px] font-semibold text-muted bg-border/50 px-1.5 py-0.5 rounded-full">
+                        <span className="text-[9px] font-semibold text-muted bg-border/50 px-1 py-0.5 rounded-full">
                           Hiện tại
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-muted mt-1 leading-snug">{r.desc}</p>
+                    <p className="text-[10px] sm:text-[11px] text-muted mt-0.5 leading-snug">{r.desc}</p>
                   </button>
                 );
               })}
@@ -199,7 +233,7 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
           </div>
 
           {/* Action buttons */}
-          <div className="mt-6 flex items-center justify-end gap-3 pt-2">
+          <div className="mt-4 sm:mt-6 flex items-center justify-end gap-3 pt-1">
             <Button
               type="button"
               variant="secondary"

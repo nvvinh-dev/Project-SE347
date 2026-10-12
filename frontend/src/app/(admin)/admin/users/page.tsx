@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
   useUsers,
@@ -25,7 +25,7 @@ import {
   LockUserIcon,
   UnlockUserIcon,
 } from "@/components/admin/users/UserActionIcons";
-import type { UserResponse } from "@/types/user";
+import { USER_ROLES, type UserResponse } from "@/types/user";
 
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
@@ -46,6 +46,7 @@ export default function AdminUsersPage() {
   // Notification Alerts
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Modal Dialog States
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -60,12 +61,24 @@ export default function AdminUsersPage() {
   const activateUser = useActivateUser();
 
   const handleShowSuccess = (msg: string) => {
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+    }
     setSuccessMessage(msg);
     setActionError(null);
-    setTimeout(() => {
+    successTimeoutRef.current = setTimeout(() => {
       setSuccessMessage(null);
+      successTimeoutRef.current = null;
     }, 6000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Split users into Staff and Parents
   const staffList = useMemo(() => {
@@ -77,7 +90,6 @@ export default function AdminUsersPage() {
     if (!users) return [];
     return users.filter((u) => u.role === "Parent");
   }, [users]);
-
 
   // Counts for Status filters
   const staffStatusCounts = useMemo(() => {
@@ -188,7 +200,7 @@ export default function AdminUsersPage() {
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            className="px-5 py-2.5 rounded-full text-xs font-semibold bg-[#42B591] hover:bg-[#36A07F] active:bg-[#2B876B] text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+            className="px-5 py-2.5 rounded-full text-xs font-semibold bg-brand hover:bg-brand-hover active:bg-brand-active text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer"
           >
             <svg
               className="w-4 h-4"
@@ -207,11 +219,11 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* 2. Success Alert (Pastel Mint) */}
+      {/* 2. Success Alert */}
       {successMessage && (
-        <div className="p-4 rounded-2xl bg-[#E8F8F1] border border-[#A7E5D2] text-[#1A624C] text-xs font-medium flex items-center justify-between animate-in fade-in duration-200">
+        <div className="p-4 rounded-2xl bg-success-bg border border-success-border text-success text-xs font-medium flex items-center justify-between animate-in fade-in duration-200">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1A624C] text-white text-[10px] font-bold">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-success text-white text-[10px] font-bold">
               ✓
             </span>
             <span>{successMessage}</span>
@@ -226,9 +238,9 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* 3. Action Error Alert (Pastel Red) */}
+      {/* 3. Action Error Alert */}
       {actionError && (
-        <div className="p-4 rounded-2xl bg-[#FEF2F2] border border-[#FECACA] text-[#E5484D] text-xs font-medium flex items-center justify-between animate-in fade-in duration-200">
+        <div className="p-4 rounded-2xl bg-danger-bg border border-danger-border text-danger text-xs font-medium flex items-center justify-between animate-in fade-in duration-200">
           <div className="flex items-center gap-2.5">
             <span className="text-base">⚠️</span>
             <span>{actionError}</span>
@@ -243,7 +255,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* 4. TAB NAVIGATION: Đồng nhất màu sắc thương hiệu (#42B591) khi Active */}
+      {/* 4. TAB NAVIGATION */}
       <div className="flex items-center gap-2.5 border-b border-border/60 pb-2">
         <button
           type="button"
@@ -253,17 +265,19 @@ export default function AdminUsersPage() {
             setStatusFilter("ALL");
             setStaffRoleFilter("ALL");
           }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === "staff"
-            ? "bg-[#42B591] text-white shadow-xs shadow-[#42B591]/25"
-            : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
-            }`}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "staff"
+              ? "bg-brand text-white shadow-xs shadow-brand/25"
+              : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
+          }`}
         >
           <span>Nhân sự nhà trường</span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === "staff"
-              ? "bg-white/20 text-white"
-              : "bg-background text-muted"
-              }`}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+              activeTab === "staff"
+                ? "bg-white/20 text-white"
+                : "bg-background text-muted"
+            }`}
           >
             {staffList.length}
           </span>
@@ -276,24 +290,26 @@ export default function AdminUsersPage() {
             setSearchTerm("");
             setStatusFilter("ALL");
           }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === "parents"
-            ? "bg-[#42B591] text-white shadow-xs shadow-[#42B591]/25"
-            : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
-            }`}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "parents"
+              ? "bg-brand text-white shadow-xs shadow-brand/25"
+              : "bg-card text-muted border border-border hover:bg-background hover:text-foreground"
+          }`}
         >
           <span>Phụ huynh học sinh</span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === "parents"
-              ? "bg-white/20 text-white"
-              : "bg-background text-muted"
-              }`}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+              activeTab === "parents"
+                ? "bg-white/20 text-white"
+                : "bg-background text-muted"
+            }`}
           >
             {parentList.length}
           </span>
         </button>
       </div>
 
-      {/* 5. Filter & Search Controls: Tích hợp số đếm trực tiếp vào các nút lọc */}
+      {/* 5. Filter & Search Controls */}
       <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
         {/* Search Input & Reset */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -307,7 +323,7 @@ export default function AdminUsersPage() {
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-10 pl-9 pr-4 rounded-xl bg-background border border-border text-xs text-foreground placeholder:text-muted focus:outline-none focus:border-[#42B591] focus:ring-2 focus:ring-[#42B591]/20 transition-all"
+              className="w-full h-10 pl-9 pr-4 rounded-xl bg-background border border-border text-xs text-foreground placeholder:text-muted focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all"
             />
             <svg
               className="w-4 h-4 text-muted absolute left-3 top-3 pointer-events-none"
@@ -336,18 +352,18 @@ export default function AdminUsersPage() {
 
         {/* Detailed Filters with Integrated Counts */}
         <div className="pt-3 border-t border-border/50 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          {/* Tab 1: Role Filters for Staff (Integrated Counts) */}
+          {/* Tab 1: Role Filters for Staff */}
           {activeTab === "staff" ? (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
               <span className="text-[11px] font-bold text-muted mr-1 uppercase tracking-wider shrink-0">
                 Vai trò:
               </span>
               {[
-                { label: `Tất cả`, value: "ALL" },
-                { label: `Admin`, value: "Admin" },
-                { label: `Giáo viên`, value: "Teacher" },
-                { label: `Kế toán`, value: "Accountant" },
-                { label: `Y tế`, value: "Medical" },
+                { label: "Tất cả", value: "ALL" },
+                { label: "Quản trị viên", value: "Admin" },
+                { label: "Giáo viên", value: "Teacher" },
+                { label: "Kế toán", value: "Accountant" },
+                { label: "Nhân viên Y tế", value: "Medical" },
               ].map((r) => {
                 const isActive = staffRoleFilter === r.value;
                 return (
@@ -355,10 +371,11 @@ export default function AdminUsersPage() {
                     key={r.value}
                     type="button"
                     onClick={() => setStaffRoleFilter(r.value)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isActive
-                      ? "bg-[#42B591] text-white shadow-2xs"
-                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
-                      }`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-brand text-white shadow-2xs"
+                        : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                    }`}
                   >
                     {r.label}
                   </button>
@@ -369,7 +386,7 @@ export default function AdminUsersPage() {
             <div className="text-xs text-muted flex items-center gap-2"></div>
           )}
 
-          {/* Status Filter Chips (Integrated Counts) */}
+          {/* Status Filter Chips */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 shrink-0">
             <span className="text-[11px] font-bold text-muted mr-1 uppercase tracking-wider shrink-0">
               Trạng thái:
@@ -379,30 +396,33 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={() => setStatusFilter("ALL")}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "ALL"
-                    ? "bg-foreground text-background"
-                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "ALL"
+                      ? "bg-foreground text-background"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
                 >
                   Tất cả ({staffList.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setStatusFilter("ACTIVE")}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "ACTIVE"
-                    ? "bg-[#18794E] text-white"
-                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "ACTIVE"
+                      ? "bg-success text-white"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
                 >
                   Hoạt động ({staffStatusCounts.active})
                 </button>
                 <button
                   type="button"
                   onClick={() => setStatusFilter("INACTIVE")}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "INACTIVE"
-                    ? "bg-foreground text-background"
-                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "INACTIVE"
+                      ? "bg-foreground text-background"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
                 >
                   Đã khóa ({staffStatusCounts.inactive})
                 </button>
@@ -412,30 +432,33 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={() => setStatusFilter("ALL")}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "ALL"
-                    ? "bg-foreground text-background"
-                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "ALL"
+                      ? "bg-foreground text-background"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
                 >
                   Tất cả ({parentList.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setStatusFilter("ACTIVE")}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "ACTIVE"
-                    ? "bg-[#18794E] text-white"
-                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "ACTIVE"
+                      ? "bg-success text-white"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
                 >
                   Hoạt động ({parentStatusCounts.active})
                 </button>
                 <button
                   type="button"
                   onClick={() => setStatusFilter("INACTIVE")}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === "INACTIVE"
-                    ? "bg-foreground text-background"
-                    : "bg-background text-muted hover:text-foreground hover:bg-border/40"
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === "INACTIVE"
+                      ? "bg-foreground text-background"
+                      : "bg-background text-muted hover:text-foreground hover:bg-border/40"
+                  }`}
                 >
                   Đã khóa ({parentStatusCounts.inactive})
                 </button>
@@ -445,62 +468,61 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* 6. Data Table Section with Circular Action Buttons & Client-side Pagination */}
+      {/* 6. Data Table Section */}
       <div className="rounded-3xl border border-border bg-card shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="p-8">
-            <StatusMessage
-              status="loading"
-              title={`Đang tải danh sách ${activeTab === "staff" ? "nhân sự" : "phụ huynh"}...`}
-            />
+          <div className="p-12 text-center">
+            <StatusMessage status="loading" message="Đang tải danh sách người dùng..." />
           </div>
         ) : isError ? (
-          <div className="p-8">
-            <StatusMessage
-              status="error"
-              title="Không thể tải danh sách tài khoản"
-              message={error?.message || "Đã xảy ra lỗi khi kết nối máy chủ. Vui lòng thử lại."}
-              onRetry={() => refetch()}
-            />
+          <div className="p-8 text-center space-y-4">
+            <div className="p-4 rounded-2xl bg-danger-bg border border-danger-border text-danger text-xs font-medium inline-block max-w-lg">
+              <p className="font-bold">Không thể tải danh sách tài khoản</p>
+              <p className="mt-1">{toApiError(error).message}</p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="px-4 py-2 rounded-full text-xs font-semibold bg-background hover:bg-card border border-border text-foreground transition-all cursor-pointer"
+              >
+                Thử tải lại
+              </button>
+            </div>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="p-12 text-center">
-            <StatusMessage
-              status="empty"
-              title={`Không tìm thấy ${activeTab === "staff" ? "nhân sự" : "phụ huynh"} phù hợp`}
-              message={
-                hasActiveFilters
-                  ? "Không có tài khoản nào khớp với điều kiện tìm kiếm hoặc bộ lọc hiện tại."
-                  : activeTab === "staff"
-                    ? "Chưa có tài khoản nhân sự nào trong hệ thống."
-                    : "Chưa có tài khoản phụ huynh nào trong hệ thống."
-              }
-              action={
-                hasActiveFilters ? (
-                  <button
-                    type="button"
-                    onClick={handleResetFilters}
-                    className="mt-3 px-4 py-2 rounded-full text-xs font-semibold bg-[#42B591] text-white hover:bg-[#36A07F] transition-all cursor-pointer"
-                  >
-                    Xóa bộ lọc
-                  </button>
-                ) : undefined
-              }
-            />
+          <div className="p-16 text-center">
+            <div className="w-14 h-14 rounded-full bg-background border border-border flex items-center justify-center mx-auto text-2xl text-muted">
+              🔍
+            </div>
+            <h4 className="font-bold text-sm text-foreground mt-4">
+              Không tìm thấy tài khoản phù hợp
+            </h4>
+            <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
+              {hasActiveFilters
+                ? "Không có tài khoản nào thỏa mãn các điều kiện lọc hiện tại. Vui lòng thử tìm kiếm khác."
+                : activeTab === "staff"
+                ? "Chưa có tài khoản nhân sự nào trong hệ thống."
+                : "Chưa có tài khoản phụ huynh nào trong hệ thống."}
+            </p>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="mt-3 px-4 py-2 rounded-full text-xs font-semibold bg-brand text-white hover:bg-brand-hover transition-all cursor-pointer"
+              >
+                Xóa bộ lọc
+              </button>
+            )}
           </div>
         ) : (
           <div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-background/60 border-b border-border text-muted uppercase font-bold tracking-wider">
-                  <tr>
-                    <th className="py-3.5 px-6">
-                      {activeTab === "staff" ? "Nhân sự nhà trường" : "Phụ huynh học sinh"}
-                    </th>
-                    {/* Cột Vai trò chỉ hiển thị ở Tab Nhân sự */}
-                    {activeTab === "staff" && (
-                      <th className="py-3.5 px-4 text-center">Vai trò hệ thống</th>
-                    )}
+                <thead>
+                  <tr className="border-b border-border/80 bg-background/50 font-bold text-muted">
+                    <th className="py-3.5 px-6">Thông tin người dùng</th>
+                    <th className="py-3.5 px-4 text-center">Vai trò hệ thống</th>
                     <th className="py-3.5 px-4 text-center">Trạng thái</th>
                     <th className="py-3.5 px-6 text-center min-w-[240px]">Thao tác tài khoản</th>
                   </tr>
@@ -518,10 +540,11 @@ export default function AdminUsersPage() {
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 border ${activeTab === "staff"
-                                ? "bg-brand-subtle text-brand border-brand-border/40"
-                                : "bg-[#FFF0EB] text-[#E8916E] border-[#FAC4CD]/40"
-                                }`}
+                              className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 border ${
+                                activeTab === "staff"
+                                  ? "bg-brand-subtle text-brand border-brand-border/40"
+                                  : "bg-[#FFF0EB] text-[#E8916E] border-[#FAC4CD]/40"
+                              }`}
                             >
                               {u.fullName.charAt(0).toUpperCase()}
                             </div>
@@ -531,7 +554,7 @@ export default function AdminUsersPage() {
                                   {u.fullName}
                                 </p>
                                 {isCurrentAdmin && (
-                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8F8F1] text-[#1A624C] border border-[#A7E5D2]">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-brand-subtle text-brand-text border border-brand-border">
                                     Bạn
                                   </span>
                                 )}
@@ -543,24 +566,19 @@ export default function AdminUsersPage() {
                           </div>
                         </td>
 
-                        {/* Role Badge (Chỉ hiển thị ở Tab Nhân sự) */}
-                        {activeTab === "staff" && (
-                          <td className="py-4 px-4 text-center align-middle">
-                            <UserRoleBadge role={u.role} />
-                          </td>
-                        )}
+                        {/* Role Badge (Hiển thị cho cả 2 Tab) */}
+                        <td className="py-4 px-4 text-center align-middle">
+                          <UserRoleBadge role={u.role} />
+                        </td>
 
                         {/* Status Badge */}
                         <td className="py-4 px-4 text-center align-middle">
                           <UserStatusBadge isActive={u.isActive} />
                         </td>
 
-                        {/* Thao tác tài khoản: Căn giữa hoàn hảo dưới tiêu đề cột và thẳng hàng laser */}
+                        {/* Thao tác tài khoản: Căn giữa dưới tiêu đề cột */}
                         <td className="py-4 px-6 text-center align-middle">
-                          <div
-                            className={`mx-auto flex items-center gap-2.5 text-left overflow-visible ${activeTab === "staff" ? "w-[158px]" : "w-[116px]"
-                              }`}
-                          >
+                          <div className="mx-auto flex items-center gap-2.5 text-left overflow-visible w-[158px]">
                             {/* 1. Sửa thông tin (luôn ở vị trí đầu tiên) */}
                             <button
                               type="button"
@@ -593,18 +611,16 @@ export default function AdminUsersPage() {
                               </>
                             ) : (
                               <>
-                                {/* 2. Đổi vai trò (Chỉ ở tab Nhân sự) */}
-                                {activeTab === "staff" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setRoleModalUser(u)}
-                                    className="w-8 h-8 rounded-full bg-[#F3E8FF]/90 hover:bg-[#E9D5FF] border border-[#DDD6FE] flex items-center justify-center shrink-0 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
-                                    aria-label="Đổi vai trò"
-                                    title="Đổi vai trò"
-                                  >
-                                    <ChangeRoleIcon className="w-[18px] h-[18px]" />
-                                  </button>
-                                )}
+                                {/* 2. Đổi vai trò: FR-USER-02 cho phép đổi vai trò ở cả Staff và Parent */}
+                                <button
+                                  type="button"
+                                  onClick={() => setRoleModalUser(u)}
+                                  className="w-8 h-8 rounded-full bg-[#F3E8FF]/90 hover:bg-[#E9D5FF] border border-[#DDD6FE] flex items-center justify-center shrink-0 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
+                                  aria-label="Đổi vai trò"
+                                  title="Đổi vai trò"
+                                >
+                                  <ChangeRoleIcon className="w-[18px] h-[18px]" />
+                                </button>
 
                                 {/* 3. Đặt lại MK */}
                                 <button
@@ -650,7 +666,7 @@ export default function AdminUsersPage() {
               </table>
             </div>
 
-            {/* Pagination Component (Chỉ hiện khi có từ 1 bản ghi trở lên) */}
+            {/* Pagination Component */}
             {filteredUsers.length > 0 && (
               <div className="p-4 border-t border-border/60">
                 <Pagination
@@ -671,36 +687,48 @@ export default function AdminUsersPage() {
       </div>
 
       {/* 7. MODALS & DIALOGS */}
-      {/* Modal Thêm tài khoản mới */}
-      <AddUserModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSuccess={handleShowSuccess}
-      />
+      {/* Modal Thêm tài khoản mới: Render khi mở để đảm bảo state sạch */}
+      {isAddModalOpen && (
+        <AddUserModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={handleShowSuccess}
+        />
+      )}
 
-      {/* Modal Sửa thông tin tài khoản */}
-      <EditUserModal
-        user={editingUser}
-        isOpen={editingUser !== null}
-        onClose={() => setEditingUser(null)}
-        onSuccess={handleShowSuccess}
-      />
+      {/* Modal Sửa thông tin tài khoản: key={editingUser.id} */}
+      {editingUser && (
+        <EditUserModal
+          key={`edit-${editingUser.id}`}
+          user={editingUser}
+          isOpen={true}
+          onClose={() => setEditingUser(null)}
+          onSuccess={handleShowSuccess}
+        />
+      )}
 
-      {/* Modal Đổi vai trò */}
-      <ChangeRoleModal
-        user={roleModalUser}
-        isOpen={roleModalUser !== null}
-        onClose={() => setRoleModalUser(null)}
-        onSuccess={handleShowSuccess}
-      />
+      {/* Modal Đổi vai trò: key={roleModalUser.id} */}
+      {roleModalUser && (
+        <ChangeRoleModal
+          key={`role-${roleModalUser.id}`}
+          user={roleModalUser}
+          isOpen={true}
+          onClose={() => setRoleModalUser(null)}
+          onSuccess={handleShowSuccess}
+        />
+      )}
 
-      {/* Modal Đặt lại mật khẩu */}
-      <ResetPasswordModal
-        user={passwordModalUser}
-        isOpen={passwordModalUser !== null}
-        onClose={() => setPasswordModalUser(null)}
-        onSuccess={handleShowSuccess}
-      />
+      {/* Modal Đặt lại mật khẩu: key={passwordModalUser.id} */}
+      {passwordModalUser && (
+        <ResetPasswordModal
+          key={`pwd-${passwordModalUser.id}`}
+          user={passwordModalUser}
+          isOpen={true}
+          onClose={() => setPasswordModalUser(null)}
+          onSuccess={handleShowSuccess}
+          isCurrentUser={currentUser?.userId === passwordModalUser.id}
+        />
+      )}
 
       {/* ConfirmDialog Vô hiệu hóa tài khoản (variant="destructive") */}
       <ConfirmDialog
@@ -720,8 +748,9 @@ export default function AdminUsersPage() {
                 <strong className="text-foreground">{deactivatingUser.fullName}</strong> (
                 {deactivatingUser.email})?
               </p>
-              <div className="rounded-xl bg-[#FFF0F2] border border-[#FECACA] p-3 text-xs text-[#E5484D]">
-                <p className="font-semibold">⚠️ Lưu ý an toàn hệ thống (AC-USER-03):</p>
+              {/* AC-USER-03 */}
+              <div className="rounded-xl bg-danger-bg border border-danger-border p-3 text-xs text-danger">
+                <p className="font-semibold">⚠️ Lưu ý an toàn hệ thống:</p>
                 <p className="mt-1 text-[11px] leading-relaxed">
                   Tài khoản sẽ bị khóa quyền truy cập ngay lập tức ở request tiếp theo. Mọi bản ghi điểm danh, sự cố, hóa đơn do người dùng này tạo vẫn được bảo toàn nguyên vẹn.
                 </p>
@@ -751,7 +780,9 @@ export default function AdminUsersPage() {
               </p>
               <p className="mt-2 text-xs text-muted">
                 Sau khi kích hoạt, người dùng có thể đăng nhập bình thường vào hệ thống với vai trò{" "}
-                <strong className="text-foreground">{activatingUser.role}</strong>.
+                <strong className="text-foreground">
+                  {USER_ROLES.find((r) => r.value === activatingUser.role)?.label ?? activatingUser.role}
+                </strong>.
               </p>
             </div>
           ) : null

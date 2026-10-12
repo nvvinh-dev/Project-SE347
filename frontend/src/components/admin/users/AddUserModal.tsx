@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useCreateUser } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
@@ -28,6 +28,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const createUser = useCreateUser();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const {
     register,
@@ -43,7 +44,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     },
   });
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (createUser.isPending) return;
     setServerError(null);
     setShowPassword(false);
@@ -54,7 +55,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
       role: "",
     });
     onClose();
-  };
+  }, [createUser.isPending, reset, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -63,17 +64,46 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !createUser.isPending) {
-        onClose();
+      if (e.key === "Escape") {
+        if (!createUser.isPending) {
+          handleClose();
+        }
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+
+        const focusableElements = dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = prevOverflow;
     };
-  }, [isOpen, onClose, createUser.isPending]);
+  }, [isOpen, handleClose, createUser.isPending]);
 
   if (!isOpen) return null;
 
@@ -99,10 +129,18 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
         role: data.role as Role,
       });
 
-      reset();
+      const roleObj = USER_ROLES.find((r) => r.value === data.role);
       setServerError(null);
       setShowPassword(false);
-      onSuccess(`Đã tạo thành công tài khoản cho "${trimmedFullName}" (${trimmedEmail}).`);
+      reset({
+        fullName: "",
+        email: "",
+        password: "",
+        role: "",
+      });
+      onSuccess(
+        `Đã tạo tài khoản thành công cho "${trimmedFullName}" với vai trò [${roleObj?.label ?? data.role}].`
+      );
       onClose();
     } catch (err) {
       const apiErr = toApiError(err);
@@ -116,31 +154,35 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-user-modal-title"
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#121314]/40 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
         onClick={handleClose}
+        aria-hidden="true"
       />
 
       {/* Modal Dialog Card */}
-      <div className="relative z-10 w-full max-w-lg rounded-3xl border border-border bg-card p-6 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200">
+      <div
+        ref={dialogRef}
+        className="relative z-10 w-full max-w-lg my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/60 pb-4">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-subtle text-brand text-lg">
-              👤
+              👤➕
             </span>
             <div>
               <h3 id="add-user-modal-title" className="text-base font-bold text-foreground">
                 Thêm tài khoản mới
               </h3>
               <p className="text-xs text-muted">
-                Cấp tài khoản người dùng và thiết lập 1 trong 5 vai trò hệ thống
+                Tạo tài khoản cán bộ giáo viên hoặc phụ huynh học sinh
               </p>
             </div>
           </div>
@@ -164,28 +206,30 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4">
           {/* Full Name */}
           <FormField
             id="fullName"
             label="Họ và tên"
             required
-            hint="Tối đa 100 ký tự"
             error={errors.fullName?.message}
           >
             <Input
               id="fullName"
-              placeholder="Ví dụ: Nguyễn Văn Vinh"
-              error={errors.fullName?.message}
+              placeholder="Ví dụ: Nguyễn Văn A"
               disabled={createUser.isPending}
               {...register("fullName", {
-                required: "Họ tên không được để trống.",
-                validate: (val) => {
-                  const trimmed = val.trim();
-                  if (trimmed.length === 0) return "Họ tên không được để trống.";
-                  if (trimmed.length > 100) return "Họ tên không được dài quá 100 ký tự.";
-                  return true;
+                required: "Họ và tên không được để trống.",
+                minLength: {
+                  value: 1,
+                  message: "Họ và tên phải có ít nhất 1 ký tự.",
                 },
+                maxLength: {
+                  value: 100,
+                  message: "Họ và tên không được vượt quá 100 ký tự.",
+                },
+                validate: (v) =>
+                  v.trim().length > 0 || "Họ và tên không được chỉ chứa khoảng trắng.",
               })}
             />
           </FormField>
@@ -193,75 +237,70 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
           {/* Email */}
           <FormField
             id="email"
-            label="Email công vụ / liên hệ"
+            label="Địa chỉ email"
             required
-            hint="Tối đa 254 ký tự"
             error={errors.email?.message}
           >
             <Input
               id="email"
               type="email"
-              placeholder="Ví dụ: giaovien@nhatre.local hoặc phuhuynh@gmail.com"
-              error={errors.email?.message}
+              placeholder="Ví dụ: nva@nhatre.local"
               disabled={createUser.isPending}
               {...register("email", {
-                required: "Email không được để trống.",
-                validate: (val) => {
-                  const trimmed = val.trim();
-                  if (trimmed.length === 0) return "Email không được để trống.";
-                  if (trimmed.length > 254) return "Email không được dài quá 254 ký tự.";
-                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                  if (!emailRegex.test(trimmed)) return "Email không đúng định dạng.";
-                  return true;
+                required: "Địa chỉ email không được để trống.",
+                maxLength: {
+                  value: 254,
+                  message: "Email không được vượt quá 254 ký tự.",
+                },
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: "Định dạng email không hợp lệ.",
                 },
               })}
             />
           </FormField>
 
-          {/* Password (No trim!) */}
+          {/* Password */}
           <FormField
             id="password"
             label="Mật khẩu khởi tạo"
             required
-            hint="Từ 8 đến 128 ký tự"
             error={errors.password?.message}
           >
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Nhập mật khẩu an toàn ban đầu..."
-              error={errors.password?.message}
-              disabled={createUser.isPending}
-              rightIcon={
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-muted hover:text-foreground text-xs font-semibold px-1 py-0.5 cursor-pointer"
-                >
-                  {showPassword ? "Ẩn" : "Hiện"}
-                </button>
-              }
-              {...register("password", {
-                required: "Mật khẩu không được để trống.",
-                minLength: {
-                  value: 8,
-                  message: "Mật khẩu phải từ 8 đến 128 ký tự.",
-                },
-                maxLength: {
-                  value: 128,
-                  message: "Mật khẩu phải từ 8 đến 128 ký tự.",
-                },
-              })}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Nhập từ 8 đến 128 ký tự..."
+                disabled={createUser.isPending}
+                className="pr-12"
+                {...register("password", {
+                  required: "Mật khẩu không được để trống.",
+                  minLength: {
+                    value: 8,
+                    message: "Mật khẩu phải có tối thiểu 8 ký tự.",
+                  },
+                  maxLength: {
+                    value: 128,
+                    message: "Mật khẩu không được vượt quá 128 ký tự.",
+                  },
+                })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted hover:text-foreground cursor-pointer px-1 py-0.5"
+              >
+                {showPassword ? "Ẩn" : "Hiện"}
+              </button>
+            </div>
           </FormField>
 
-          {/* Role (AC-USER-06, D43 mục 5: Không có giá trị mặc định) */}
+          {/* Role Select: AC-USER-06 Tuyệt đối không chọn sẵn */}
           <FormField
             id="role"
             label="Vai trò hệ thống"
             required
-            hint="Bắt buộc chọn tường minh"
             error={errors.role?.message}
           >
             <Select
@@ -271,7 +310,6 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                 value: r.value,
                 label: `${r.label} (${r.desc})`,
               }))}
-              error={errors.role?.message}
               disabled={createUser.isPending}
               {...register("role", {
                 required: "Vui lòng chọn vai trò cho tài khoản.",
@@ -279,14 +317,15 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
             />
           </FormField>
 
-          {/* Security note */}
+          {/* Security note - AC-USER-05 */}
+          {/* PasswordHasher V3 */}
           <div className="rounded-2xl bg-brand-subtle/70 border border-brand-border/60 p-3 text-xs text-brand-text">
             <p className="font-semibold flex items-center gap-1.5">
               <span>🛡️</span>
               <span>Quy định bảo mật danh tính:</span>
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-muted">
-              Mật khẩu sẽ được băm một chiều an toàn (PasswordHasher V3) ngay tại máy chủ. Hệ thống không lưu bản rõ và không bao giờ hiển thị lại mật khẩu này.
+              Mật khẩu sẽ được băm một chiều an toàn ngay tại máy chủ. Hệ thống không lưu bản rõ và không bao giờ hiển thị lại mật khẩu này.
             </p>
           </div>
 
