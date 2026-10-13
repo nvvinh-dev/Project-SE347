@@ -26,6 +26,8 @@ using NhaTre.Application.Validators.Teachers;
 using NhaTre.Application.DTOs.Teachers;
 using NhaTre.Application.Validators.Attendance;
 using NhaTre.Application.DTOs.Attendance;
+using NhaTre.Application.Validators.Pickup;
+using NhaTre.Application.DTOs.Pickup;
 using NhaTre.Application.Validators.Health;
 using NhaTre.Application.DTOs.Health;
 using NhaTre.Application.Common;
@@ -173,6 +175,9 @@ builder.Services.AddScoped<IValidator<CreateTeacherRequest>, CreateTeacherReques
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IValidator<CheckInRequest>, CheckInRequestValidator>();
+builder.Services.AddScoped<IPickupRepository, PickupRepository>();
+builder.Services.AddScoped<IPickupService, PickupService>();
+builder.Services.AddScoped<IValidator<CreatePickupRequest>, CreatePickupRequestValidator>();
 builder.Services.AddScoped<IHealthRepository, HealthRepository>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<IValidator<QuickHealthStatusRequest>, QuickHealthStatusRequestValidator>();

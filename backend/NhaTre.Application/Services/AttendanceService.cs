@@ -1,3 +1,4 @@
+using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Attendance;
 using NhaTre.Application.Interfaces;
 using NhaTre.Domain.Entities;
@@ -6,9 +7,6 @@ namespace NhaTre.Application.Services;
 
 public class AttendanceService : IAttendanceService
 {
-    // D23: "hôm nay" tính theo giờ Việt Nam, không theo múi giờ của máy chủ
-    private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
-
     private readonly IAttendanceRepository _attendanceRepository;
 
     public AttendanceService(IAttendanceRepository attendanceRepository)
@@ -70,7 +68,7 @@ public class AttendanceService : IAttendanceService
             return new AttendanceResult(AttendanceOutcome.ChildNotFound);
 
         var now = DateTime.UtcNow;
-        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(now, VietnamTimeZone));
+        var today = VietnamTime.DateOf(now);
 
         // BR-ATTENDANCE-04: đã có bản ghi hôm nay thì từ chối, không ghi đè
         if (await _attendanceRepository.ExistsAsync(child.Id, today))
