@@ -80,6 +80,20 @@ public class TuitionRepository : ITuitionRepository
         return updatedRows == 1;
     }
 
+    // SUM của tháng chưa có thanh toán nào ra 0, không phải null (EF dịch thành COALESCE(SUM(...), 0))
+    public async Task<decimal> SumPaymentsAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        return await _dbContext.Payments
+            .Where(p => p.PaidAt >= fromUtc && p.PaidAt < toUtc)
+            .SumAsync(p => p.Amount);
+    }
+
+    public async Task<int> CountUnpaidInvoicesAsync()
+    {
+        return await _dbContext.Invoices
+            .CountAsync(i => i.Status == InvoiceStatuses.Unpaid);
+    }
+
     public async Task SaveChangesAsync()
     {
         await _dbContext.SaveChangesAsync();

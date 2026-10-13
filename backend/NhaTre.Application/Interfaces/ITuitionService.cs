@@ -13,4 +13,6 @@ public interface ITuitionService
     Task<InvoiceResponse?> GetInvoiceByIdAsync(Guid id);
     Task<InvoiceResult> CreateInvoiceAsync(InvoiceRequest request);
     Task<InvoiceResult> UpdateInvoiceAsync(Guid id, InvoiceRequest request);
+
+    Task<RevenueReportResponse> GetRevenueReportAsync();
 }
