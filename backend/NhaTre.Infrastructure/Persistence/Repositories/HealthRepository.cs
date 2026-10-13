@@ -24,6 +24,18 @@ public class HealthRepository : IHealthRepository
                 && c.Class!.HomeroomTeacher!.UserId == teacherUserId);
     }
 
+    // Cùng phạm vi lớp chủ nhiệm như trên. Trùng họ tên thì sắp tiếp theo id để thứ tự không đổi
+    // giữa các lần gọi
+    public async Task<IReadOnlyList<Child>> GetChildrenInHomeroomClassesAsync(Guid teacherUserId)
+    {
+        return await _dbContext.Children
+            .AsNoTracking()
+            .Where(c => c.Class!.HomeroomTeacher!.UserId == teacherUserId)
+            .OrderBy(c => c.FullName)
+            .ThenBy(c => c.Id)
+            .ToListAsync();
+    }
+
     // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với lúc tạo
     public async Task<QuickHealthStatus?> FindQuickHealthStatusInHomeroomClassAsync(Guid id, Guid teacherUserId)
     {

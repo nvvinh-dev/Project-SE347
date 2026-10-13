@@ -50,14 +50,32 @@ public class HealthService : IHealthService
             Notes = request.Notes.Trim()
         };
 
+        // Soạn thông báo trước khi lưu: tâm trạng chưa có tên tiếng Việt thì dừng ở đây, chưa ghi gì
+        // vào database, giáo viên gửi lại không thành hai bản ghi
+        var message = QuickHealthStatusMessage(child.FullName, quickHealthStatus);
+
         _healthRepository.AddQuickHealthStatus(quickHealthStatus);
         await _healthRepository.SaveChangesAsync();
 
         // D39 mục 6: gửi phụ huynh của đúng trẻ, sau khi bản ghi đã lưu. Không gửi Y tế (AC-NOTI-04)
-        await _notificationService.NotifyParentsOfChildAsync(child.Id,
-            QuickHealthStatusMessage(child.FullName, quickHealthStatus));
+        await _notificationService.NotifyParentsOfChildAsync(child.Id, message);
 
         return ToResponse(quickHealthStatus, child.FullName);
+    }
+
+    // FR-HEALTH-07. Đây cũng là danh sách trẻ của lớp để màn hình giáo viên chọn trẻ (D45). Giáo viên
+    // chưa được gán lớp thì danh sách rỗng (UC-HEALTH-06)
+    public async Task<IReadOnlyList<HomeroomChildResponse>> GetHomeroomChildrenAsync(Guid teacherUserId)
+    {
+        var children = await _healthRepository.GetChildrenInHomeroomClassesAsync(teacherUserId);
+        return children.Select(ToHomeroomChild).ToList();
+    }
+
+    // Trẻ không tồn tại, chưa xếp lớp hay thuộc lớp khác đều ngoài phạm vi → 404 (AC-HEALTH-17)
+    public async Task<HomeroomChildResponse?> GetHomeroomChildByIdAsync(Guid childId, Guid teacherUserId)
+    {
+        var child = await _healthRepository.FindChildInHomeroomClassAsync(childId, teacherUserId);
+        return child is null ? null : ToHomeroomChild(child);
     }
 
     private static string QuickHealthStatusMessage(string childFullName, QuickHealthStatus quickHealthStatus)
@@ -83,4 +101,8 @@ public class HealthService : IHealthService
     private static QuickHealthStatusResponse ToResponse(QuickHealthStatus quickHealthStatus, string childFullName)
         => new(quickHealthStatus.Id, quickHealthStatus.ChildId, childFullName, quickHealthStatus.RecordedAt,
             quickHealthStatus.Mood, quickHealthStatus.TemperatureCelsius, quickHealthStatus.Notes);
+
+    // Lưu ý chỉ có khoảng trắng coi như không có, để giao diện chỉ phải xét null khi đánh dấu trẻ (AC-HEALTH-16)
+    private static HomeroomChildResponse ToHomeroomChild(Child child)
+        => new(child.Id, child.FullName, string.IsNullOrWhiteSpace(child.HealthNotes) ? null : child.HealthNotes);
 }

@@ -8,6 +8,9 @@ public interface IHealthRepository
     // null khi trẻ không tồn tại, chưa xếp lớp hoặc thuộc lớp giáo viên khác
     Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId);
 
+    // Trẻ của mọi lớp do tài khoản này chủ nhiệm, sắp theo họ tên; chưa chủ nhiệm lớp nào thì rỗng
+    Task<IReadOnlyList<Child>> GetChildrenInHomeroomClassesAsync(Guid teacherUserId);
+
     // Bản ghi sức khỏe nhanh kèm Child, cùng phạm vi lớp chủ nhiệm như trên
     Task<QuickHealthStatus?> FindQuickHealthStatusInHomeroomClassAsync(Guid id, Guid teacherUserId);
 
