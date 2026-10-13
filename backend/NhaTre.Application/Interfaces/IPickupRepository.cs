@@ -17,6 +17,9 @@ public interface IPickupRepository
     // Bản ghi đón về kèm Attendance và Child, cùng phạm vi lớp chủ nhiệm như trên
     Task<Pickup?> FindByIdInHomeroomClassAsync(Guid id, Guid teacherUserId);
 
+    // Bản ghi đón về gắn với bản điểm danh của ngày đó, kèm Attendance và Child, cùng phạm vi lớp chủ nhiệm
+    Task<IReadOnlyList<Pickup>> GetByDateInHomeroomClassesAsync(DateOnly attendanceDate, Guid teacherUserId);
+
     // Thêm và lưu ngay; false khi bản điểm danh đã có bản ghi đón về (vi phạm UNIQUE attendance_id)
     Task<bool> TryAddAsync(Pickup pickup);
 }
