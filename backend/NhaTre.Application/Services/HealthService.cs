@@ -78,6 +78,45 @@ public class HealthService : IHealthService
         return child is null ? null : ToHomeroomChild(child);
     }
 
+    // FR-HEALTH-02, FR-HEALTH-03. Y tế ghi số đo cho trẻ toàn trường (D43 mục 2), nên chỉ trẻ không
+    // tồn tại mới là 404. Thời điểm đo và người ghi nhận do server đặt (D44 mục 2, AC-HEALTH-09). Số
+    // đo không sinh thông báo (D39 mục 6); đã tạo thì không sửa, không xóa
+    public async Task<GrowthMeasurementResponse?> CreateGrowthMeasurementAsync(
+        Guid childId, GrowthMeasurementRequest request, Guid medicalUserId)
+    {
+        if (!await _healthRepository.ChildExistsAsync(childId))
+            return null;
+
+        var growthMeasurement = new GrowthMeasurement
+        {
+            ChildId = childId,
+            RecordedByUserId = medicalUserId,
+            MeasuredAt = DateTime.UtcNow,
+            HeightCm = request.HeightCm,
+            WeightKg = request.WeightKg
+        };
+
+        _healthRepository.AddGrowthMeasurement(growthMeasurement);
+        await _healthRepository.SaveChangesAsync();
+
+        return ToGrowthMeasurement(growthMeasurement);
+    }
+
+    public async Task<IReadOnlyList<GrowthMeasurementResponse>?> GetGrowthMeasurementsOfChildAsync(Guid childId)
+    {
+        if (!await _healthRepository.ChildExistsAsync(childId))
+            return null;
+
+        var growthMeasurements = await _healthRepository.GetGrowthMeasurementsOfChildAsync(childId);
+        return growthMeasurements.Select(ToGrowthMeasurement).ToList();
+    }
+
+    public async Task<GrowthMeasurementResponse?> GetGrowthMeasurementByIdAsync(Guid id)
+    {
+        var growthMeasurement = await _healthRepository.FindGrowthMeasurementAsync(id);
+        return growthMeasurement is null ? null : ToGrowthMeasurement(growthMeasurement);
+    }
+
     private static string QuickHealthStatusMessage(string childFullName, QuickHealthStatus quickHealthStatus)
     {
         var temperature = quickHealthStatus.TemperatureCelsius is null
@@ -105,4 +144,8 @@ public class HealthService : IHealthService
     // Lưu ý chỉ có khoảng trắng coi như không có, để giao diện chỉ phải xét null khi đánh dấu trẻ (AC-HEALTH-16)
     private static HomeroomChildResponse ToHomeroomChild(Child child)
         => new(child.Id, child.FullName, string.IsNullOrWhiteSpace(child.HealthNotes) ? null : child.HealthNotes);
+
+    private static GrowthMeasurementResponse ToGrowthMeasurement(GrowthMeasurement growthMeasurement)
+        => new(growthMeasurement.Id, growthMeasurement.ChildId, growthMeasurement.MeasuredAt,
+            growthMeasurement.HeightCm, growthMeasurement.WeightKg);
 }

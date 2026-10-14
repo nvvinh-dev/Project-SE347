@@ -51,6 +51,35 @@ public class HealthRepository : IHealthRepository
         _dbContext.QuickHealthStatuses.Add(quickHealthStatus);
     }
 
+    public async Task<bool> ChildExistsAsync(Guid childId)
+    {
+        return await _dbContext.Children.AnyAsync(c => c.Id == childId);
+    }
+
+    // Mới nhất trước, như lịch sử gộp Y tế xem (D39 mục 9). Trùng thời điểm thì sắp tiếp theo id để
+    // thứ tự không đổi giữa các lần gọi
+    public async Task<IReadOnlyList<GrowthMeasurement>> GetGrowthMeasurementsOfChildAsync(Guid childId)
+    {
+        return await _dbContext.GrowthMeasurements
+            .AsNoTracking()
+            .Where(g => g.ChildId == childId)
+            .OrderByDescending(g => g.MeasuredAt)
+            .ThenBy(g => g.Id)
+            .ToListAsync();
+    }
+
+    public async Task<GrowthMeasurement?> FindGrowthMeasurementAsync(Guid id)
+    {
+        return await _dbContext.GrowthMeasurements
+            .AsNoTracking()
+            .FirstOrDefaultAsync(g => g.Id == id);
+    }
+
+    public void AddGrowthMeasurement(GrowthMeasurement growthMeasurement)
+    {
+        _dbContext.GrowthMeasurements.Add(growthMeasurement);
+    }
+
     public async Task SaveChangesAsync()
     {
         await _dbContext.SaveChangesAsync();
