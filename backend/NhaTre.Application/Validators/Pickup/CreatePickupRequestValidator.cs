@@ -24,8 +24,8 @@ public class CreatePickupRequestValidator : AbstractValidator<CreatePickupReques
             .NotEmpty().WithMessage("Người đón đã đăng ký không được để trống.");
 
         // AC-PICKUP-04: PhoneConfirmed thì bắt buộc họ tên người đến đón. Primary/Backup không kiểm
-        // trường này vì giá trị client gửi bị bỏ qua (AC-PICKUP-01). Docs không giới hạn độ dài;
-        // 100 ký tự bằng registered_pickup_persons.full_name. Đo sau Trim vì PickupService lưu bản đã trim
+        // trường này vì giá trị client gửi bị bỏ qua (AC-PICKUP-01). D24: tối đa 100 ký tự như
+        // registered_pickup_persons.full_name. Đo sau Trim vì PickupService lưu bản đã trim
         RuleFor(x => x.PickerFullName)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Họ tên người đến đón không được để trống khi xác nhận qua điện thoại.")

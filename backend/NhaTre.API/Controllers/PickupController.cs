@@ -14,6 +14,8 @@ namespace NhaTre.API.Controllers;
 // vẫn bắt đăng nhập: Program.cs không có fallback policy.
 // FR-PICKUP-01: chỉ Giáo viên ghi nhận đón về (BR-PICKUP-01), và chỉ cho trẻ lớp mình chủ nhiệm
 // (D40 mục 2). Bản ghi đã tạo không sửa, không xóa.
+// FR-PICKUP-02: Giáo viên xem người đón đã đăng ký của trẻ lớp mình để xác minh, và xem bản ghi
+// đón về của lớp mình trong một ngày; cùng phạm vi lớp chủ nhiệm.
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -28,6 +30,34 @@ public class PickupController : ControllerBase
     {
         _pickupService = pickupService;
         _createPickupValidator = createPickupValidator;
+    }
+
+    // Bắt buộc có ngày để không trả cả lịch sử đón về của lớp. Giáo viên chưa được gán lớp hoặc ngày
+    // chưa có ai được đón thì danh sách rỗng
+    [HttpGet("pickups")]
+    [Authorize(Roles = Roles.Teacher)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<PickupResponse>>>> GetByDate([FromQuery] DateOnly? date)
+    {
+        if (date is null)
+            return BadRequest(ApiResponse<IReadOnlyList<PickupResponse>>.Fail(
+                new[] { "Cần chọn ngày (date) để xem danh sách đón về." }));
+
+        var result = await _pickupService.GetByDateAsync(date.Value, CurrentUserId());
+        return Ok(ApiResponse<IReadOnlyList<PickupResponse>>.Ok(result));
+    }
+
+    // Người đón chính trước, người dự phòng sau (D24). Trẻ không tồn tại và trẻ lớp khác cùng trả 404
+    // (AC-PICKUP-06); trẻ lớp mình chưa có người đón thì danh sách rỗng
+    [HttpGet("homeroom-children/{childId:guid}/pickup-persons")]
+    [Authorize(Roles = Roles.Teacher)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<PickupPersonResponse>>>> GetPickupPersons(Guid childId)
+    {
+        var result = await _pickupService.GetPickupPersonsAsync(childId, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<IReadOnlyList<PickupPersonResponse>>.Fail("Không tìm thấy trẻ."));
+
+        return Ok(ApiResponse<IReadOnlyList<PickupPersonResponse>>.Ok(result));
     }
 
     [HttpGet("pickups/{id:guid}")]

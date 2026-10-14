@@ -9,16 +9,48 @@ namespace NhaTre.Application.Services;
 public class PickupService : IPickupService
 {
     private readonly IPickupRepository _pickupRepository;
+    private readonly IFileStorageService _fileStorageService;
 
-    public PickupService(IPickupRepository pickupRepository)
+    public PickupService(IPickupRepository pickupRepository, IFileStorageService fileStorageService)
     {
         _pickupRepository = pickupRepository;
+        _fileStorageService = fileStorageService;
     }
 
     public async Task<PickupResponse?> GetByIdAsync(Guid id, Guid teacherUserId)
     {
         var pickup = await _pickupRepository.FindByIdInHomeroomClassAsync(id, teacherUserId);
         return pickup is null ? null : ToResponse(pickup, pickup.Attendance.Child);
+    }
+
+    // FR-PICKUP-02: màn hình đón về dùng danh sách này để biết trẻ nào đã được đón trong ngày.
+    // Giáo viên chưa được gán lớp hoặc ngày chưa có ai được đón thì danh sách rỗng
+    public async Task<IReadOnlyList<PickupResponse>> GetByDateAsync(DateOnly date, Guid teacherUserId)
+    {
+        var pickups = await _pickupRepository.GetByDateInHomeroomClassesAsync(date, teacherUserId);
+        return pickups.Select(p => ToResponse(p, p.Attendance.Child)).ToList();
+    }
+
+    // FR-PICKUP-02. Kiểm phạm vi trước, rồi mới nạp người đón và xin URL ký (D53): trẻ lớp khác trả
+    // null như trẻ không tồn tại, không lộ thông tin người đón (AC-PICKUP-06). Người đón chính đứng
+    // trước theo thứ tự của repository (D24)
+    public async Task<IReadOnlyList<PickupPersonResponse>?> GetPickupPersonsAsync(Guid childId, Guid teacherUserId)
+    {
+        var child = await _pickupRepository.FindChildInHomeroomClassAsync(childId, teacherUserId);
+        if (child is null)
+            return null;
+
+        var registeredPersons = await _pickupRepository.GetRegisteredPersonsAsync(child.Id);
+
+        var responses = new List<PickupPersonResponse>(registeredPersons.Count);
+        foreach (var person in registeredPersons)
+        {
+            var facePhotoUrl = await _fileStorageService.GetSignedUrlAsync(person.FacePhotoReference);
+            responses.Add(new PickupPersonResponse(person.Id, person.Priority, person.FullName,
+                person.Relationship, person.PhoneNumber, person.CitizenIdNumber, facePhotoUrl));
+        }
+
+        return responses;
     }
 
     // FR-PICKUP-01. Trẻ không tồn tại, chưa xếp lớp hay thuộc lớp khác đều ngoài phạm vi → 404

@@ -54,6 +54,21 @@ public class PickupRepository : IPickupRepository
                 && p.Attendance.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
     }
 
+    // Phạm vi lớp chủ nhiệm luôn có trong câu truy vấn như lịch sử điểm danh (FR-ATT-03). Lọc theo
+    // ngày của bản điểm danh (ngày theo giờ Việt Nam), không theo pickup_time là giờ UTC
+    public async Task<IReadOnlyList<Pickup>> GetByDateInHomeroomClassesAsync(DateOnly attendanceDate, Guid teacherUserId)
+    {
+        return await _dbContext.Pickups
+            .AsNoTracking()
+            .Include(p => p.Attendance)
+                .ThenInclude(a => a.Child)
+            .Where(p => p.Attendance.AttendanceDate == attendanceDate
+                && p.Attendance.Child.Class!.HomeroomTeacher!.UserId == teacherUserId)
+            .OrderBy(p => p.Attendance.Child.FullName)
+            .ThenBy(p => p.Attendance.ChildId)
+            .ToListAsync();
+    }
+
     public async Task<bool> TryAddAsync(Pickup pickup)
     {
         _dbContext.Pickups.Add(pickup);
