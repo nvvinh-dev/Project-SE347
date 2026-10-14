@@ -16,5 +16,15 @@ public interface IHealthRepository
 
     void AddQuickHealthStatus(QuickHealthStatus quickHealthStatus);
 
+    // Y tế làm việc với trẻ toàn trường, không lọc theo lớp (D43 mục 2)
+    Task<bool> ChildExistsAsync(Guid childId);
+
+    // Số đo của một trẻ, mới nhất trước; trẻ chưa có số đo nào thì rỗng
+    Task<IReadOnlyList<GrowthMeasurement>> GetGrowthMeasurementsOfChildAsync(Guid childId);
+
+    Task<GrowthMeasurement?> FindGrowthMeasurementAsync(Guid id);
+
+    void AddGrowthMeasurement(GrowthMeasurement growthMeasurement);
+
     Task SaveChangesAsync();
 }

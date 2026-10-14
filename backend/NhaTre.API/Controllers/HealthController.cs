@@ -14,7 +14,9 @@ namespace NhaTre.API.Controllers;
 // nào quên gắn Roles vẫn bắt đăng nhập: Program.cs không có fallback policy.
 // FR-HEALTH-01: chỉ Giáo viên tạo bản ghi sức khỏe nhanh (BR-HEALTH-01), và chỉ cho trẻ lớp mình
 // chủ nhiệm (D40 mục 2). Bản ghi đã tạo không sửa, không xóa.
-// FR-HEALTH-07: Giáo viên xem lưu ý sức khỏe của trẻ lớp mình chủ nhiệm, chỉ xem (BR-HEALTH-08)
+// FR-HEALTH-07: Giáo viên xem lưu ý sức khỏe của trẻ lớp mình chủ nhiệm, chỉ xem (BR-HEALTH-08).
+// FR-HEALTH-02, FR-HEALTH-03: chỉ Y tế tạo và xem số đo chiều cao, cân nặng (BR-HEALTH-02), cho trẻ
+// toàn trường (D43 mục 2). Số đo đã tạo không sửa, không xóa
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -22,13 +24,16 @@ public class HealthController : ControllerBase
 {
     private readonly IHealthService _healthService;
     private readonly IValidator<QuickHealthStatusRequest> _quickHealthStatusValidator;
+    private readonly IValidator<GrowthMeasurementRequest> _growthMeasurementValidator;
 
     public HealthController(
         IHealthService healthService,
-        IValidator<QuickHealthStatusRequest> quickHealthStatusValidator)
+        IValidator<QuickHealthStatusRequest> quickHealthStatusValidator,
+        IValidator<GrowthMeasurementRequest> growthMeasurementValidator)
     {
         _healthService = healthService;
         _quickHealthStatusValidator = quickHealthStatusValidator;
+        _growthMeasurementValidator = growthMeasurementValidator;
     }
 
     [HttpGet("quick-health-statuses/{id:guid}")]
@@ -85,6 +90,54 @@ public class HealthController : ControllerBase
             return NotFound(ApiResponse<HomeroomChildResponse>.Fail("Không tìm thấy trẻ."));
 
         return Ok(ApiResponse<HomeroomChildResponse>.Ok(result));
+    }
+
+    // Lịch sử số đo của một trẻ, mới nhất trước; trẻ chưa có số đo nào thì danh sách rỗng
+    [HttpGet("children/{childId:guid}/growth-measurements")]
+    [Authorize(Roles = Roles.Medical)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<GrowthMeasurementResponse>>>> GetGrowthMeasurements(
+        Guid childId)
+    {
+        var result = await _healthService.GetGrowthMeasurementsOfChildAsync(childId);
+
+        if (result is null)
+            return NotFound(ApiResponse<IReadOnlyList<GrowthMeasurementResponse>>.Fail("Không tìm thấy trẻ."));
+
+        return Ok(ApiResponse<IReadOnlyList<GrowthMeasurementResponse>>.Ok(result));
+    }
+
+    [HttpGet("growth-measurements/{id:guid}")]
+    [Authorize(Roles = Roles.Medical)]
+    public async Task<ActionResult<ApiResponse<GrowthMeasurementResponse>>> GetGrowthMeasurementById(Guid id)
+    {
+        var result = await _healthService.GetGrowthMeasurementByIdAsync(id);
+
+        if (result is null)
+            return NotFound(ApiResponse<GrowthMeasurementResponse>.Fail("Không tìm thấy số đo."));
+
+        return Ok(ApiResponse<GrowthMeasurementResponse>.Ok(result));
+    }
+
+    // Một lần đo ghi chiều cao, cân nặng hoặc cả hai; trống cả hai → 400 (AC-HEALTH-07)
+    [HttpPost("children/{childId:guid}/growth-measurements")]
+    [Authorize(Roles = Roles.Medical)]
+    public async Task<ActionResult<ApiResponse<GrowthMeasurementResponse>>> CreateGrowthMeasurement(
+        Guid childId, [FromBody] GrowthMeasurementRequest request)
+    {
+        var validationResult = await _growthMeasurementValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<GrowthMeasurementResponse>.Fail(errors));
+        }
+
+        var result = await _healthService.CreateGrowthMeasurementAsync(childId, request, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<GrowthMeasurementResponse>.Fail("Không tìm thấy trẻ."));
+
+        return CreatedAtAction(nameof(GetGrowthMeasurementById), new { id = result.Id },
+            ApiResponse<GrowthMeasurementResponse>.Ok(result));
     }
 
     // ActiveUserMiddleware đã kiểm tra claim sub là Guid hợp lệ trước khi vào đây

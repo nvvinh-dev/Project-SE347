@@ -15,4 +15,14 @@ public interface IHealthService
 
     // null khi trẻ ngoài phạm vi lớp chủ nhiệm
     Task<HomeroomChildResponse?> GetHomeroomChildByIdAsync(Guid childId, Guid teacherUserId);
+
+    // null khi trẻ không tồn tại, không có lý do thất bại nào khác
+    Task<GrowthMeasurementResponse?> CreateGrowthMeasurementAsync(
+        Guid childId, GrowthMeasurementRequest request, Guid medicalUserId);
+
+    // null khi trẻ không tồn tại; trẻ chưa có số đo nào thì danh sách rỗng
+    Task<IReadOnlyList<GrowthMeasurementResponse>?> GetGrowthMeasurementsOfChildAsync(Guid childId);
+
+    // null khi số đo không tồn tại
+    Task<GrowthMeasurementResponse?> GetGrowthMeasurementByIdAsync(Guid id);
 }
