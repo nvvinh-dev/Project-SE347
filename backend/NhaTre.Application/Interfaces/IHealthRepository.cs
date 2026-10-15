@@ -19,6 +19,9 @@ public interface IHealthRepository
     // Y tế làm việc với trẻ toàn trường, không lọc theo lớp (D43 mục 2)
     Task<bool> ChildExistsAsync(Guid childId);
 
+    // Mọi trẻ trong trường, kể cả trẻ chưa xếp lớp, sắp theo họ tên
+    Task<IReadOnlyList<Child>> GetAllChildrenAsync();
+
     // Số đo của một trẻ, mới nhất trước; trẻ chưa có số đo nào thì rỗng
     Task<IReadOnlyList<GrowthMeasurement>> GetGrowthMeasurementsOfChildAsync(Guid childId);
 

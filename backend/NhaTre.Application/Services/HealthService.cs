@@ -78,6 +78,14 @@ public class HealthService : IHealthService
         return child is null ? null : ToHomeroomChild(child);
     }
 
+    // Danh sách để màn hình Y tế chọn trẻ (ghi số đo, xem lịch sử, ghi lưu ý). Y tế làm việc với trẻ
+    // toàn trường (D43 mục 2), nên trẻ chưa xếp lớp vẫn có trong danh sách; không phân trang
+    public async Task<IReadOnlyList<SchoolChildResponse>> GetSchoolChildrenAsync()
+    {
+        var children = await _healthRepository.GetAllChildrenAsync();
+        return children.Select(ToSchoolChild).ToList();
+    }
+
     // FR-HEALTH-02, FR-HEALTH-03. Y tế ghi số đo cho trẻ toàn trường (D43 mục 2), nên chỉ trẻ không
     // tồn tại mới là 404. Thời điểm đo và người ghi nhận do server đặt (D44 mục 2, AC-HEALTH-09). Số
     // đo không sinh thông báo (D39 mục 6); đã tạo thì không sửa, không xóa
@@ -141,9 +149,15 @@ public class HealthService : IHealthService
         => new(quickHealthStatus.Id, quickHealthStatus.ChildId, childFullName, quickHealthStatus.RecordedAt,
             quickHealthStatus.Mood, quickHealthStatus.TemperatureCelsius, quickHealthStatus.Notes);
 
-    // Lưu ý chỉ có khoảng trắng coi như không có, để giao diện chỉ phải xét null khi đánh dấu trẻ (AC-HEALTH-16)
     private static HomeroomChildResponse ToHomeroomChild(Child child)
-        => new(child.Id, child.FullName, string.IsNullOrWhiteSpace(child.HealthNotes) ? null : child.HealthNotes);
+        => new(child.Id, child.FullName, HealthNotesOrNull(child));
+
+    private static SchoolChildResponse ToSchoolChild(Child child)
+        => new(child.Id, child.FullName, child.DateOfBirth, HealthNotesOrNull(child));
+
+    // Lưu ý chỉ có khoảng trắng coi như không có, để giao diện chỉ phải xét null khi đánh dấu trẻ (AC-HEALTH-16)
+    private static string? HealthNotesOrNull(Child child)
+        => string.IsNullOrWhiteSpace(child.HealthNotes) ? null : child.HealthNotes;
 
     private static GrowthMeasurementResponse ToGrowthMeasurement(GrowthMeasurement growthMeasurement)
         => new(growthMeasurement.Id, growthMeasurement.ChildId, growthMeasurement.MeasuredAt,
