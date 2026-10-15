@@ -169,11 +169,11 @@ export function AttendanceHistoryScreen() {
         ) : records.length === 0 ? (
           <StatusMessage status="empty" title="Chưa có bản ghi điểm danh" message="Không có bản ghi cho lựa chọn này. Vui lòng chọn ngày hoặc học sinh khác." />
         ) : (
-          <>
-            <div className="hidden min-w-0 md:block"><DataTable columns={columns} data={visible} keyExtractor={(record) => record.id} /></div>
-            <ul className="space-y-3 md:hidden">
+          <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+            <div className="hidden min-w-0 md:block"><DataTable columns={columns} data={visible} keyExtractor={(record) => record.id} className="rounded-none border-0 shadow-none" /></div>
+            <ul className="divide-y divide-border/60 md:hidden">
               {visible.map((record) => (
-                <li key={record.id} className="min-w-0 space-y-2.5 rounded-xl border border-border bg-card p-3.5 sm:p-4 shadow-xs">
+                <li key={record.id} className="min-w-0 space-y-2.5 p-3.5 sm:p-4">
                   <div className="flex items-start justify-between gap-2">
                     <p className="min-w-0 break-words text-sm font-semibold text-foreground leading-snug">
                       {record.childFullName}
@@ -199,10 +199,18 @@ export function AttendanceHistoryScreen() {
                 </li>
               ))}
             </ul>
-            <Pagination page={currentPage} pageSize={pageSize} totalCount={records.length} onPageChange={setPage} />
-          </>
+            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-4 py-3 text-xs text-muted">
+              {records.length <= pageSize ? (
+                <span>Hiển thị {visible.length} / {records.length} bản ghi</span>
+              ) : (
+                <div className="w-full min-w-0 overflow-x-auto md:flex-1">
+                  <Pagination page={currentPage} pageSize={pageSize} totalCount={records.length} onPageChange={setPage} className="py-0" />
+                </div>
+              )}
+              <span title="Giờ ghi nhận được hiển thị theo giờ Việt Nam.">Bản ghi không thể sửa hoặc xóa</span>
+            </div>
+          </div>
         )}
-        <p className="text-xs text-muted">Bản ghi chỉ xem, không thể sửa hoặc xóa. Giờ ghi nhận được hiển thị theo giờ Việt Nam.</p>
       </section>
     </div>
   );
