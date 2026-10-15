@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useForm, useWatch } from "react-hook-form";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -18,6 +18,13 @@ import { ATTENDANCE_STATUS_LABELS, type AttendanceHistoryFilter, type Attendance
 
 type HistoryForm = { mode: "date" | "child"; date: string; childId: string };
 const pageSize = 20;
+function parseHistoryDate(value: string): string | undefined {
+  const parts = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (!parts) return undefined;
+  const iso = `${parts[3]}-${parts[2]}-${parts[1]}`;
+  const date = new Date(`${iso}T12:00:00Z`);
+  return Number(parts[3]) > 0 && !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === iso ? iso : undefined;
+}
 const badgeClasses = {
   Present: "border-success-border bg-success-bg text-success",
   AbsentExcused: "border-warning-border bg-warning-bg text-warning",
@@ -25,18 +32,20 @@ const badgeClasses = {
 };
 
 function StatusBadge({ record }: { record: AttendanceResponse }) {
-  return <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-medium ${badgeClasses[record.status]}`}>{ATTENDANCE_STATUS_LABELS[record.status]}</span>;
+  return <span className={`inline-flex whitespace-nowrap rounded-lg border px-2.5 py-1 text-xs font-medium ${badgeClasses[record.status]}`}>{ATTENDANCE_STATUS_LABELS[record.status]}</span>;
 }
 
 export function AttendanceHistoryScreen() {
   const { user } = useAuth();
   const [selection, setSelection] = useState<AttendanceHistoryFilter>(() => ({ date: getVietnamDate() }));
   const [page, setPage] = useState(1);
-  const { register, control, handleSubmit, formState: { errors } } = useForm<HistoryForm>({
-    defaultValues: { mode: "date", date: getVietnamDate(), childId: "" },
+  const datePicker = useRef<HTMLInputElement>(null);
+  const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<HistoryForm>({
+    defaultValues: { mode: "date", date: formatAttendanceDate(getVietnamDate()), childId: "" },
     shouldUnregister: true,
   });
   const mode = useWatch({ control, name: "mode" });
+  const dateValue = useWatch({ control, name: "date" });
   const roster = useApiQuery<HomeroomChildResponse[]>({
     queryKey: ["teacher-homeroom-children", user?.userId],
     queryFn: ({ signal }) => getHomeroomChildren(signal),
@@ -53,7 +62,7 @@ export function AttendanceHistoryScreen() {
   const selectedChild = roster.data?.find((child) => child.id === selection.childId);
   const selectedLabel = selection.date ? `Ngày ${formatAttendanceDate(selection.date)}` : selectedChild?.fullName ?? "Trẻ đã chọn";
   const submit = (values: HistoryForm) => {
-    const next = values.mode === "date" ? { date: values.date } : { childId: values.childId };
+    const next = values.mode === "date" ? { date: parseHistoryDate(values.date)! } : { childId: values.childId };
     setPage(1);
     if (JSON.stringify(next) === JSON.stringify(selection)) void history.refetch();
     else setSelection(next);
@@ -62,19 +71,19 @@ export function AttendanceHistoryScreen() {
     {
       key: "child",
       header: "Họ và tên học sinh",
-      className: "min-w-48 whitespace-normal break-words font-medium text-foreground",
+      className: "min-w-40 whitespace-normal break-words font-medium text-foreground",
       render: (record) => record.childFullName,
     },
     {
       key: "date",
       header: "Ngày điểm danh",
-      className: "w-36 tabular-nums text-foreground",
+      className: "w-36 whitespace-nowrap tabular-nums text-foreground",
       render: (record) => formatAttendanceDate(record.attendanceDate),
     },
     {
       key: "status",
       header: "Trạng thái",
-      className: "w-36",
+      className: "w-40 whitespace-nowrap",
       render: (record) => <StatusBadge record={record} />,
     },
     {
@@ -100,25 +109,33 @@ export function AttendanceHistoryScreen() {
         </Link>
       </PageHeader>
       <section aria-label="Tra cứu lịch sử điểm danh" className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-xs">
-        <form onSubmit={handleSubmit(submit)} className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.8fr)_auto]">
-          <FormField id="history-mode" label="Tra cứu theo">
+        <form onSubmit={handleSubmit(submit)} className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]">
+          <FormField id="history-mode" label="Tra cứu theo" className="col-span-2 min-w-0 sm:col-span-1">
             <Select id="history-mode" options={[{ value: "date", label: "Một ngày" }, { value: "child", label: "Một trẻ" }]} className="min-h-11" {...register("mode")} />
           </FormField>
           {mode === "date" ? (
-            <FormField id="history-date" label="Ngày điểm danh" required error={errors.date?.message}>
-              <Input id="history-date" type="date" className="min-h-11 min-w-0" error={errors.date?.message} aria-invalid={Boolean(errors.date)} {...register("date", { required: "Vui lòng chọn ngày điểm danh." })} />
+            <FormField id="history-date" label="Ngày điểm danh" required error={errors.date?.message} className="col-span-2 min-w-0 sm:col-span-1">
+              <div className="relative">
+                <Input id="history-date" placeholder="dd/mm/yyyy" className="min-h-11 min-w-0" error={errors.date?.message} aria-invalid={Boolean(errors.date)}
+                  {...register("date", { required: "Vui lòng chọn ngày điểm danh.", validate: (value) => Boolean(parseHistoryDate(value)) || "Nhập ngày hợp lệ theo định dạng dd/mm/yyyy." })}
+                  rightIcon={<Button variant="ghost" size="sm" className="min-h-9 min-w-9 p-1" aria-label="Mở lịch chọn ngày" onClick={() => datePicker.current?.showPicker()}>
+                    <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" /></svg>
+                  </Button>} />
+                <Input ref={datePicker} type="date" tabIndex={-1} aria-hidden="true" className="sr-only" value={parseHistoryDate(dateValue ?? "") ?? ""}
+                  onChange={(event) => setValue("date", event.target.value ? formatAttendanceDate(event.target.value) : "", { shouldDirty: true, shouldValidate: true })} />
+              </div>
             </FormField>
           ) : (
-            <FormField id="history-child" label="Học sinh" required error={errors.childId?.message}>
+            <FormField id="history-child" label="Học sinh" required error={errors.childId?.message} className="col-span-2 min-w-0 sm:col-span-1">
               <Select id="history-child" placeholder="Chọn học sinh" options={(roster.data ?? []).map((child) => ({ value: child.id, label: child.fullName }))}
                 disabled={roster.data === undefined || roster.data.length === 0} className="min-h-11" error={errors.childId?.message} aria-invalid={Boolean(errors.childId)}
                 {...register("childId", { required: "Vui lòng chọn học sinh.", validate: (value) => roster.data?.some((child) => child.id === value) || "Vui lòng chọn học sinh trong danh sách lớp hiện tại." })} />
             </FormField>
           )}
-          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-1">
+          <div className="flex items-end">
             <Button
               type="submit"
-              className="min-h-11 flex-1 sm:flex-none"
+              className="min-h-11 w-full whitespace-nowrap"
               disabled={mode === "child" && !roster.data?.length}
             >
               <svg aria-hidden="true" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,9 +143,11 @@ export function AttendanceHistoryScreen() {
               </svg>
               <span>Xem lịch sử</span>
             </Button>
+          </div>
+          <div className="flex items-end">
             <Button
               variant="secondary"
-              className="min-h-11 flex-1 sm:flex-none"
+              className="min-h-11 w-full whitespace-nowrap"
               disabled={history.isFetching}
               onClick={() => { void history.refetch(); }}
             >
@@ -141,7 +160,7 @@ export function AttendanceHistoryScreen() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.55-1.3L20 8M4 16l2.35 2.3A7 7 0 0 0 17.9 17" />
               </svg>
-              <span>{history.isFetching ? "Đang tải..." : "Tải lại kết quả"}</span>
+              <span>{history.isFetching ? "Đang tải..." : <>Tải lại<span className="hidden xl:inline"> kết quả</span></>}</span>
             </Button>
           </div>
         </form>
@@ -169,6 +188,7 @@ export function AttendanceHistoryScreen() {
         ) : records.length === 0 ? (
           <StatusMessage status="empty" title="Chưa có bản ghi điểm danh" message="Không có bản ghi cho lựa chọn này. Vui lòng chọn ngày hoặc học sinh khác." />
         ) : (
+          <>
           <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             <div className="hidden min-w-0 md:block"><DataTable columns={columns} data={visible} keyExtractor={(record) => record.id} className="rounded-none border-0 shadow-none" /></div>
             <ul className="divide-y divide-border/60 md:hidden">
@@ -200,16 +220,16 @@ export function AttendanceHistoryScreen() {
               ))}
             </ul>
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-4 py-3 text-xs text-muted">
-              {records.length <= pageSize ? (
-                <span>Hiển thị {visible.length} / {records.length} bản ghi</span>
-              ) : (
-                <div className="w-full min-w-0 overflow-x-auto md:flex-1">
-                  <Pagination page={currentPage} pageSize={pageSize} totalCount={records.length} onPageChange={setPage} className="py-0" />
-                </div>
-              )}
+              {records.length <= pageSize && <span>Hiển thị {visible.length} / {records.length} bản ghi</span>}
               <span title="Giờ ghi nhận được hiển thị theo giờ Việt Nam.">Bản ghi không thể sửa hoặc xóa</span>
             </div>
           </div>
+          {records.length > pageSize && (
+            <div className="min-w-0 overflow-x-auto">
+              <Pagination page={currentPage} pageSize={pageSize} totalCount={records.length} onPageChange={setPage} />
+            </div>
+          )}
+          </>
         )}
       </section>
     </div>
