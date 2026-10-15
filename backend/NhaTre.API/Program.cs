@@ -181,6 +181,9 @@ builder.Services.AddScoped<IValidator<CheckInRequest>, CheckInRequestValidator>(
 builder.Services.AddScoped<IPickupRepository, PickupRepository>();
 builder.Services.AddScoped<IPickupService, PickupService>();
 builder.Services.AddScoped<IValidator<CreatePickupRequest>, CreatePickupRequestValidator>();
+builder.Services.AddScoped<IValidator<CreatePickupPersonRequest>, CreatePickupPersonRequestValidator>();
+builder.Services.AddScoped<IValidator<PickupPersonRequest>, PickupPersonRequestValidator>();
+builder.Services.AddScoped<IValidator<UploadedPhoto>, FacePhotoValidator>();
 builder.Services.AddScoped<IHealthRepository, HealthRepository>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<IValidator<QuickHealthStatusRequest>, QuickHealthStatusRequestValidator>();

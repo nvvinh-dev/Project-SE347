@@ -53,8 +53,8 @@ public class SupabaseFileStorageService : IFileStorageService
 
     public async Task<string> GetSignedUrlAsync(string fileReference)
     {
-        if (string.IsNullOrWhiteSpace(fileReference))
-            throw new ArgumentException("Thiếu khóa file.", nameof(fileReference));
+        if (!StorageFolders.IsValidFileReference(fileReference))
+            throw new ArgumentException($"Khóa file không hợp lệ: '{fileReference}'.", nameof(fileReference));
 
         var settings = ReadSettings();
         using var request = CreateRequest(HttpMethod.Post, $"{settings.StorageUrl}/object/sign/{BucketName}/{fileReference}", settings.ServiceKey);
@@ -74,8 +74,8 @@ public class SupabaseFileStorageService : IFileStorageService
 
     public async Task DeleteAsync(string fileReference)
     {
-        if (string.IsNullOrWhiteSpace(fileReference))
-            throw new ArgumentException("Thiếu khóa file.", nameof(fileReference));
+        if (!StorageFolders.IsValidFileReference(fileReference))
+            throw new ArgumentException($"Khóa file không hợp lệ: '{fileReference}'.", nameof(fileReference));
 
         var settings = ReadSettings();
         using var request = CreateRequest(HttpMethod.Delete, $"{settings.StorageUrl}/object/{BucketName}", settings.ServiceKey);
