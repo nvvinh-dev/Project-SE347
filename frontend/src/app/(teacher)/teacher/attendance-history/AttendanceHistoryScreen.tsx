@@ -32,7 +32,7 @@ const badgeClasses = {
 };
 
 function StatusBadge({ record }: { record: AttendanceResponse }) {
-  return <span className={`inline-flex whitespace-nowrap rounded-lg border px-2.5 py-1 text-xs font-medium ${badgeClasses[record.status]}`}>{ATTENDANCE_STATUS_LABELS[record.status]}</span>;
+  return <span className={`inline-flex min-h-9 items-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold md:h-8 md:min-h-8 md:py-0 ${badgeClasses[record.status]}`}>{ATTENDANCE_STATUS_LABELS[record.status]}</span>;
 }
 
 export function AttendanceHistoryScreen() {
@@ -71,25 +71,25 @@ export function AttendanceHistoryScreen() {
     {
       key: "child",
       header: "Họ và tên học sinh",
-      className: "min-w-40 whitespace-normal break-words font-medium text-foreground",
-      render: (record) => record.childFullName,
+      className: "w-[32%] min-w-40 whitespace-normal break-words font-medium text-foreground",
+      render: (record) => <span className="block max-w-64 break-words">{record.childFullName}</span>,
     },
     {
       key: "date",
       header: "Ngày điểm danh",
-      className: "w-36 whitespace-nowrap tabular-nums text-foreground",
+      className: "w-[24%] whitespace-nowrap tabular-nums text-foreground",
       render: (record) => formatAttendanceDate(record.attendanceDate),
     },
     {
       key: "status",
       header: "Trạng thái",
-      className: "w-40 whitespace-nowrap",
+      className: "w-[26%] whitespace-nowrap",
       render: (record) => <StatusBadge record={record} />,
     },
     {
       key: "time",
       header: "Giờ ghi nhận",
-      className: "w-32 tabular-nums text-muted",
+      className: "w-[18%] whitespace-nowrap tabular-nums text-muted",
       render: (record) => formatAttendanceTime(record.checkInTimeUtc),
     },
   ];
@@ -188,48 +188,40 @@ export function AttendanceHistoryScreen() {
         ) : records.length === 0 ? (
           <StatusMessage status="empty" title="Chưa có bản ghi điểm danh" message="Không có bản ghi cho lựa chọn này. Vui lòng chọn ngày hoặc học sinh khác." />
         ) : (
-          <>
+          <div className="min-w-0 space-y-2">
           <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             <div className="hidden min-w-0 md:block"><DataTable columns={columns} data={visible} keyExtractor={(record) => record.id} className="rounded-none border-0 shadow-none" /></div>
             <ul className="divide-y divide-border/60 md:hidden">
               {visible.map((record) => (
-                <li key={record.id} className="min-w-0 space-y-2.5 p-3.5 sm:p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="min-w-0 break-words text-sm font-semibold text-foreground leading-snug">
+                <li key={record.id} className="flex min-w-0 items-center gap-3 px-3.5 py-2.5 sm:px-4">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="break-words text-sm font-medium leading-snug text-foreground">
                       {record.childFullName}
                     </p>
-                    <div className="shrink-0">
-                      <StatusBadge record={record} />
-                    </div>
+                    <p className="whitespace-nowrap text-xs tabular-nums text-muted">
+                      <span className="sr-only">Ngày điểm danh: </span>
+                      {formatAttendanceDate(record.attendanceDate)}
+                      <span aria-hidden="true"> · </span>
+                      <span className="sr-only">Giờ ghi nhận theo giờ Việt Nam: </span>
+                      {formatAttendanceTime(record.checkInTimeUtc)}
+                    </p>
                   </div>
-                  <dl className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2 text-xs">
-                    <div>
-                      <dt className="text-muted text-[11px]">Ngày điểm danh</dt>
-                      <dd className="mt-0.5 font-medium tabular-nums text-foreground">
-                        {formatAttendanceDate(record.attendanceDate)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted text-[11px]">Giờ ghi nhận</dt>
-                      <dd className="mt-0.5 font-medium tabular-nums text-foreground">
-                        {formatAttendanceTime(record.checkInTimeUtc)}
-                      </dd>
-                    </div>
-                  </dl>
+                  <div className="shrink-0"><StatusBadge record={record} /></div>
                 </li>
               ))}
             </ul>
-            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-4 py-3 text-xs text-muted">
-              {records.length <= pageSize && <span>Hiển thị {visible.length} / {records.length} bản ghi</span>}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-muted">
+              <span>Hiển thị {visible.length} / {records.length} bản ghi</span>
               <span title="Giờ ghi nhận được hiển thị theo giờ Việt Nam.">Bản ghi không thể sửa hoặc xóa</span>
             </div>
           </div>
-          {records.length > pageSize && (
-            <div className="min-w-0 overflow-x-auto">
-              <Pagination page={currentPage} pageSize={pageSize} totalCount={records.length} onPageChange={setPage} />
-            </div>
-          )}
-          </>
+            {records.length > pageSize && (
+              <div className="min-w-0 overflow-x-auto">
+                <Pagination page={currentPage} pageSize={pageSize} totalCount={records.length} onPageChange={setPage}
+                  showSummary={false} className="justify-center gap-2 py-0! sm:justify-end" />
+              </div>
+            )}
+          </div>
         )}
       </section>
     </div>

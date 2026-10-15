@@ -5,6 +5,7 @@ export interface PaginationProps {
   page: number;
   pageSize: number;
   totalCount: number;
+  showSummary?: boolean;
   pageSizeOptions?: number[];
   onPageChange: (newPage: number) => void;
   onPageSizeChange?: (newPageSize: number) => void;
@@ -15,6 +16,7 @@ export function Pagination({
   page,
   pageSize,
   totalCount,
+  showSummary = true,
   pageSizeOptions = [10, 20, 50],
   onPageChange,
   onPageSizeChange,
@@ -48,31 +50,35 @@ export function Pagination({
         className
       )}
     >
-      <div className="flex items-center gap-2">
-        <span>
-          Hiển thị{" "}
-          <strong className="font-semibold text-foreground">{from}</strong> -{" "}
-          <strong className="font-semibold text-foreground">{to}</strong> trên tổng{" "}
-          <strong className="font-semibold text-foreground">{totalCount}</strong> mục
-        </span>
+      {(showSummary || onPageSizeChange) && (
+        <div className="flex items-center gap-2">
+          {showSummary && (
+            <span>
+              Hiển thị{" "}
+              <strong className="font-semibold text-foreground">{from}</strong> -{" "}
+              <strong className="font-semibold text-foreground">{to}</strong> trên tổng{" "}
+              <strong className="font-semibold text-foreground">{totalCount}</strong> mục
+            </span>
+          )}
 
-        {onPageSizeChange && (
-          <div className="ml-3 flex items-center gap-1.5">
-            <span>/ trang:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground focus:border-brand focus:outline-none"
-            >
-              {pageSizeOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
+          {onPageSizeChange && (
+            <div className="ml-3 flex items-center gap-1.5">
+              <span>/ trang:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground focus:border-brand focus:outline-none"
+              >
+                {pageSizeOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       <nav aria-label="Phân trang" className="flex items-center gap-1">
         <button
