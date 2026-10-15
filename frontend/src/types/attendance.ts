@@ -26,6 +26,17 @@ export interface AttendanceChild {
   healthNotes?: string | null;
 }
 
+export interface HomeroomChildResponse {
+  id: string;
+  fullName: string;
+  healthNotes: string | null;
+}
+
+export interface AttendanceHistoryFilter {
+  childId?: string;
+  date?: string;
+}
+
 export interface StudentAttendanceItem extends AttendanceChild {
   attendance: AttendanceResponse | null;
 }

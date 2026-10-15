@@ -7,18 +7,20 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import Link from "next/link";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import { useAuth } from "@/context/AuthContext";
 import { useApiMutation, useApiQuery } from "@/hooks/useApiQuery";
-import { checkInStudent, formatAttendanceTime, getAttendanceForDate, getVietnamDate } from "@/lib/attendance";
+import { checkInStudent, formatAttendanceTime, getAttendanceForDate, getHomeroomChildren, getVietnamDate } from "@/lib/attendance";
 import {
   ATTENDANCE_STATUS_LABELS,
   type AttendanceChild,
   type AttendanceResponse,
   type AttendanceStatus,
+  type HomeroomChildResponse,
   type StudentAttendanceItem,
 } from "@/types/attendance";
 
@@ -51,7 +53,7 @@ function useVietnamDate() {
   return date;
 }
 
-export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild[] }) {
+export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly AttendanceChild[] }) {
   const { user } = useAuth();
   const date = useVietnamDate();
   const queryClient = useQueryClient();
@@ -59,6 +61,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string; errors?: string[] | null } | null>(null);
   const [showHealth, setShowHealth] = useState(true);
   const [expandedHealthId, setExpandedHealthId] = useState<string | null>(null);
+  const [needsRecheck, setNeedsRecheck] = useState(false);
   // Chặn hai lần xác nhận liên tiếp trước khi trạng thái đang gửi được render.
   const submitLock = useRef(false);
   const trigger = useRef<HTMLElement | null>(null);
@@ -71,6 +74,19 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
     defaultValues: { search: "", status: "All" },
   });
   const { search = "", status = "All" } = useWatch({ control });
+
+  const rosterQuery = useApiQuery<HomeroomChildResponse[]>({
+    queryKey: ["teacher-homeroom-children", user?.userId],
+    queryFn: ({ signal }) => getHomeroomChildren(signal),
+    enabled: Boolean(user?.userId) && providedRoster === undefined,
+    retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: "always",
+    refetchInterval: 60_000,
+  });
+  const roster = providedRoster ?? rosterQuery.data?.map((child) => ({
+    childId: child.id, fullName: child.fullName, healthNotes: child.healthNotes,
+  }));
 
   const query = useApiQuery<AttendanceResponse[]>({
     queryKey: todayKey(user?.userId, date),
@@ -127,7 +143,15 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
     focusRestore.current = null;
   });
 
-  const recheck = () => query.refetch();
+  const recheck = async () => {
+    const [attendanceResult, rosterResult] = await Promise.all([
+      query.refetch(),
+      providedRoster === undefined ? rosterQuery.refetch() : Promise.resolve(null),
+    ]);
+    const verified = attendanceResult.isSuccess && (rosterResult === null || rosterResult.isSuccess);
+    if (verified) setNeedsRecheck(false);
+    return verified;
+  };
 
   const mutation = useApiMutation<AttendanceResponse, PendingCheckIn>({
     mutationFn: ({ child, status: targetStatus }) => checkInStudent(child.childId, targetStatus),
@@ -146,21 +170,28 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
       });
       closeDialog(true);
       void queryClient.invalidateQueries({ queryKey: ["teacher-attendance", user?.userId] });
+      void queryClient.invalidateQueries({ queryKey: ["teacher-attendance-history", user?.userId] });
     },
     onError: async (error) => {
       setFeedback({ kind: "error", text: error.message, errors: error.errors });
       closeDialog(false);
-      await queryClient.invalidateQueries({ queryKey: ["teacher-attendance", user?.userId] });
+      if (error.status !== 400) {
+        // Kết quả ghi hoặc phạm vi lớp có thể đã thay đổi; phải xác minh cả hai nguồn trước khi gửi tiếp.
+        setNeedsRecheck(true);
+        await recheck();
+      }
     },
     onSettled: () => {
       submitLock.current = false;
     },
   });
 
+  // Lỗi tải lại ngầm vẫn giữ dữ liệu đã có; backend kiểm tra lại quyền và bản ghi trùng khi gửi.
   const canWrite =
     roster !== undefined &&
-    query.isSuccess &&
-    !mutation.isPending;
+    query.data !== undefined &&
+    !mutation.isPending &&
+    !needsRecheck;
 
   const requestCheckIn = (child: AttendanceChild, targetStatus: AttendanceStatus) => {
     if (!canWrite || recordByChild.has(child.childId)) return;
@@ -174,18 +205,24 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
     if (
       !pending ||
       submitLock.current ||
-      !canWrite ||
-      pending.date !== getVietnamDate() ||
-      recordByChild.has(pending.child.childId)
+      mutation.isPending
     ) {
       return;
     }
+    if (pending.date !== getVietnamDate()) {
+      setFeedback({ kind: "error", text: "Đã sang ngày mới. Vui lòng tải lại và chọn trạng thái điểm danh cho hôm nay." });
+      closeDialog();
+      void recheck();
+      return;
+    }
+    // Dữ liệu có thể đổi khi hộp thoại đang mở; để backend quyết định kết quả và trả thông báo.
     submitLock.current = true;
     mutation.mutate(pending);
   };
 
+  const isRefreshing = query.isFetching || (providedRoster === undefined && rosterQuery.isFetching);
   const hasRoster = roster !== undefined;
-  const hasCurrentData = query.isSuccess;
+  const hasCurrentData = query.data !== undefined;
   const count = (value: AttendanceStatus) =>
     students.filter((child) => child.attendance?.status === value).length;
   const unchecked = students.filter((child) => !child.attendance).length;
@@ -281,7 +318,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
       }
 
       return (
-        <div className="w-full max-w-[340px] sm:w-[340px] mx-auto">
+        <div className="w-full min-w-0">
           <div
             className={`flex h-8 w-full items-center justify-between rounded-md border px-3 text-xs font-medium whitespace-nowrap ${
               statusBadgeClasses[student.attendance.status]
@@ -303,7 +340,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
         <div
           role="group"
           aria-label={`Điểm danh cho ${student.fullName}`}
-          className="grid w-full grid-cols-3 gap-1.5"
+          className="grid w-full grid-cols-3 gap-1 sm:gap-1.5"
         >
           <Button
             variant="outline"
@@ -341,7 +378,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
       <div
         role="group"
         aria-label={`Điểm danh cho ${student.fullName}`}
-        className="flex w-full max-w-[340px] sm:w-[340px] mx-auto items-center gap-2 whitespace-nowrap"
+        className="grid w-full min-w-0 grid-cols-3 items-center gap-2"
       >
         <Button
           variant="outline"
@@ -377,8 +414,8 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
 
   const renderStudentName = (student: StudentAttendanceItem, view: "table" | "card") => (
     <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-foreground break-words min-w-0">{student.fullName}</span>
+      <div className="flex items-start justify-between gap-1.5 sm:justify-start sm:gap-2">
+        <span className="min-w-0 break-words text-sm font-medium text-foreground">{student.fullName}</span>
         {student.healthNotes?.trim() && (
           <Button
             type="button"
@@ -391,7 +428,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
             onClick={() =>
               setExpandedHealthId(expandedHealthId === student.childId ? null : student.childId)
             }
-            className={`h-11 w-11 shrink-0 p-0 text-warning hover:bg-warning-bg ${view === "card" ? "-my-3" : ""}`}
+            className={`h-9 w-9 sm:h-10 sm:w-10 shrink-0 p-0 text-warning hover:bg-warning-bg ${view === "card" ? "-my-1.5" : ""}`}
           >
             <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-warning-border bg-warning-bg text-[10px] font-bold">!</span>
           </Button>
@@ -403,6 +440,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
           hidden={expandedHealthId !== student.childId}
           className="mt-2 rounded-lg border border-warning-border/60 border-l-3 border-l-warning bg-warning-bg/40 p-2.5 text-xs leading-relaxed text-foreground shadow-2xs whitespace-pre-wrap break-words"
         >
+          <span className="font-semibold text-warning">Lưu ý sức khỏe: </span>
           {student.healthNotes}
         </div>
       )}
@@ -443,16 +481,16 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
         {metrics.map((metric) => (
           <div
             key={metric.label}
-            className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-xs"
+            className="min-w-0 rounded-xl border border-border bg-card p-3.5 sm:p-4 shadow-xs"
           >
             <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-medium text-muted">{metric.label}</p>
+              <p className="text-xs font-medium text-muted leading-tight">{metric.label}</p>
               <span className={`shrink-0 text-xs font-semibold tabular-nums ${metric.color}`}>
                 {metric.percentage}
               </span>
             </div>
             <div className="mt-2.5 flex items-baseline justify-between gap-2">
-              <p className={`text-2xl font-bold tabular-nums ${metric.color}`}>
+              <p className={`text-xl sm:text-2xl font-bold tabular-nums ${metric.color}`}>
                 {metric.value ?? "—"}
               </p>
               <span className="text-xs text-muted-light">{metric.unit}</span>
@@ -461,14 +499,14 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
         ))}
       </section>
 
-      {roster === undefined && (
+      {providedRoster === undefined && rosterQuery.isError && roster === undefined && (
         <div
           role="status"
           className="rounded-xl border border-warning-border bg-warning-bg p-4 text-sm text-warning"
         >
           <p className="font-semibold">Danh sách học sinh của lớp chưa sẵn sàng</p>
           <p className="mt-1 text-xs">
-            Hiện chỉ hiển thị học sinh đã được điểm danh hôm nay. Bạn có thể ghi điểm danh khi danh sách lớp được kết nối.
+            Vui lòng tải lại danh sách lớp trước khi ghi điểm danh.
           </p>
         </div>
       )}
@@ -503,13 +541,10 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
           className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs"
         >
           <form
-            className="flex w-full min-w-0 items-center gap-1.5 border-b border-border p-3 sm:gap-2.5 sm:p-4"
+            className="flex w-full min-w-0 flex-col items-stretch gap-2.5 border-b border-border p-3 sm:flex-row sm:items-end sm:p-4"
             onSubmit={(event) => event.preventDefault()}
           >
-            <div className="min-w-0 flex-1">
-              <label htmlFor="attendance-search" className="sr-only">
-                Tìm học sinh theo họ tên
-              </label>
+            <FormField id="attendance-search" label="Tìm học sinh theo họ tên" className="min-w-0 flex-1">
               <Input
                 id="attendance-search"
                 type="search"
@@ -517,13 +552,10 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
                 className="min-h-11 w-full px-2 text-xs sm:px-3.5"
                 {...register("search")}
               />
-            </div>
+            </FormField>
 
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
-              <div className="w-20 shrink-0 sm:w-48">
-                <label htmlFor="attendance-filter" className="sr-only">
-                  Lọc trạng thái điểm danh
-                </label>
+            <div className="flex min-w-0 items-end gap-2.5 sm:shrink-0">
+              <FormField id="attendance-filter" label="Lọc trạng thái điểm danh" className="min-w-0 flex-1 sm:w-48 sm:flex-none">
                 <Select
                   id="attendance-filter"
                   title={filters.find((filter) => filter.value === status)?.label}
@@ -534,36 +566,62 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
                   className="min-h-11 pl-2 text-[11px] sm:pl-3.5 sm:text-xs"
                   {...register("status")}
                 />
-              </div>
+              </FormField>
 
               <Button
                 variant="secondary"
                 size="sm"
                 className="h-11 w-11 shrink-0 p-0 text-xs font-medium sm:w-auto sm:px-3"
-                aria-label={query.isFetching ? "Đang tải điểm danh" : "Tải lại"}
-                title={query.isFetching ? "Đang tải điểm danh" : "Tải lại"}
-                disabled={query.isFetching || mutation.isPending}
+                aria-label={isRefreshing ? "Đang tải điểm danh" : "Tải lại"}
+                title={isRefreshing ? "Đang tải điểm danh" : "Tải lại"}
+                disabled={isRefreshing || mutation.isPending}
                 onClick={() => {
                   void recheck();
                 }}
               >
                 <svg
                   aria-hidden="true"
-                  className={`h-4 w-4 shrink-0 ${query.isFetching ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.55-1.3L20 8M4 16l2.35 2.3A7 7 0 0 0 17.9 17" />
                 </svg>
-                <span className="hidden sm:inline">{query.isFetching ? "Đang tải..." : "Tải lại"}</span>
+                <span className="hidden sm:inline">{isRefreshing ? "Đang tải..." : "Tải lại"}</span>
               </Button>
             </div>
           </form>
 
-          {!query.isSuccess && !query.isError ? (
+          {needsRecheck && (
+            <div role="alert" className="border-b border-warning-border bg-warning-bg p-3 text-sm text-warning">
+              Chưa xác định được kết quả ghi nhận. Hãy tải lại thành công trước khi ghi tiếp.
+            </div>
+          )}
+          {providedRoster === undefined && rosterQuery.isError && rosterQuery.data !== undefined && (
+            <div role="alert" className="border-b border-danger-border bg-danger-bg p-3 text-sm text-danger">
+              <p>{[rosterQuery.error.message, ...(rosterQuery.error.errors ?? [])].join(" ")}</p>
+              <p className="mt-1">Danh sách lớp và lưu ý sức khỏe đang hiển thị là dữ liệu tải thành công gần nhất.</p>
+              <Button variant="secondary" size="sm" className="mt-2" disabled={rosterQuery.isFetching} onClick={() => { void recheck(); }}>Thử lại</Button>
+            </div>
+          )}
+          {query.isError && query.data !== undefined && (
+            <div role="alert" className="border-b border-danger-border bg-danger-bg p-3 text-sm text-danger">
+              <p>{[query.error.message, ...(query.error.errors ?? [])].join(" ")}</p>
+              <p className="mt-1">Danh sách bên dưới là dữ liệu tải thành công gần nhất.</p>
+              <Button variant="secondary" size="sm" className="mt-2" disabled={query.isFetching} onClick={() => { void recheck(); }}>Thử lại</Button>
+            </div>
+          )}
+          {roster === undefined ? (
+            <StatusMessage
+              status={rosterQuery.isError ? "error" : "loading"}
+              title={rosterQuery.isError ? "Không thể tải danh sách lớp" : "Đang tải danh sách lớp..."}
+              message={rosterQuery.error ? [rosterQuery.error.message, ...(rosterQuery.error.errors ?? [])].join(" ") : undefined}
+              onRetry={rosterQuery.isError ? () => { void recheck(); } : undefined}
+            />
+          ) : query.data === undefined && !query.isError ? (
             <StatusMessage status="loading" title="Đang tải điểm danh hôm nay..." />
-          ) : query.isError ? (
+          ) : query.isError && query.data === undefined ? (
             <div role="alert">
               <StatusMessage
                 status="error"
@@ -613,9 +671,9 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
 
               <ul className="divide-y divide-border/60 lg:hidden">
                 {filtered.map((student, index) => (
-                  <li key={student.childId} className="space-y-3 p-4">
+                  <li key={student.childId} className="space-y-3 p-3.5 sm:p-4">
                     {renderStudentName(student, "card")}
-                    <div>{renderAttendanceAction(student, "card", index)}</div>
+                    <div className="w-full min-w-0">{renderAttendanceAction(student, "card", index)}</div>
                   </li>
                 ))}
               </ul>
@@ -689,7 +747,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
               <div className="p-4 text-center">
                 <p className="text-xs font-medium text-muted">Chưa có dữ liệu lưu ý sức khỏe</p>
                 <p className="mt-1 text-[11px] text-muted-light">
-                  Lưu ý sẽ hiển thị khi danh sách học sinh của lớp được kết nối.
+                  Vui lòng tải lại danh sách lớp để xem lưu ý sức khỏe.
                 </p>
               </div>
             ) : healthStudents.length === 0 ? (
@@ -710,7 +768,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
                       className="rounded-lg border border-border/80 bg-card p-3 shadow-2xs transition-all hover:border-border-hover"
                     >
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <p className="text-sm font-semibold text-foreground truncate">
+                        <p className="min-w-0 break-words text-sm font-semibold text-foreground leading-snug">
                           {student.fullName}
                         </p>
                         {student.attendance ? (
@@ -749,7 +807,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
       </div>
 
       <ConfirmDialog
-        isOpen={pending !== null && pending.date === date}
+        isOpen={pending !== null}
         title="Xác nhận điểm danh"
         confirmText="Ghi nhận"
         cancelText="Hủy"
@@ -759,7 +817,7 @@ export function AttendanceScreen({ roster }: { roster?: readonly AttendanceChild
             <p className="font-semibold text-foreground">{pending?.child.fullName}</p>
             <p>Trạng thái: {pending ? ATTENDANCE_STATUS_LABELS[pending.status] : ""}</p>
             <p className="text-xs text-muted">
-              Bản ghi điểm danh sau khi tạo không thể sửa hoặc xóa. Ngày và giờ ghi nhận do hệ thống đặt.
+              Bản ghi điểm danh sau khi tạo không thể sửa hoặc xóa.
             </p>
           </div>
         }
