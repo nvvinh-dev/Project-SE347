@@ -1,12 +1,12 @@
 import { apiClient, ApiError } from "@/lib/axios";
 import type { ApiResponse } from "@/types/auth";
-import type { AttendanceResponse, AttendanceStatus, CheckInRequest } from "@/types/attendance";
+import type { AttendanceHistoryFilter, AttendanceResponse, AttendanceStatus, CheckInRequest, HomeroomChildResponse } from "@/types/attendance";
 
 function readData<T>(response: ApiResponse<T>, status: number): T {
-  if (!response.success || response.data === null) {
+  if (!response || !response.success || response.data == null) {
     throw new ApiError(
-      response.message ?? "Không thể đọc kết quả điểm danh. Vui lòng thử lại.",
-      response.errors,
+      response?.message ?? "Không thể đọc kết quả điểm danh. Vui lòng thử lại.",
+      response?.errors ?? null,
       status,
     );
   }
@@ -24,6 +24,29 @@ export async function getAttendanceForDate(
   return readData(response.data, response.status);
 }
 
+export async function getHomeroomChildren(signal?: AbortSignal): Promise<HomeroomChildResponse[]> {
+  const response = await apiClient.get<ApiResponse<HomeroomChildResponse[]>>(
+    "/api/homeroom-children", { signal },
+  );
+  return readData(response.data, response.status);
+}
+
+export async function getAttendanceHistory(
+  filter: AttendanceHistoryFilter,
+  signal?: AbortSignal,
+): Promise<AttendanceResponse[]> {
+  const response = await apiClient.get<ApiResponse<AttendanceResponse[]>>(
+    "/api/attendances", { params: filter, signal },
+  );
+  return readData(response.data, response.status);
+}
+
+export function formatAttendanceDate(date: string): string {
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric",
+  }).format(new Date(`${date}T12:00:00Z`));
+}
+
 export async function checkInStudent(
   childId: string,
   status: AttendanceStatus,
@@ -33,7 +56,12 @@ export async function checkInStudent(
     "/api/attendances",
     payload,
   );
-  return readData(response.data, response.status);
+  const record = readData(response.data, response.status);
+  if (!record.id || record.childId !== childId || record.status !== status ||
+      !record.attendanceDate || !record.checkInTimeUtc || !record.childFullName) {
+    throw new ApiError("Chưa xác định được kết quả ghi nhận. Vui lòng tải lại điểm danh trước khi thử lại.", null, response.status);
+  }
+  return record;
 }
 
 export function getVietnamDate(now = new Date()): string {
