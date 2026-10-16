@@ -30,12 +30,14 @@ export default function AdminClassesPage() {
 
   const removeTeacherMutation = useAssignHomeroomTeacher();
 
-  // State bộ lọc lớp đang chọn ở bảng
+  // State bộ lọc lớp đang chọn ở bảng và trang hiện tại
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("ALL");
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // State modals
+  // Quản lý trạng thái các hộp thoại
   const [assigningTeacherClass, setAssigningTeacherClass] = useState<ClassResponse | null>(null);
   const [removingTeacherClass, setRemovingTeacherClass] = useState<ClassResponse | null>(null);
+  const [removeTeacherError, setRemoveTeacherError] = useState<string | null>(null);
   const [assigningChild, setAssigningChild] = useState<ClassPlacementResponse | null>(null);
 
   // State thông báo thành công (Toast notification)
@@ -60,7 +62,7 @@ export default function AdminClassesPage() {
     };
   }, []);
 
-  // Tính toán nhanh số liệu Metric Pills (UI_DESIGN_GUIDELINES.md §7.6.1)
+  // Tính toán nhanh các chỉ số thống kê
   const metrics = useMemo(() => {
     const totalChildren = placements.length;
     const assignedChildren = placements.filter((p) => p.classId !== null).length;
@@ -76,6 +78,7 @@ export default function AdminClassesPage() {
   // Xử lý xác nhận gỡ giáo viên chủ nhiệm
   const handleConfirmRemoveTeacher = async () => {
     if (!removingTeacherClass) return;
+    setRemoveTeacherError(null);
 
     try {
       await removeTeacherMutation.mutateAsync({
@@ -87,46 +90,60 @@ export default function AdminClassesPage() {
 
       showToast(`Đã gỡ giáo viên chủ nhiệm của ${removingTeacherClass.name} thành công.`);
       setRemovingTeacherClass(null);
+      setRemoveTeacherError(null);
     } catch (err) {
       const apiErr = toApiError(err);
-      alert(apiErr.message);
+      setRemoveTeacherError(apiErr.message);
     }
   };
 
-  const isGlobalLoading = isLoadingClasses && isLoadingPlacements;
   const isGlobalError = isErrorClasses || isErrorPlacements;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 1. Page Header & Quick Metric Pills */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* 1. Tiêu đề trang và các chỉ số nhanh */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 min-w-0 max-w-full">
         <PageHeader
           title="Xếp lớp & Phân công"
           description="Quản lý 3 khối lớp theo độ tuổi và phân công giáo viên chủ nhiệm"
         />
 
-        {/* Quick Metric Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 shrink-0">
+        {/* Thẻ chỉ số thống kê nhanh */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 shrink-0 max-w-full">
           <div className="px-3.5 py-1.5 rounded-full bg-card border border-border text-xs flex items-center gap-2 shadow-2xs">
             <span className="text-muted">Tổng số trẻ:</span>
-            <span className="font-bold text-foreground">{metrics.total}</span>
+            <span className="font-bold text-foreground">
+              {isLoadingPlacements || isErrorPlacements ? "—" : metrics.total}
+            </span>
           </div>
 
           <div className="px-3.5 py-1.5 rounded-full bg-[#E8F8F1] border border-[#A7E5D2]/50 text-xs flex items-center gap-2 shadow-2xs">
             <span className="text-[#1A624C] font-medium">Đã xếp lớp:</span>
-            <span className="font-bold text-[#1A624C]">{metrics.assigned}</span>
+            <span className="font-bold text-[#1A624C]">
+              {isLoadingPlacements || isErrorPlacements ? "—" : metrics.assigned}
+            </span>
           </div>
 
           <div
             className={`px-3.5 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-2xs transition-all ${
-              metrics.unassigned > 0
-                ? "bg-[#FBE8E2] border border-[#FAC4CD] text-[#8A4F42]"
-                : "bg-card border border-border text-muted"
+              isLoadingPlacements || isErrorPlacements
+                ? "bg-card border border-border text-muted"
+                : metrics.unassigned > 0
+                  ? "bg-[#FBE8E2] border border-[#FAC4CD] text-[#8A4F42]"
+                  : "bg-[#E8F8F1] border border-[#A7E5D2]/50 text-[#1A624C]"
             }`}
           >
-            <span>{metrics.unassigned > 0 ? "⚠️" : "✓"}</span>
+            <span>
+              {isLoadingPlacements || isErrorPlacements
+                ? "⏳"
+                : metrics.unassigned > 0
+                  ? "⚠️"
+                  : "✓"}
+            </span>
             <span className="font-medium">Chờ xếp lớp:</span>
-            <span className="font-bold">{metrics.unassigned}</span>
+            <span className="font-bold">
+              {isLoadingPlacements || isErrorPlacements ? "—" : metrics.unassigned}
+            </span>
           </div>
         </div>
       </div>
@@ -173,45 +190,79 @@ export default function AdminClassesPage() {
         </div>
       )}
 
-      {/* 2. Three Class Cards Grid (UI_DESIGN_GUIDELINES.md §7.6.2) */}
+      {/* 2. Danh sách 3 thẻ lớp học cố định (D39 mục 3, AC-CLASS-01) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {isGlobalLoading
-          ? Array.from({ length: 3 }).map((_, idx) => (
-              <div
-                key={idx}
-                className="p-5 rounded-3xl bg-card border border-border animate-pulse space-y-4"
-              >
-                <div className="h-6 w-36 bg-black/5 rounded-full" />
-                <div className="h-8 w-28 bg-black/5 rounded" />
-                <div className="h-12 w-full bg-black/5 rounded-2xl" />
-                <div className="h-8 w-full bg-black/5 rounded-full" />
-              </div>
-            ))
-          : classes.map((cls) => {
-              const studentCount = placements.filter((p) => p.classId === cls.id).length;
-              const isSelected = selectedClassFilter === cls.name;
+        {isLoadingClasses ? (
+          Array.from({ length: 3 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="p-5 rounded-3xl bg-card border border-border animate-pulse space-y-4"
+            >
+              <div className="h-6 w-36 bg-black/5 rounded-full" />
+              <div className="h-8 w-28 bg-black/5 rounded" />
+              <div className="h-12 w-full bg-black/5 rounded-2xl" />
+              <div className="h-8 w-full bg-black/5 rounded-full" />
+            </div>
+          ))
+        ) : isErrorClasses ? (
+          <div className="col-span-1 md:col-span-3 p-8 rounded-3xl bg-card border border-danger-border text-center space-y-3">
+            <p className="text-xs font-semibold text-danger">
+              Không thể tải danh sách lớp học: {toApiError(errorClasses).message}
+            </p>
+            <button
+              type="button"
+              onClick={() => refetchClasses()}
+              className="px-4 py-1.5 rounded-full text-xs font-semibold bg-danger text-white hover:bg-danger-hover transition-all cursor-pointer"
+            >
+              Thử tải lại
+            </button>
+          </div>
+        ) : (
+          classes.map((cls) => {
+            const studentCount =
+              isLoadingPlacements || isErrorPlacements
+                ? undefined
+                : placements.filter((p) => p.classId === cls.id).length;
+            const isSelected =
+              selectedClassFilter === cls.id || selectedClassFilter === cls.name;
 
-              return (
-                <ClassCard
-                  key={cls.id}
-                  classInfo={cls}
-                  studentCount={studentCount}
-                  isSelected={isSelected}
-                  onSelect={() => setSelectedClassFilter(cls.name)}
-                  onAssignTeacher={() => setAssigningTeacherClass(cls)}
-                  onRemoveTeacher={() => setRemovingTeacherClass(cls)}
-                />
-              );
-            })}
+            return (
+              <ClassCard
+                key={cls.id}
+                classInfo={cls}
+                studentCount={studentCount}
+                isSelected={isSelected}
+                onSelect={() => {
+                  setSelectedClassFilter(cls.id);
+                  setCurrentPage(1);
+                }}
+                onAssignTeacher={() => setAssigningTeacherClass(cls)}
+                onRemoveTeacher={() => {
+                  setRemoveTeacherError(null);
+                  setRemovingTeacherClass(cls);
+                }}
+              />
+            );
+          })
+        )}
       </div>
 
-      {/* 3. Students Placement Table (UI_DESIGN_GUIDELINES.md §7.6.3) */}
+      {/* 3. Bảng danh sách trẻ cần xếp lớp (D45, AC-CLASS-04) */}
       <ClassPlacementTable
         placements={placements}
+        classes={classes}
         selectedClassFilter={selectedClassFilter}
-        onFilterChange={setSelectedClassFilter}
+        onFilterChange={(filter) => {
+          setSelectedClassFilter(filter);
+          setCurrentPage(1);
+        }}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
         onOpenAssignModal={(child) => setAssigningChild(child)}
         isLoading={isLoadingPlacements}
+        isError={isErrorPlacements}
+        error={errorPlacements}
+        onRetry={refetchPlacements}
       />
 
       {/* 4. Modal Phân công / Đổi Giáo viên Chủ nhiệm */}
@@ -246,12 +297,15 @@ export default function AdminClassesPage() {
         cancelText="Hủy bỏ"
         isLoading={removeTeacherMutation.isPending}
         onClose={() => {
-          if (!removeTeacherMutation.isPending) setRemovingTeacherClass(null);
+          if (!removeTeacherMutation.isPending) {
+            setRemovingTeacherClass(null);
+            setRemoveTeacherError(null);
+          }
         }}
         onConfirm={handleConfirmRemoveTeacher}
         description={
           removingTeacherClass ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p>
                 Bạn có chắc chắn muốn gỡ giáo viên{" "}
                 <strong className="text-foreground">
@@ -260,9 +314,16 @@ export default function AdminClassesPage() {
                 khỏi vị trí chủ nhiệm của{" "}
                 <strong className="text-foreground">{removingTeacherClass.name}</strong>?
               </p>
-              <div className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger">
-                Sau khi gỡ, lớp sẽ ở trạng thái chưa có giáo viên chủ nhiệm cho đến khi được phân công lại.
-              </div>
+              {removeTeacherError ? (
+                <div className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger flex items-start gap-2">
+                  <span className="shrink-0 mt-0.5">⚠️</span>
+                  <div className="leading-relaxed font-normal">{removeTeacherError}</div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger">
+                  Sau khi gỡ, lớp sẽ ở trạng thái chưa có giáo viên chủ nhiệm cho đến khi được phân công lại.
+                </div>
+              )}
             </div>
           ) : null
         }

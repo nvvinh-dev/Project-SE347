@@ -1,11 +1,12 @@
 /**
  * Tiện ích tính toán độ tuổi và quy tắc nhóm tuổi lớp học (BR-CLASS-03, D39 mục 3)
- * Logic bám sát 100% ClassAgeRules.cs ở backend (theo múi giờ Asia/Ho_Chi_Minh).
+ * Logic tính toán tháng tuổi tròn đồng nhất với ClassAgeRules.cs ở backend (theo múi giờ Asia/Ho_Chi_Minh).
  */
 
 /**
  * Tính số tháng tuổi tròn của trẻ từ ngày sinh đến ngày hiện tại theo giờ Việt Nam.
- * Trẻ đủ thêm một tháng vào ngày trùng ngày sinh trong tháng.
+ * Trẻ đủ thêm một tháng vào ngày trùng ngày sinh trong tháng; với tháng không có ngày đó
+ * (ví dụ sinh ngày 31, sinh 29/2), tính đủ tháng vào ngày cuối cùng của tháng (chuẩn AddMonths của .NET).
  */
 export function calculateAgeInMonths(birthDateStr: string, referenceDate: Date = new Date()): number {
   if (!birthDateStr) return 0;
@@ -32,8 +33,20 @@ export function calculateAgeInMonths(birthDateStr: string, referenceDate: Date =
 
   let months = (nowYear - bYear) * 12 + (nowMonth - bMonth);
 
-  // Nếu ngày hiện tại chưa tới ngày sinh trong tháng thì chưa tròn tháng
-  if (nowDay < bDay) {
+  // Tính ngày tương ứng khi cộng `months` vào ngày sinh theo quy tắc DateTime.AddMonths của .NET
+  // (nếu tháng đích có số ngày ít hơn bDay thì lấy ngày cuối cùng của tháng đó)
+  const totalMonths = (bYear * 12 + (bMonth - 1)) + months;
+  const targetYear = Math.floor(totalMonths / 12);
+  const targetMonth = (totalMonths % 12) + 1;
+  const daysInTargetMonth = new Date(targetYear, targetMonth, 0).getDate();
+  const targetDay = Math.min(bDay, daysInTargetMonth);
+
+  const isTargetAfterNow =
+    targetYear > nowYear ||
+    (targetYear === nowYear && targetMonth > nowMonth) ||
+    (targetYear === nowYear && targetMonth === nowMonth && targetDay > nowDay);
+
+  if (isTargetAfterNow) {
     months--;
   }
 

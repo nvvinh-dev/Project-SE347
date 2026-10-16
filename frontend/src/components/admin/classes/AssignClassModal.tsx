@@ -91,7 +91,7 @@ export function AssignClassModal({
       role="dialog"
       aria-labelledby="assign-class-modal-title"
     >
-      {/* Backdrop */}
+      {/* Lớp nền mờ */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
         onClick={() => {
@@ -99,9 +99,9 @@ export function AssignClassModal({
         }}
       />
 
-      {/* Modal Dialog Card */}
+      {/* Khối hộp thoại xếp lớp */}
       <div className="relative z-10 w-full max-w-lg max-h-[90vh] flex flex-col rounded-3xl border border-border bg-card shadow-xl transition-all overflow-hidden">
-        {/* Header */}
+        {/* Tiêu đề hộp thoại */}
         <div className="flex items-center justify-between p-5 border-b border-border/80 bg-[#FAFBF7]">
           <div>
             <h3 id="assign-class-modal-title" className="text-base font-bold text-foreground">
@@ -122,7 +122,7 @@ export function AssignClassModal({
           </button>
         </div>
 
-        {/* Body - Scrollable */}
+        {/* Thân biểu mẫu cuộn được */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Thông tin trẻ (Tối thiểu theo AC-CLASS-04) */}
           <div className="p-4 rounded-2xl bg-[#F8F8F9] border border-border space-y-2.5 text-xs">
@@ -160,77 +160,78 @@ export function AssignClassModal({
             </label>
 
             <div className="space-y-2.5">
-              {classes.map((cls) => {
-                const isSelected = selectedClassId === cls.id;
-                const isCurrent = placement.classId === cls.id;
-                const fits = fitsAgeRange(ageInMonths, cls.minAgeMonths, cls.maxAgeMonths);
+              {classes.length === 0 ? (
+                <div className="p-4 rounded-2xl bg-[#F8F8F9] border border-border text-center text-xs text-muted">
+                  Đang tải danh sách lớp học hoặc chưa có lớp khả dụng.
+                </div>
+              ) : (
+                classes.map((cls) => {
+                  const isSelected = selectedClassId === cls.id;
+                  const isCurrent = placement.classId === cls.id;
+                  const fits = fitsAgeRange(ageInMonths, cls.minAgeMonths, cls.maxAgeMonths);
 
-                const isMam = cls.name.includes("Mầm");
-                const isChoi = cls.name.includes("Chồi");
-                const classIcon = isMam ? "🌱" : isChoi ? "🌿" : "🍃";
+                  const isMam = cls.minAgeMonths === 36 || cls.name.includes("Mầm");
+                  const isChoi = cls.minAgeMonths === 48 || cls.name.includes("Chồi");
+                  const classIcon = isMam ? "🌱" : isChoi ? "🌿" : "🍃";
 
-                return (
-                  <div
-                    key={cls.id}
-                    onClick={() => {
-                      setSelectedClassId(cls.id);
-                      setServerError(null);
-                    }}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${isSelected
-                      ? "border-brand bg-brand-subtle/40 ring-1 ring-brand"
-                      : "border-border hover:border-border/80 bg-card hover:bg-[#F8F8F9]"
-                      }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="class-selection"
-                        checked={isSelected}
-                        onChange={() => {
-                          setSelectedClassId(cls.id);
-                          setServerError(null);
-                        }}
-                        className="w-4 h-4 text-brand focus:ring-brand"
-                      />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                            <span>{classIcon}</span>
-                            <span>{cls.name}</span>
-                          </span>
-                          {isCurrent && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-700">
-                              Lớp hiện tại
+                  return (
+                    <label
+                      key={cls.id}
+                      htmlFor={`class-radio-${cls.id}`}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${isSelected
+                        ? "border-brand bg-brand-subtle/40 ring-1 ring-brand"
+                        : "border-border hover:border-border/80 bg-card hover:bg-[#F8F8F9]"
+                        }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          id={`class-radio-${cls.id}`}
+                          type="radio"
+                          name="class-selection"
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelectedClassId(cls.id);
+                            setServerError(null);
+                          }}
+                          className="w-4 h-4 text-brand focus:ring-brand"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                              <span>{classIcon}</span>
+                              <span>{cls.name}</span>
                             </span>
-                          )}
-                          {fits && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F8F1] text-[#1A624C] border border-[#A7E5D2]/60">
-                              ✓ Khớp độ tuổi
-                            </span>
-                          )}
+                            {isCurrent && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-700">
+                                Lớp hiện tại
+                              </span>
+                            )}
+                            {fits && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F8F1] text-[#1A624C] border border-[#A7E5D2]/60">
+                                ✓ Khớp độ tuổi
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted mt-0.5">
+                            Độ tuổi quy định: {cls.minAgeMonths ?? 0} ≤ tuổi &lt; {cls.maxAgeMonths ?? 0} tháng
+                          </p>
                         </div>
-                        <p className="text-[11px] text-muted mt-0.5">
-                          Độ tuổi quy định: {cls.minAgeMonths ?? 0} ≤ tuổi &lt; {cls.maxAgeMonths ?? 0} tháng
-                        </p>
                       </div>
-                    </div>
 
-                    {!fits && (
-                      <span className="text-[10px] text-[#E8916E] font-medium shrink-0">
-                        Khác nhóm tuổi
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+                      {!fits && (
+                        <span className="text-[10px] text-[#E8916E] font-medium shrink-0">
+                          Khác nhóm tuổi
+                        </span>
+                      )}
+                    </label>
+                  );
+                })
+              )}
 
               {/* Tùy chọn Gỡ khỏi lớp nếu trẻ đã có lớp */}
               {placement.classId && (
-                <div
-                  onClick={() => {
-                    setSelectedClassId(null);
-                    setServerError(null);
-                  }}
+                <label
+                  htmlFor="class-radio-remove"
                   className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${selectedClassId === null
                     ? "border-danger bg-danger-bg ring-1 ring-danger"
                     : "border-dashed border-border hover:border-danger/40 bg-card hover:bg-danger-bg/20"
@@ -238,6 +239,7 @@ export function AssignClassModal({
                 >
                   <div className="flex items-center gap-3">
                     <input
+                      id="class-radio-remove"
                       type="radio"
                       name="class-selection"
                       checked={selectedClassId === null}
@@ -254,7 +256,7 @@ export function AssignClassModal({
                       </p>
                     </div>
                   </div>
-                </div>
+                </label>
               )}
             </div>
           </div>
@@ -285,7 +287,7 @@ export function AssignClassModal({
             </div>
           )}
 
-          {/* Footer Actions */}
+          {/* Các nút thao tác cuối hộp thoại */}
           <div className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
             <button
               type="button"
@@ -297,18 +299,23 @@ export function AssignClassModal({
             </button>
             <button
               type="submit"
-              disabled={assignMutation.isPending || isNoChange}
-              className={`px-5 py-2 rounded-full text-xs font-bold text-white shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 ${selectedClassId === null
-                ? "bg-danger hover:bg-danger-hover"
-                : "bg-brand hover:bg-brand-hover"
-                }`}
+              disabled={
+                assignMutation.isPending ||
+                isNoChange ||
+                (placement.classId === null && selectedClassId === null)
+              }
+              className={`px-5 py-2 rounded-full text-xs font-bold text-white shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 ${
+                selectedClassId === null && placement.classId !== null
+                  ? "bg-danger hover:bg-danger-hover"
+                  : "bg-brand hover:bg-brand-hover"
+              }`}
             >
               {assignMutation.isPending ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   <span>Đang xử lý...</span>
                 </>
-              ) : selectedClassId === null ? (
+              ) : selectedClassId === null && placement.classId !== null ? (
                 <span>Xác nhận gỡ lớp</span>
               ) : (
                 <span>Xác nhận xếp lớp</span>

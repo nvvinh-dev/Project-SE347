@@ -27,7 +27,13 @@ export function AssignHomeroomTeacherModal({
 
   const selectRef = useRef<HTMLSelectElement>(null);
   const assignMutation = useAssignHomeroomTeacher();
-  const { data: users = [], isLoading: isLoadingUsers } = useUsers();
+  const {
+    data: users = [],
+    isLoading: isLoadingUsers,
+    isError: isErrorUsers,
+    error: errorUsers,
+    refetch: refetchUsers,
+  } = useUsers();
 
   // Lọc danh sách giáo viên đang hoạt động (role === "Teacher" và isActive === true)
   const activeTeachers = users.filter((u) => u.role === "Teacher" && u.isActive);
@@ -87,7 +93,7 @@ export function AssignHomeroomTeacherModal({
       role="dialog"
       aria-labelledby="assign-teacher-modal-title"
     >
-      {/* Backdrop */}
+      {/* Lớp nền mờ */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
         onClick={() => {
@@ -95,9 +101,9 @@ export function AssignHomeroomTeacherModal({
         }}
       />
 
-      {/* Modal Dialog Card */}
+      {/* Khối hộp thoại phân công */}
       <div className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col rounded-3xl border border-border bg-card shadow-xl transition-all overflow-hidden">
-        {/* Header */}
+        {/* Tiêu đề hộp thoại */}
         <div className="flex items-center justify-between p-5 border-b border-border/80 bg-[#FAFBF7]">
           <div>
             <h3 id="assign-teacher-modal-title" className="text-base font-bold text-foreground">
@@ -118,7 +124,7 @@ export function AssignHomeroomTeacherModal({
           </button>
         </div>
 
-        {/* Form Body - Scrollable */}
+        {/* Thân biểu mẫu cuộn được */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Thông tin lớp học hiện tại */}
           <div className="p-3.5 rounded-2xl bg-[#F8F8F9] border border-border space-y-2 text-xs">
@@ -145,27 +151,55 @@ export function AssignHomeroomTeacherModal({
             <label htmlFor="teacher-select" className="text-xs font-bold text-foreground block">
               Chọn giáo viên phân công: <span className="text-danger">*</span>
             </label>
-            <select
-              id="teacher-select"
-              ref={selectRef}
-              value={selectedTeacherId}
-              onChange={(e) => {
-                setSelectedTeacherId(e.target.value);
-                setServerError(null);
-              }}
-              disabled={assignMutation.isPending || isLoadingUsers}
-              className="w-full h-10 px-3 rounded-xl border border-input bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-all"
-            >
-              <option value="">-- Chọn giáo viên --</option>
-              {activeTeachers.map((teacher) => {
-                const isCurrent = teacher.id === currentTeacherId;
-                return (
-                  <option key={teacher.id} value={teacher.id}>
-                    {teacher.fullName} ({teacher.email}){isCurrent ? " - [Hiện tại]" : ""}
+
+            {isErrorUsers ? (
+              <div className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger flex items-center justify-between gap-2">
+                <span>⚠️ {toApiError(errorUsers).message}</span>
+                <button
+                  type="button"
+                  onClick={() => refetchUsers()}
+                  className="px-2.5 py-1 rounded-full text-xs font-semibold bg-danger text-white hover:bg-danger-hover transition-all shrink-0 cursor-pointer"
+                >
+                  Thử lại
+                </button>
+              </div>
+            ) : (
+              <>
+                <select
+                  id="teacher-select"
+                  ref={selectRef}
+                  value={selectedTeacherId}
+                  onChange={(e) => {
+                    setSelectedTeacherId(e.target.value);
+                    setServerError(null);
+                  }}
+                  disabled={assignMutation.isPending || isLoadingUsers}
+                  className="w-full h-10 px-3 rounded-xl border border-input bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-all"
+                >
+                  <option value="">
+                    {isLoadingUsers
+                      ? "-- Đang tải danh sách giáo viên... --"
+                      : activeTeachers.length === 0
+                        ? "-- Không có giáo viên khả dụng --"
+                        : "-- Chọn giáo viên --"}
                   </option>
-                );
-              })}
-            </select>
+                  {activeTeachers.map((teacher) => {
+                    const isCurrent = teacher.id === currentTeacherId;
+                    return (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.fullName} ({teacher.email}){isCurrent ? " - [Hiện tại]" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {!isLoadingUsers && activeTeachers.length === 0 && (
+                  <p className="text-[11px] text-muted italic">
+                    Chưa có tài khoản giáo viên nào đang hoạt động trong hệ thống. Vui lòng tạo hoặc kích hoạt tài khoản giáo viên trước.
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
           {/* Thông báo lỗi từ server */}
@@ -176,7 +210,7 @@ export function AssignHomeroomTeacherModal({
             </div>
           )}
 
-          {/* Footer Actions */}
+          {/* Các nút thao tác cuối hộp thoại */}
           <div className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
             <button
               type="button"

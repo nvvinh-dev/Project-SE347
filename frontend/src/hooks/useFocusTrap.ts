@@ -13,9 +13,9 @@ export interface UseFocusTrapOptions {
 
 /**
  * Hook quản lý bẫy focus (Focus Trap) và khôi phục focus (Return Focus) cho Modal/Dialog.
- * Đạt chuẩn Accessibility (a11y) và bám sát quy chuẩn review PR #36:
+ * Đạt chuẩn Accessibility (a11y):
  * 1. Tự động đưa focus vào bên trong modal ngay khi mở (kể cả mở bằng chuột qua requestAnimationFrame).
- * 2. Giữ vòng lặp Tab / Shift+Tab hoàn toàn bên trong modal, không để lọt ra bảng phía sau.
+ * 2. Giữ vòng lặp Tab / Shift+Tab hoàn toàn bên trong modal, không để lọt ra ngoài trang.
  * 3. Đóng bằng phím Escape (khi không ở trạng thái loading).
  * 4. Khóa cuộn trang (body overflow) khi modal mở và khôi phục lại khi đóng.
  * 5. Khôi phục focus về đúng phần tử kích hoạt trước đó (activeElement) khi modal đóng.
@@ -29,10 +29,15 @@ export function useFocusTrap({
   const containerRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const isLoadingRef = useRef(isLoading);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   });
+
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -75,7 +80,7 @@ export function useFocusTrap({
       if (e.defaultPrevented) return;
 
       // Phím Escape: đóng modal khi không bận gửi request
-      if (e.key === "Escape" && !isLoading) {
+      if (e.key === "Escape" && !isLoadingRef.current) {
         e.preventDefault();
         onCloseRef.current();
         return;
@@ -141,7 +146,7 @@ export function useFocusTrap({
         previousActiveElement.current?.focus?.();
       });
     };
-  }, [isOpen, isLoading, initialFocusRef]);
+  }, [isOpen, initialFocusRef]);
 
   return { containerRef };
 }

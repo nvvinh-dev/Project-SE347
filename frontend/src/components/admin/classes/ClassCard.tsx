@@ -5,7 +5,7 @@ import type { ClassResponse } from "@/types/class";
 
 interface ClassCardProps {
   classInfo: ClassResponse;
-  studentCount: number;
+  studentCount?: number;
   isSelected: boolean;
   onSelect: () => void;
   onAssignTeacher: () => void;
@@ -20,9 +20,24 @@ export function ClassCard({
   onAssignTeacher,
   onRemoveTeacher,
 }: ClassCardProps) {
-  // Xác định giao diện màu sắc theo từng khối lớp (bám sát UI_DESIGN_GUIDELINES.md §7.6.2)
-  const isMam = classInfo.name.includes("Mầm");
-  const isChoi = classInfo.name.includes("Chồi");
+  // Xác định giao diện màu sắc và thông số theo từng khối lớp (D39 mục 3, AC-CLASS-01)
+  const minMonths = classInfo.minAgeMonths;
+  const maxMonths = classInfo.maxAgeMonths;
+
+  // Tính nhãn năm tuổi và công thức linh hoạt từ dữ liệu API trả về
+  const minYears = minMonths !== null ? Math.floor(minMonths / 12) : null;
+  const maxYears = maxMonths !== null ? Math.floor(maxMonths / 12) : null;
+  const ageLabel =
+    minYears !== null && maxYears !== null
+      ? `${minYears} – ${maxYears} Tuổi`
+      : classInfo.name;
+  const ageRangeFormula =
+    minMonths !== null && maxMonths !== null
+      ? `${minMonths} ≤ tuổi < ${maxMonths} tháng`
+      : "Độ tuổi quy định";
+
+  const isMam = minMonths === 36 || classInfo.name.includes("Mầm");
+  const isChoi = minMonths === 48 || classInfo.name.includes("Chồi");
 
   const theme = isMam
     ? {
@@ -32,9 +47,7 @@ export function ClassCard({
       accentBg: "bg-[#55B38F]",
       borderHover: "hover:border-[#55B38F]/50",
       icon: "🌱",
-      ageLabel: "3 – 4 Tuổi",
-      ageRangeFormula: "36 ≤ tuổi < 48 tháng",
-      tooltipText: "Bao gồm trẻ từ đủ 36 tháng đến dưới 48 tháng tuổi. Tròn 48 tháng thuộc Lớp Chồi.",
+      tooltipText: `Bao gồm trẻ từ đủ ${minMonths ?? 36} tháng đến dưới ${maxMonths ?? 48} tháng tuổi. Tròn ${maxMonths ?? 48} tháng thuộc Lớp Chồi.`,
     }
     : isChoi
       ? {
@@ -44,9 +57,7 @@ export function ClassCard({
         accentBg: "bg-[#71C8E4]",
         borderHover: "hover:border-[#71C8E4]/50",
         icon: "🌿",
-        ageLabel: "4 – 5 Tuổi",
-        ageRangeFormula: "48 ≤ tuổi < 60 tháng",
-        tooltipText: "Bao gồm trẻ từ đủ 48 tháng đến dưới 60 tháng tuổi. Tròn 60 tháng thuộc Lớp Lá.",
+        tooltipText: `Bao gồm trẻ từ đủ ${minMonths ?? 48} tháng đến dưới ${maxMonths ?? 60} tháng tuổi. Tròn ${maxMonths ?? 60} tháng thuộc Lớp Lá.`,
       }
       : {
         badgeBg: "bg-[#FBE8E2]",
@@ -55,9 +66,7 @@ export function ClassCard({
         accentBg: "bg-[#E8916E]",
         borderHover: "hover:border-[#E8916E]/50",
         icon: "🍃",
-        ageLabel: "5 – 6 Tuổi",
-        ageRangeFormula: "60 ≤ tuổi < 72 tháng",
-        tooltipText: "Bao gồm trẻ từ đủ 60 tháng đến dưới 72 tháng tuổi. Trẻ đủ 72 tháng thuộc diện ra trường.",
+        tooltipText: `Bao gồm trẻ từ đủ ${minMonths ?? 60} tháng đến dưới ${maxMonths ?? 72} tháng tuổi. Trẻ đủ ${maxMonths ?? 72} tháng thuộc diện ra trường.`,
       };
 
   const hasTeacher = Boolean(classInfo.homeroomTeacher);
@@ -70,17 +79,19 @@ export function ClassCard({
         }`}
     >
       <div className="space-y-4">
-        {/* Header: Nhóm tuổi & Sĩ số */}
+        {/* Phần đầu thẻ: Nhóm tuổi & Sĩ số */}
         <div className="flex items-start justify-between gap-2">
           <span
             className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}
           >
             <span>{theme.icon}</span>
-            <span>{theme.ageLabel}</span>
+            <span>{ageLabel}</span>
           </span>
 
           <div className="text-right shrink-0">
-            <span className="text-sm font-bold text-foreground">{studentCount}</span>
+            <span className="text-sm font-bold text-foreground">
+              {studentCount !== undefined ? studentCount : "—"}
+            </span>
             <span className="text-xs text-muted"> trẻ</span>
           </div>
         </div>
@@ -99,7 +110,7 @@ export function ClassCard({
 
           <div className="flex items-center gap-1.5 mt-1">
             <span className="text-xs text-muted font-medium">
-              {theme.ageRangeFormula}
+              {ageRangeFormula}
             </span>
             {/* Tooltip giải thích quy tắc nửa mở [min, max) */}
             <div className="relative group inline-block">
@@ -205,7 +216,7 @@ export function ClassCard({
             : "bg-[#F8F8F9] text-[#606363] border-[#ECEDEC] hover:bg-brand-subtle hover:text-brand hover:border-brand-subtle"
             }`}
         >
-          <span>Xem danh sách trẻ ({studentCount})</span>
+          <span>Xem danh sách trẻ {studentCount !== undefined ? `(${studentCount})` : ""}</span>
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>

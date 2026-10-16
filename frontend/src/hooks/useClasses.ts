@@ -55,6 +55,13 @@ export function useAssignClass() {
       queryClient.invalidateQueries({ queryKey: CLASS_PLACEMENTS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
     },
+    onError: (error) => {
+      // Khi gặp xung đột dữ liệu (409) hoặc dữ liệu đã bị xóa (404), tự động đồng bộ lại cache
+      if (error.status === 409 || error.status === 404) {
+        queryClient.invalidateQueries({ queryKey: CLASS_PLACEMENTS_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+      }
+    },
   });
 }
 
@@ -73,6 +80,12 @@ export function useAssignHomeroomTeacher() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+    },
+    onError: (error) => {
+      // Khi gặp xung đột (409) hoặc lớp không tồn tại (404), đồng bộ lại danh sách lớp
+      if (error.status === 409 || error.status === 404) {
+        queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+      }
     },
   });
 }
