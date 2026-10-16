@@ -58,7 +58,8 @@ export function AttendanceHistoryScreen() {
   });
   const records = history.data ?? [];
   const currentPage = Math.min(page, Math.max(1, Math.ceil(records.length / pageSize)));
-  const visible = records.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const visible = records.slice(startIndex, startIndex + pageSize);
   const selectedChild = roster.data?.find((child) => child.id === selection.childId);
   const selectedLabel = selection.date ? `Ngày ${formatAttendanceDate(selection.date)}` : selectedChild?.fullName ?? "Trẻ đã chọn";
   const submit = (values: HistoryForm) => {
@@ -211,7 +212,7 @@ export function AttendanceHistoryScreen() {
               ))}
             </ul>
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-muted">
-              <span>Hiển thị {visible.length} / {records.length} bản ghi</span>
+              <span>Hiển thị {startIndex + 1}–{startIndex + visible.length} / {records.length} bản ghi</span>
               <span title="Giờ ghi nhận được hiển thị theo giờ Việt Nam.">Bản ghi không thể sửa hoặc xóa</span>
             </div>
           </div>
