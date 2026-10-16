@@ -6,6 +6,5 @@ public interface IDashboardRepository
 {
     Task<int> GetTotalStudentsCountAsync();
     Task<int> GetUnassignedStudentsCountAsync();
-    Task<int> GetActiveStaffCountAsync();
     Task<IReadOnlyList<ClassChildrenCountDto>> GetChildrenCountByClassesAsync();
 }

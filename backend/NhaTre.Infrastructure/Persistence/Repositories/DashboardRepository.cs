@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NhaTre.Application.DTOs.Dashboard;
 using NhaTre.Application.Interfaces;
-using NhaTre.Domain.Constants;
 
 namespace NhaTre.Infrastructure.Persistence.Repositories;
 
@@ -24,12 +23,6 @@ public class DashboardRepository : IDashboardRepository
         return await _dbContext.Children.CountAsync(c => c.ClassId == null);
     }
 
-    public async Task<int> GetActiveStaffCountAsync()
-    {
-        var parentRoleId = Roles.ToRoleId(Roles.Parent);
-        return await _dbContext.Users.CountAsync(u => u.IsActive && u.RoleId != parentRoleId);
-    }
-
     public async Task<IReadOnlyList<ClassChildrenCountDto>> GetChildrenCountByClassesAsync()
     {
         return await _dbContext.Classes
@@ -40,8 +33,7 @@ public class DashboardRepository : IDashboardRepository
                 c.Name,
                 c.Children.Count(),
                 c.MinAgeMonths,
-                c.MaxAgeMonths,
-                c.HomeroomTeacher != null ? c.HomeroomTeacher.User.FullName : null
+                c.MaxAgeMonths
             ))
             .ToListAsync();
     }

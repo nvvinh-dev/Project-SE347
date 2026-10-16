@@ -7,7 +7,7 @@ using NhaTre.Domain.Constants;
 
 namespace NhaTre.API.Controllers;
 
-// FR-DASH-01, FR-DASH-02: Dashboard tổng quan và thống kê số lượng trẻ cho Admin
+// FR-DASH-02: Thống kê số lượng trẻ cho Admin (D39 mục 12)
 // AC-DASH-05: Chỉ vai trò Admin được phép truy cập; vai trò khác trả về 403 Forbidden
 // AC-DASH-06, D40 mục 3, D45: Toàn bộ phản hồi chỉ chứa số liệu tổng hợp, không có dữ liệu mức từng trẻ
 [ApiController]
@@ -20,13 +20,6 @@ public class DashboardController : ControllerBase
     public DashboardController(IDashboardService dashboardService)
     {
         _dashboardService = dashboardService;
-    }
-
-    [HttpGet("overview")]
-    public async Task<ActionResult<ApiResponse<OverviewDashboardResponse>>> GetOverview()
-    {
-        var result = await _dashboardService.GetOverviewAsync();
-        return Ok(ApiResponse<OverviewDashboardResponse>.Ok(result));
     }
 
     [HttpGet("children-statistics")]
