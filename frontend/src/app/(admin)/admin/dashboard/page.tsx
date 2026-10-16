@@ -180,7 +180,10 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-2.5 p-3.5 px-4 rounded-2xl bg-[#E8F8F1] border border-[#A7E5D2]/60 text-[#1A624C] text-xs font-semibold shadow-2xs">
               <span className="text-base">✨</span>
               <span>
-                <strong>Tình trạng vận hành lý tưởng:</strong> 100% học sinh đã được phân lớp và toàn bộ 3 khối lớp đã có giáo viên chủ nhiệm phụ trách.
+                <strong>Tình trạng vận hành lý tưởng:</strong>{" "}
+                {overview.totalStudents > 0
+                  ? "100% học sinh đã được phân lớp và toàn bộ 3 khối lớp đã có giáo viên chủ nhiệm phụ trách."
+                  : "Toàn bộ 3 khối lớp đã có giáo viên chủ nhiệm phụ trách."}
               </span>
             </div>
           )}
@@ -196,9 +199,13 @@ export default function AdminDashboardPage() {
                     <circle cx="9" cy="7" r="4" />
                   </svg>
                 </div>
-                {overview.unassignedStudents === 0 ? (
+                {overview.totalStudents === 0 ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#F3F4F3] text-muted border border-[#ECEDEC]">
+                    Chưa có học sinh
+                  </span>
+                ) : overview.unassignedStudents === 0 ? (
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#E8F8F1] text-[#1A624C] border border-[#A7E5D2]/50">
-                    ✓ 100% đã vào lớp
+                    ✓ 100% đã xếp lớp
                   </span>
                 ) : (
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FFF9E6] text-amber-800 border border-amber-300">
@@ -240,7 +247,9 @@ export default function AdminDashboardPage() {
                 </p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
                   <span className="text-2xl font-extrabold text-foreground">{assignedRatio}%</span>
-                  <span className="text-xs text-muted">hoàn thành</span>
+                  <span className="text-xs text-muted">
+                    {overview.totalStudents > 0 ? "hoàn thành" : "chưa có học sinh"}
+                  </span>
                 </div>
               </div>
               {/* Mini progress bar */}
@@ -347,30 +356,30 @@ export default function AdminDashboardPage() {
 
                 const theme = isMam
                   ? {
-                      badgeBg: "bg-[#E8F8F1]",
-                      badgeText: "text-[#1A624C]",
-                      badgeBorder: "border-[#A7E5D2]/60",
-                      barColor: "bg-[#55B38F]",
-                      icon: "🌱",
-                      ageFormula: "36 ≤ tuổi < 48 tháng",
-                    }
+                    badgeBg: "bg-[#E8F8F1]",
+                    badgeText: "text-[#1A624C]",
+                    badgeBorder: "border-[#A7E5D2]/60",
+                    barColor: "bg-[#55B38F]",
+                    icon: "🌱",
+                    ageFormula: "36 ≤ tuổi < 48 tháng",
+                  }
                   : isChoi
                     ? {
-                        badgeBg: "bg-[#EAF7FC]",
-                        badgeText: "text-[#17627D]",
-                        badgeBorder: "border-[#D5E3F2]",
-                        barColor: "bg-[#71C8E4]",
-                        icon: "🌿",
-                        ageFormula: "48 ≤ tuổi < 60 tháng",
-                      }
+                      badgeBg: "bg-[#EAF7FC]",
+                      badgeText: "text-[#17627D]",
+                      badgeBorder: "border-[#D5E3F2]",
+                      barColor: "bg-[#71C8E4]",
+                      icon: "🌿",
+                      ageFormula: "48 ≤ tuổi < 60 tháng",
+                    }
                     : {
-                        badgeBg: "bg-[#FBE8E2]",
-                        badgeText: "text-[#8A4F42]",
-                        badgeBorder: "border-[#FAC4CD]/60",
-                        barColor: "bg-[#E8916E]",
-                        icon: "🍃",
-                        ageFormula: "60 ≤ tuổi < 72 tháng",
-                      };
+                      badgeBg: "bg-[#FBE8E2]",
+                      badgeText: "text-[#8A4F42]",
+                      badgeBorder: "border-[#FAC4CD]/60",
+                      barColor: "bg-[#E8916E]",
+                      icon: "🍃",
+                      ageFormula: "60 ≤ tuổi < 72 tháng",
+                    };
 
                 const percentage =
                   overview.totalStudents > 0
