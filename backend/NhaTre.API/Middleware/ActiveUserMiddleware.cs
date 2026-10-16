@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.EntityFrameworkCore;
 using NhaTre.Application.Common;
@@ -30,9 +31,10 @@ public class ActiveUserMiddleware
                 return;
             }
 
+            // NFR-SEC-08: đọc is_active, role_id và token_version trong cùng một truy vấn
             var record = await dbContext.Users
                 .Where(u => u.Id == userId)
-                .Select(u => new { u.IsActive, u.RoleId })
+                .Select(u => new { u.IsActive, u.RoleId, u.TokenVersion })
                 .FirstOrDefaultAsync();
 
             if (record is null || !record.IsActive)
@@ -47,6 +49,17 @@ public class ActiveUserMiddleware
             if (tokenRoleClaim != currentRoleClaim)
             {
                 await WriteUnauthorized(context, "Vai trò tài khoản đã thay đổi, vui lòng đăng nhập lại.");
+                return;
+            }
+
+            // D48: token phát trước lần đăng xuất, đặt lại mật khẩu, đổi vai trò hay vô hiệu hóa
+            // gần nhất mang tv cũ. Token không có tv (phát trước khi có cơ chế này) cũng bị từ chối.
+            var tokenVersionClaim = context.User.FindFirst("tv")?.Value;
+
+            if (!int.TryParse(tokenVersionClaim, NumberStyles.None, CultureInfo.InvariantCulture, out var tokenVersion)
+                || tokenVersion != record.TokenVersion)
+            {
+                await WriteUnauthorized(context, "Phiên đăng nhập đã kết thúc, vui lòng đăng nhập lại.");
                 return;
             }
         }

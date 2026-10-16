@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using NhaTre.Application.Interfaces;
+using NhaTre.Domain.Constants;
 using NhaTre.Domain.Entities;
 
 namespace NhaTre.Infrastructure.Persistence.Repositories;
 
 public class NotificationRepository : INotificationRepository
 {
-    // role_id khớp RoleConfiguration và Roles.FromRoleId
-    private const short MedicalRoleId = 4;
-    private const short ParentRoleId = 5;
+    private static readonly short MedicalRoleId = Roles.ToRoleId(Roles.Medical);
+    private static readonly short ParentRoleId = Roles.ToRoleId(Roles.Parent);
 
     private readonly AppDbContext _dbContext;
 
@@ -55,6 +55,26 @@ public class NotificationRepository : INotificationRepository
     public async Task SaveChangesAsync()
     {
         await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<int> CountByRecipientAsync(Guid recipientUserId)
+    {
+        return await _dbContext.Notifications
+            .CountAsync(n => n.RecipientUserId == recipientUserId);
+    }
+
+    // Mới nhất trước (D25). Hai thông báo có thể trùng created_at, nên xếp thêm theo id để thứ tự cố
+    // định giữa các lần gọi, nhờ đó các trang không trùng hay sót thông báo
+    public async Task<IReadOnlyList<Notification>> GetByRecipientAsync(Guid recipientUserId, int skip, int take)
+    {
+        return await _dbContext.Notifications
+            .AsNoTracking()
+            .Where(n => n.RecipientUserId == recipientUserId)
+            .OrderByDescending(n => n.CreatedAt)
+            .ThenByDescending(n => n.Id)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
     }
 
     private async Task<IReadOnlyList<Guid>> GetActiveUserIdsByRoleAsync(short roleId)

@@ -197,6 +197,29 @@ namespace NhaTre.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_Class_AgeRange", "min_age_months <= max_age_months");
                         });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("e84b9f79-dc69-4aa2-b569-3558337df117"),
+                            MaxAgeMonths = 48,
+                            MinAgeMonths = 36,
+                            Name = "Lớp Mầm"
+                        },
+                        new
+                        {
+                            Id = new Guid("f8600076-d709-46e9-b658-2b2b1143509d"),
+                            MaxAgeMonths = 60,
+                            MinAgeMonths = 48,
+                            Name = "Lớp Chồi"
+                        },
+                        new
+                        {
+                            Id = new Guid("f983817a-6f20-400a-b631-b94f1497820f"),
+                            MaxAgeMonths = 72,
+                            MinAgeMonths = 60,
+                            Name = "Lớp Lá"
+                        });
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.GrowthMeasurement", b =>

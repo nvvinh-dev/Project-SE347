@@ -81,7 +81,16 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Chuyển đổi lỗi bất kỳ thành ApiError.
+ * - Nếu đã là ApiError → trả nguyên (giữ message backend).
+ * - Nếu là AxiosError → đọc message từ response.
+ * - Còn lại → thông báo lỗi chung.
+ */
 export function toApiError(error: unknown): ApiError {
+  if (error instanceof ApiError) {
+    return error;
+  }
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as ApiResponse<unknown> | undefined;
     const message = data?.message ?? "Đã xảy ra lỗi, vui lòng thử lại.";

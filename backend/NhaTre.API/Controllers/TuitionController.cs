@@ -8,10 +8,11 @@ using NhaTre.Domain.Constants;
 
 namespace NhaTre.API.Controllers;
 
-// Module Học phí gồm hai tài nguyên tuition-fees và invoices, nên route gốc của Controller
-// là api/ và mỗi action tự ghi tên tài nguyên.
+// Module Học phí gồm các tài nguyên tuition-fees, invoices và revenue-reports, nên route gốc
+// của Controller là api/ và mỗi action tự ghi tên tài nguyên.
 // Chỉ Kế toán quản lý biểu phí (FR-TUITION-01) và hóa đơn (FR-TUITION-02):
-// Tạo + Sửa + Xem, không Xóa — D40 mục 1
+// Tạo + Sửa + Xem, không Xóa — D40 mục 1.
+// Chỉ Kế toán sinh và xem báo cáo doanh thu (FR-TUITION-03); Admin xem doanh thu qua dashboard
 [ApiController]
 [Route("api")]
 [Authorize(Roles = Roles.Accountant)]
@@ -154,5 +155,13 @@ public class TuitionController : ControllerBase
                 "Hóa đơn đã thanh toán, không sửa được số tiền, mô tả hay trẻ.")),
             _ => throw new InvalidOperationException($"Kết quả sửa hóa đơn không xử lý: {result.Outcome}")
         };
+    }
+
+    // Báo cáo không lưu vào bảng nào, mỗi lần gọi tính lại cho tháng hiện tại (D39 mục 12)
+    [HttpGet("revenue-reports/current")]
+    public async Task<ActionResult<ApiResponse<RevenueReportResponse>>> GetCurrentRevenueReport()
+    {
+        var result = await _tuitionService.GetRevenueReportAsync();
+        return Ok(ApiResponse<RevenueReportResponse>.Ok(result));
     }
 }
