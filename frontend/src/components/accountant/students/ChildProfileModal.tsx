@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusMessage } from "@/components/ui/StatusMessage";
@@ -24,10 +24,21 @@ interface ChildProfileModalProps {
   onSuccess: (message: string) => void;
 }
 
+function isBackdropEvent(event: MouseEvent<HTMLDialogElement>) {
+  if (event.target !== event.currentTarget) return false;
+  const bounds = event.currentTarget.getBoundingClientRect();
+  return event.clientX < bounds.left || event.clientX > bounds.right
+    || event.clientY < bounds.top || event.clientY > bounds.bottom;
+}
+
 export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: ChildProfileModalProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const profileFormId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const backdropPointerRef = useRef<number | null>(null);
+  const backdropClickRef = useRef(false);
+  const parentSearchFocusRef = useRef(false);
   const unlinkTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [unlinkTarget, setUnlinkTarget] = useState<GuardianResponse | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -40,6 +51,16 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
   const unlinkError = useApiError();
   const isSaving = create.isPending || update.isPending;
   const isBusy = isSaving || link.isPending || unlink.isPending;
+
+  useEffect(() => {
+    // Mutation callbacks có thể chạy khi ô tìm vẫn disabled; chờ React mở lại ô.
+    if (isBusy || unlinkTarget || !parentSearchFocusRef.current) return;
+    const frame = requestAnimationFrame(() => {
+      dialogRef.current?.querySelector<HTMLInputElement>("#parent-search")?.focus();
+      parentSearchFocusRef.current = false;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isBusy, unlinkTarget]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -73,9 +94,15 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
     if (!isBusy && !unlinkTarget) onClose();
   };
 
-  const dismissUnlink = () => {
+  const focusParentSearch = () => {
+    parentSearchFocusRef.current = true;
+  };
+
+  const dismissUnlink = (focusSearch = false) => {
+    if (focusSearch) focusParentSearch();
     setUnlinkTarget(null);
     unlinkError.clearError();
+    if (focusSearch) return;
     requestAnimationFrame(() => {
       const trigger = unlinkTriggerRef.current;
       if (trigger?.isConnected) trigger.focus();
@@ -103,8 +130,14 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
     setNotice(null);
     linkError.clearError();
     link.mutate({ childId, data: { guardianUserId: guardian.userId } }, {
-      onSuccess: () => notify(`Đã liên kết phụ huynh ${guardian.fullName}.`),
-      onError: linkError.handleError,
+      onSuccess: () => {
+        focusParentSearch();
+        notify(`Đã liên kết phụ huynh ${guardian.fullName}.`);
+      },
+      onError: (error) => {
+        focusParentSearch();
+        linkError.handleError(error);
+      },
     });
   };
 
@@ -115,7 +148,7 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
     const guardian = unlinkTarget;
     unlink.mutate({ childId, guardianUserId: guardian.userId }, {
       onSuccess: () => {
-        dismissUnlink();
+        dismissUnlink(true);
         notify(`Đã gỡ liên kết phụ huynh ${guardian.fullName}.`);
       },
       onError: unlinkError.handleError,
@@ -127,7 +160,7 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
       ref={dialogRef}
       tabIndex={-1}
       aria-labelledby={titleId}
-      aria-describedby={descriptionId}
+      aria-describedby={childId ? undefined : descriptionId}
       aria-modal="true"
       className={cn(
         "fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-hidden rounded-2xl border border-border bg-card p-0 text-foreground shadow-2xl outline-none backdrop:bg-black/40 backdrop:backdrop-blur-xs",
@@ -165,12 +198,24 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
           first.focus();
         }
       }}
+      onPointerDown={(event) => {
+        backdropClickRef.current = false;
+        backdropPointerRef.current = event.button === 0 && isBackdropEvent(event)
+          ? event.pointerId : null;
+      }}
+      onPointerUp={(event) => {
+        backdropClickRef.current = backdropPointerRef.current === event.pointerId && isBackdropEvent(event);
+        backdropPointerRef.current = null;
+      }}
+      onPointerCancel={() => {
+        backdropPointerRef.current = null;
+        backdropClickRef.current = false;
+      }}
       onClick={(event) => {
-        if (event.target !== event.currentTarget) return;
-        const bounds = event.currentTarget.getBoundingClientRect();
-        const outside = event.clientX < bounds.left || event.clientX > bounds.right
-          || event.clientY < bounds.top || event.clientY > bounds.bottom;
-        if (outside) requestClose();
+        // Chỉ đóng khi cả nhấn và thả đều trên nền; kéo chọn chữ ra ngoài vẫn giữ form.
+        const closeFromBackdrop = backdropClickRef.current && isBackdropEvent(event);
+        backdropClickRef.current = false;
+        if (closeFromBackdrop) requestClose();
       }}
     >
       <div inert={!!unlinkTarget} className="flex max-h-[calc(100dvh-2rem)] flex-col">
@@ -179,9 +224,11 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
             <h2 id={titleId} className="text-lg font-semibold tracking-tight sm:text-xl">
               {childId ? "Chỉnh sửa hồ sơ trẻ" : "Thêm hồ sơ trẻ"}
             </h2>
-            <p id={descriptionId} className="mt-1 text-sm leading-relaxed text-muted [overflow-wrap:anywhere]">
-              {childId ? detail.data?.fullName ?? "Thông tin nhập học và phụ huynh của trẻ" : "Nhập thông tin nhập học của trẻ."}
-            </p>
+            {!childId && (
+              <p id={descriptionId} className="mt-1 text-sm leading-relaxed text-muted">
+                Nhập thông tin nhập học của trẻ.
+              </p>
+            )}
           </div>
           <Button
             variant="ghost" size="sm" disabled={isBusy} onClick={requestClose}
@@ -193,16 +240,28 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
           </Button>
         </header>
 
-        <div className="min-h-0 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6">
           {notice && (
             <p role="status" className="mb-5 rounded-xl border border-brand-border bg-brand-subtle p-3 text-sm leading-relaxed text-brand-text [overflow-wrap:anywhere]">
               {notice}
             </p>
           )}
 
+          {childId && detail.isError && detail.data && (
+            <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger-border bg-danger-bg p-3 text-sm text-danger">
+              <div className="min-w-0 flex-1 basis-48 [overflow-wrap:anywhere]">
+                <p className="font-medium">Chưa thể làm mới hồ sơ. Nội dung đang sửa được giữ nguyên.</p>
+                <p className="mt-1 text-xs">{detail.error.message}</p>
+              </div>
+              <Button size="sm" variant="secondary" disabled={isBusy || detail.isFetching} onClick={() => { void detail.refetch(); }}>
+                Thử lại
+              </Button>
+            </div>
+          )}
+
           {childId && detail.isLoading ? (
             <StatusMessage status="loading" title="Đang tải hồ sơ trẻ..." />
-          ) : childId && detail.isError ? (
+          ) : childId && detail.isError && !detail.data ? (
             <StatusMessage
               status="error" title="Không thể tải hồ sơ trẻ" message={detail.error.message}
               onRetry={() => { void detail.refetch(); }}
@@ -210,16 +269,15 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
           ) : childId && !detail.data ? (
             <StatusMessage status="empty" message="Không tìm thấy hồ sơ trẻ." />
           ) : (
-            <div className={cn("grid min-w-0 gap-6", childId && "md:grid-cols-2")}>
+            <div className={cn("grid min-w-0 gap-6", childId && "lg:grid-cols-2")}>
               <section aria-labelledby="child-profile-title" className="min-w-0">
                 <h3 id="child-profile-title" className="mb-5 text-base font-semibold">Thông tin hồ sơ</h3>
                 <ChildProfileForm
                   key={childId ?? "create"}
+                  id={profileFormId}
                   child={detail.data ?? undefined}
                   isBusy={isBusy}
-                  isSaving={isSaving}
                   onSave={saveProfile}
-                  onCancel={requestClose}
                 />
                 {!childId && (
                   <p className="mt-5 rounded-lg bg-brand-subtle p-3 text-xs leading-relaxed text-brand-text">
@@ -229,7 +287,7 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
               </section>
 
               {childId && (
-                <div className="min-w-0 border-t border-border pt-6 md:border-t-0 md:border-l md:pt-0 md:pl-6">
+                <div className="min-w-0 border-t border-border pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
                   <GuardiansPanel
                     key={childId}
                     childId={childId}
@@ -240,6 +298,7 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
                     onUnlink={(guardian, trigger) => {
                       if (isBusy) return;
                       unlinkTriggerRef.current = trigger;
+                      linkError.clearError();
                       unlinkError.clearError();
                       setUnlinkTarget(guardian);
                     }}
@@ -249,6 +308,18 @@ export function ChildProfileModal({ childId, onCreated, onClose, onSuccess }: Ch
             </div>
           )}
         </div>
+
+        <footer className="flex shrink-0 justify-end gap-3 border-t border-border bg-card px-5 py-4 sm:px-6">
+          <Button type="button" variant="secondary" className="min-w-20" disabled={isBusy} onClick={requestClose}>
+            Hủy
+          </Button>
+          <Button
+            type="submit" form={profileFormId} className="min-w-32"
+            disabled={isBusy || (!!childId && !detail.data)} isLoading={isSaving}
+          >
+            Lưu hồ sơ
+          </Button>
+        </footer>
       </div>
 
       <ConfirmDialog

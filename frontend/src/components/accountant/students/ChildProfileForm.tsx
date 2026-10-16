@@ -1,18 +1,16 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { toApiError } from "@/lib/axios";
 import type { ChildProfileRequest, ChildResponse } from "@/types/children";
 
 interface ChildProfileFormProps {
+  id: string;
   child?: ChildResponse;
   isBusy: boolean;
-  isSaving: boolean;
   onSave: (data: ChildProfileRequest) => Promise<ChildResponse>;
-  onCancel: () => void;
 }
 
 const FIELD_PATTERNS: Record<keyof ChildProfileRequest, RegExp> = {
@@ -22,11 +20,10 @@ const FIELD_PATTERNS: Record<keyof ChildProfileRequest, RegExp> = {
 };
 
 export function ChildProfileForm({
+  id,
   child,
   isBusy,
-  isSaving,
   onSave,
-  onCancel,
 }: ChildProfileFormProps) {
   const {
     register,
@@ -83,7 +80,7 @@ export function ChildProfileForm({
   };
 
   return (
-    <form noValidate onSubmit={handleSubmit(submit)} className="space-y-5">
+    <form id={id} noValidate onSubmit={handleSubmit(submit)} className="space-y-5">
       <FormField id="child-full-name" label="Họ tên" required error={errors.fullName?.message}>
         <Input
           id="child-full-name"
@@ -141,12 +138,11 @@ export function ChildProfileForm({
         </FormField>
       </div>
 
-      <FormField error={errors.root?.server?.message}>
-        <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-5">
-          <Button type="button" variant="secondary" disabled={isBusy} onClick={onCancel}>Hủy</Button>
-          <Button type="submit" disabled={isBusy} isLoading={isSaving}>Lưu hồ sơ</Button>
+      {errors.root?.server?.message && (
+        <div role="alert">
+          <FormField error={errors.root.server.message}>{null}</FormField>
         </div>
-      </FormField>
+      )}
     </form>
   );
 }

@@ -59,47 +59,26 @@ export function GuardiansPanel({
         </p>
       )}
 
-      <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-muted">Đã liên kết</h4>
-        {guardians.isLoading ? (
-          <StatusMessage status="loading" title="Đang tải phụ huynh..." />
-        ) : guardians.isError ? (
-          <StatusMessage
-            status="error" title="Không thể tải phụ huynh" message={guardians.error.message}
-            onRetry={() => { void guardians.refetch(); }}
-          />
-        ) : !guardians.data?.length ? (
-          <StatusMessage status="empty" message="Chưa có phụ huynh nào được liên kết với trẻ." className="p-5" />
-        ) : (
-          <ul className="divide-y divide-border rounded-xl border border-border bg-card">
-            {guardians.data.map((guardian) => (
-              <li key={guardian.userId} className="flex flex-wrap items-center gap-3 p-3">
-                <GuardianIdentity guardian={guardian} />
-                <Button
-                  size="sm" variant="ghost" className="text-danger hover:text-danger" disabled={isBusy}
-                  aria-label={`Gỡ liên kết với ${guardian.fullName} (${guardian.email})`}
-                  onClick={(event) => onUnlink(guardian, event.currentTarget)}
-                >Gỡ liên kết</Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="space-y-2 border-t border-border pt-5">
+      <div className="space-y-3 rounded-xl border border-brand-border bg-brand-subtle/40 p-4">
         <FormField id="parent-search" label="Tìm tài khoản phụ huynh">
           <Input
             id="parent-search" type="search" autoComplete="off" placeholder="Nhập họ tên hoặc email"
             aria-describedby="parent-search-hint"
             aria-controls={search.length >= 2 ? "parent-search-results" : undefined}
             disabled={isBusy}
+            leftIcon={
+              <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path strokeLinecap="round" d="m16 16 4.5 4.5" />
+              </svg>
+            }
             {...register("search")}
           />
         </FormField>
         <p id="parent-search-hint" className="text-xs text-muted">Nhập ít nhất 2 ký tự để tìm kiếm.</p>
 
         {search.length >= 2 && (
-          <div id="parent-search-results" aria-live="polite" className="max-h-72 overflow-y-auto rounded-xl border border-brand-border bg-card">
+          <div id="parent-search-results" aria-live="polite" className="max-h-60 overflow-y-auto overscroll-contain rounded-lg border border-brand-border bg-card sm:max-h-64">
             {search !== debouncedSearch || results.isLoading ? (
               <StatusMessage status="loading" title="Đang tìm phụ huynh..." />
             ) : results.isError ? (
@@ -117,7 +96,7 @@ export function GuardiansPanel({
                     <li key={guardian.userId} className="flex flex-wrap items-center gap-3 p-3">
                       <GuardianIdentity guardian={guardian} />
                       {linked ? (
-                        <span className="rounded-full bg-brand-subtle px-2 py-1 text-xs font-medium text-brand-text">Đã liên kết</span>
+                        <span className="shrink-0 rounded-full bg-brand-subtle px-2 py-1 text-xs font-medium text-brand-text">Đã liên kết</span>
                       ) : (
                         <Button
                           size="sm" disabled={isBusy || guardians.isLoading || guardians.isError}
@@ -132,6 +111,43 @@ export function GuardiansPanel({
               </ul>
             )}
           </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <h4 className="text-xs font-semibold text-muted">Đã liên kết</h4>
+          {guardians.isSuccess && (
+            <span className="rounded-full bg-background px-2 py-0.5 text-xs font-medium text-muted">
+              {guardians.data.length}
+            </span>
+          )}
+        </div>
+        {guardians.isLoading ? (
+          <StatusMessage status="loading" title="Đang tải phụ huynh..." />
+        ) : guardians.isError ? (
+          <StatusMessage
+            status="error" title="Không thể tải phụ huynh" message={guardians.error.message}
+            onRetry={() => { void guardians.refetch(); }}
+          />
+        ) : !guardians.data?.length ? (
+          <StatusMessage
+            status="empty" title="Chưa có phụ huynh"
+            message="Tìm tài khoản ở trên để liên kết với trẻ." className="p-5"
+          />
+        ) : (
+          <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+            {guardians.data.map((guardian) => (
+              <li key={guardian.userId} className="flex flex-wrap items-center gap-3 p-3">
+                <GuardianIdentity guardian={guardian} />
+                <Button
+                  size="sm" variant="ghost" className="shrink-0 text-danger! hover:text-danger" disabled={isBusy}
+                  aria-label={`Gỡ liên kết với ${guardian.fullName} (${guardian.email})`}
+                  onClick={(event) => onUnlink(guardian, event.currentTarget)}
+                >Gỡ liên kết</Button>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </section>
