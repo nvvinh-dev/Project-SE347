@@ -16,6 +16,9 @@ public interface IHealthService
     // null khi trẻ ngoài phạm vi lớp chủ nhiệm
     Task<HomeroomChildResponse?> GetHomeroomChildByIdAsync(Guid childId, Guid teacherUserId);
 
+    // Trẻ toàn trường cho Y tế chọn; trường chưa có trẻ nào thì danh sách rỗng
+    Task<IReadOnlyList<SchoolChildResponse>> GetSchoolChildrenAsync();
+
     // null khi trẻ không tồn tại, không có lý do thất bại nào khác
     Task<GrowthMeasurementResponse?> CreateGrowthMeasurementAsync(
         Guid childId, GrowthMeasurementRequest request, Guid medicalUserId);
