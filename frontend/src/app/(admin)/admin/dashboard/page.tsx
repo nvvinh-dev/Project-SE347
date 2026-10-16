@@ -16,6 +16,7 @@ export default function AdminDashboardPage() {
     isError,
     error,
     refetch,
+    dataUpdatedAt,
   } = useDashboardOverview();
 
   // Tính toán số liệu phân bổ 3 lớp
@@ -43,13 +44,27 @@ export default function AdminDashboardPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-[#55B38F]" />
                 Năm học 2026 – 2027
               </span>
-              <span className="text-xs text-muted font-medium">
-                {new Date().toLocaleDateString("vi-VN", {
-                  weekday: "long",
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}
+              <span className="text-xs text-muted font-medium flex items-center gap-1.5 flex-wrap">
+                <span>
+                  {new Date().toLocaleDateString("vi-VN", {
+                    weekday: "long",
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </span>
+                {overview && dataUpdatedAt ? (
+                  <>
+                    <span>•</span>
+                    <span className="text-[11px] text-muted-dark">
+                      Đồng bộ dữ liệu lúc{" "}
+                      {new Date(dataUpdatedAt).toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </>
+                ) : null}
               </span>
             </div>
 
@@ -221,7 +236,7 @@ export default function AdminDashboardPage() {
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                  Tỷ lệ đã vào lớp
+                  Tỷ lệ trẻ đã xếp lớp
                 </p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
                   <span className="text-2xl font-extrabold text-foreground">{assignedRatio}%</span>
@@ -254,7 +269,7 @@ export default function AdminDashboardPage() {
                   </span>
                 ) : (
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FBE8E2] text-[#8A4F42] border border-[#FAC4CD]/60">
-                    ⚠ Thiếu {classesWithoutTeacher.length} lớp
+                    {overview.classesWithTeacherCount}/{overview.totalClasses} lớp đã có GVCN
                   </span>
                 )}
               </div>
@@ -391,7 +406,7 @@ export default function AdminDashboardPage() {
                       {/* Thanh phân bổ tỷ lệ phần trăm */}
                       <div className="mt-2 space-y-1">
                         <div className="flex justify-between text-[11px] text-muted">
-                          <span>Chiếm tỷ lệ</span>
+                          <span>Tỷ trọng học sinh toàn trường</span>
                           <span className="font-bold text-foreground">{percentage}%</span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-[#F3F4F3] overflow-hidden">
