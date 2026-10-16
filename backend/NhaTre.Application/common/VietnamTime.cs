@@ -8,5 +8,9 @@ public static class VietnamTime
 
     // Nhận thời điểm UTC thay vì tự đọc đồng hồ, để ngày và giờ của một bản ghi lấy từ cùng một lần đọc
     public static DateOnly DateOf(DateTime utcNow)
-        => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utcNow, TimeZone));
+        => DateOnly.FromDateTime(ToVietnamTime(utcNow));
+
+    // Giờ Việt Nam của một thời điểm UTC, ví dụ để ghi giờ xảy ra sự cố trong thông báo
+    public static DateTime ToVietnamTime(DateTime utc)
+        => TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZone);
 }
