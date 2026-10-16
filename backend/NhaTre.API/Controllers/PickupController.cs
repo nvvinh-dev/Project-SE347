@@ -23,6 +23,10 @@ namespace NhaTre.API.Controllers;
 [Authorize]
 public class PickupController : ControllerBase
 {
+    // 1 ảnh tối đa 5 MB cộng các trường chữ. Đặt cao hơn 5 MB để ảnh 6 MB vẫn tới validator và nhận 400
+    // (AC-PICKUP-10 f); quá mức này Kestrel dừng đọc và nhận 413, không đọc hết ~28 MB mặc định vào bộ nhớ
+    private const long MultipartRequestSizeLimitBytes = 10 * 1024 * 1024;
+
     private readonly IPickupService _pickupService;
     private readonly IValidator<CreatePickupRequest> _createPickupValidator;
     private readonly IValidator<CreatePickupPersonRequest> _createPickupPersonValidator;
@@ -146,6 +150,7 @@ public class PickupController : ControllerBase
     [HttpPost("children/{childId:guid}/pickup-persons")]
     [Authorize(Roles = Roles.Parent)]
     [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MultipartRequestSizeLimitBytes)]
     public async Task<ActionResult<ApiResponse<PickupPersonResponse>>> CreatePickupPerson(
         Guid childId, [FromForm] CreatePickupPersonRequest request, List<IFormFile>? facePhoto)
     {
@@ -167,6 +172,7 @@ public class PickupController : ControllerBase
     [HttpPut("children/{childId:guid}/pickup-persons/{id:guid}")]
     [Authorize(Roles = Roles.Parent)]
     [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MultipartRequestSizeLimitBytes)]
     public async Task<ActionResult<ApiResponse<PickupPersonResponse>>> UpdatePickupPerson(
         Guid childId, Guid id, [FromForm] PickupPersonRequest request, List<IFormFile>? facePhoto)
     {

@@ -121,7 +121,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
                 var field = string.Join('.', entry.Key.TrimStart('$', '.').Split('.')
                     .Select(JsonNamingPolicy.CamelCase.ConvertName));
                 return string.IsNullOrEmpty(field)
-                    ? "Dữ liệu gửi lên không đọc được (JSON không hợp lệ)."
+                    ? "Dữ liệu gửi lên không đọc được (sai định dạng hoặc vượt quá dung lượng cho phép)."
                     : $"Trường '{field}' bị thiếu hoặc sai kiểu dữ liệu.";
             })
             .Distinct()
@@ -318,7 +318,7 @@ app.UseStatusCodePages(async statusCodeContext =>
     {
         StatusCodes.Status404NotFound => "Không tìm thấy đường dẫn yêu cầu.",
         StatusCodes.Status405MethodNotAllowed => "Phương thức HTTP không được hỗ trợ cho đường dẫn này.",
-        StatusCodes.Status415UnsupportedMediaType => "Định dạng dữ liệu không được hỗ trợ (cần Content-Type: application/json).",
+        StatusCodes.Status415UnsupportedMediaType => "Định dạng dữ liệu không được hỗ trợ (kiểm tra lại Content-Type của request).",
         _ => "Yêu cầu không hợp lệ."
     };
 
