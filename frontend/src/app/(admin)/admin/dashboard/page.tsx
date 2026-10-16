@@ -136,7 +136,7 @@ export default function AdminDashboardPage() {
                   <line x1="12" y1="9" x2="12" y2="13" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
-                <span>Nhiệm vụ vận hành cần xử lý ngay</span>
+                <span>Nhiệm vụ cần xử lý ngay</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
