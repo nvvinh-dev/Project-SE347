@@ -27,9 +27,14 @@ export function useChildren() {
 }
 
 export function useChild(id: string) {
+  const queryClient = useQueryClient();
   return useApiQuery<ChildResponse | null>({
     queryKey: childQueryKey(id),
     enabled: !!id,
+    // Danh sách có đủ DTO hồ sơ: hiển thị ngay và giữ bản này nếu tải lại bị lỗi.
+    initialData: () => queryClient.getQueryData<ChildResponse[]>(CHILDREN_QUERY_KEY)
+      ?.find((child) => child.id === id),
+    initialDataUpdatedAt: () => queryClient.getQueryState(CHILDREN_QUERY_KEY)?.dataUpdatedAt,
     queryFn: async ({ signal }) => {
       const response = await apiClient.get<ApiResponse<ChildResponse>>(`/api/children/${id}`, { signal });
       return response.data.data;
@@ -46,7 +51,7 @@ export function useCreateChild() {
     },
     onSuccess: (child) => {
       queryClient.setQueryData(childQueryKey(child.id), child);
-      queryClient.invalidateQueries({ queryKey: CHILDREN_QUERY_KEY });
+      return queryClient.invalidateQueries({ queryKey: CHILDREN_QUERY_KEY });
     },
   });
 }
@@ -60,7 +65,7 @@ export function useUpdateChild() {
     },
     onSuccess: (child) => {
       queryClient.setQueryData(childQueryKey(child.id), child);
-      queryClient.invalidateQueries({ queryKey: CHILDREN_QUERY_KEY });
+      return queryClient.invalidateQueries({ queryKey: CHILDREN_QUERY_KEY });
     },
   });
 }
@@ -105,7 +110,12 @@ export function useLinkGuardian() {
       return response.data.data!;
     },
     onSuccess: (_guardian, { childId }) => {
-      queryClient.invalidateQueries({ queryKey: guardiansQueryKey(childId) });
+      return queryClient.invalidateQueries({ queryKey: guardiansQueryKey(childId) });
+    },
+    onError: (error, { childId }) => {
+      if (error.status === 409) {
+        return queryClient.invalidateQueries({ queryKey: guardiansQueryKey(childId) });
+      }
     },
   });
 }
@@ -120,7 +130,7 @@ export function useUnlinkGuardian() {
       return response.data.data!;
     },
     onSuccess: (_guardian, { childId }) => {
-      queryClient.invalidateQueries({ queryKey: guardiansQueryKey(childId) });
+      return queryClient.invalidateQueries({ queryKey: guardiansQueryKey(childId) });
     },
   });
 }
