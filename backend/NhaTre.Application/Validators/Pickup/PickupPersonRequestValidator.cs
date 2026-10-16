@@ -23,16 +23,17 @@ public class PickupPersonRequestValidator : AbstractValidator<PickupPersonReques
             .WithMessage("Mối liên hệ với trẻ không được dài quá 50 ký tự.");
 
         // [0-9] thay cho \d: trong .NET \d khớp cả chữ số Unicode khác (ví dụ chữ số Ả Rập).
-        // Không trim: giá trị lưu đúng như giá trị đã kiểm
+        // \z thay cho $: trong .NET $ vẫn khớp khi chuỗi còn một "\n" ở cuối, giá trị đó lọt qua rồi bị
+        // cột varchar(10) / varchar(12) từ chối thành 500. Không trim: giá trị lưu đúng như giá trị đã kiểm
         RuleFor(x => x.PhoneNumber)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Số điện thoại không được để trống.")
-            .Matches("^0[0-9]{9}$").WithMessage("Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.");
+            .Matches(@"^0[0-9]{9}\z").WithMessage("Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.");
 
         RuleFor(x => x.CitizenIdNumber)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Số CCCD không được để trống.")
-            .Matches("^[0-9]{12}$").WithMessage("Số CCCD phải gồm đúng 12 chữ số.");
+            .Matches(@"^[0-9]{12}\z").WithMessage("Số CCCD phải gồm đúng 12 chữ số.");
 
         // Thiếu trường hoặc false đều từ chối, không lưu gì kể cả ảnh (AC-PICKUP-15)
         RuleFor(x => x.ConsentConfirmed)
