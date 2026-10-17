@@ -20,15 +20,18 @@ public class TuitionService : ITuitionService
 
     private readonly ITuitionRepository _tuitionRepository;
     private readonly IChildRepository _childRepository;
+    private readonly IChildGuardianRepository _childGuardianRepository;
     private readonly INotificationService _notificationService;
 
     public TuitionService(
         ITuitionRepository tuitionRepository,
         IChildRepository childRepository,
+        IChildGuardianRepository childGuardianRepository,
         INotificationService notificationService)
     {
         _tuitionRepository = tuitionRepository;
         _childRepository = childRepository;
+        _childGuardianRepository = childGuardianRepository;
         _notificationService = notificationService;
     }
 
@@ -169,6 +172,26 @@ public class TuitionService : ITuitionService
             request.Amount, description, InvoiceStatuses.Unpaid, invoice.IssuedAt));
     }
 
+    // FR-TUITION-05: trẻ không tồn tại và trẻ không liên kết với mình cùng trả 404 (D39 mục 10).
+    // Kiểm riêng liên kết để phân biệt trẻ ngoài phạm vi với con mình chưa có hóa đơn nào (danh sách rỗng)
+    public async Task<IReadOnlyList<ChildInvoiceResponse>?> GetChildInvoicesForGuardianAsync(
+        Guid childId, Guid parentUserId)
+    {
+        if (!await _childGuardianRepository.LinkExistsAsync(childId, parentUserId))
+            return null;
+
+        var invoices = await _tuitionRepository.GetInvoicesOfChildForGuardianAsync(childId, parentUserId);
+        return invoices.Select(ToChildInvoiceResponse).ToList();
+    }
+
+    // Hóa đơn không tồn tại, thuộc trẻ khác hoặc trẻ không liên kết với mình đều 404 (AC-TUITION-07)
+    public async Task<ChildInvoiceResponse?> GetChildInvoiceForGuardianAsync(
+        Guid childId, Guid invoiceId, Guid parentUserId)
+    {
+        var invoice = await _tuitionRepository.FindInvoiceOfChildForGuardianAsync(childId, invoiceId, parentUserId);
+        return invoice is null ? null : ToChildInvoiceResponse(invoice);
+    }
+
     // FR-TUITION-03, D39 mục 12: kỳ báo cáo là tháng hiện tại, không có bộ lọc khoảng ngày.
     // Tổng thu tính theo thời điểm thanh toán (D39 mục 4), không theo kỳ thu ghi trong mô tả hóa đơn.
     // Số hóa đơn chưa thanh toán đếm mọi hóa đơn còn unpaid lúc sinh báo cáo: hóa đơn không có cột kỳ,
@@ -208,4 +231,7 @@ public class TuitionService : ITuitionService
     private static InvoiceResponse ToResponse(Invoice invoice)
         => new(invoice.Id, invoice.ChildId, invoice.Child.FullName, invoice.Amount,
             invoice.Description, invoice.Status, invoice.IssuedAt);
+
+    private static ChildInvoiceResponse ToChildInvoiceResponse(Invoice invoice)
+        => new(invoice.Id, invoice.Amount, invoice.Description, invoice.Status, invoice.IssuedAt);
 }

@@ -66,6 +66,28 @@ public class TuitionRepository : ITuitionRepository
         _dbContext.Invoices.Add(invoice);
     }
 
+    // Liên kết phụ huynh–trẻ luôn có trong câu truy vấn (BR-TUITION-04), không chỉ kiểm ở Service.
+    // Mới lập xếp trước; id để thứ tự cố định khi hai hóa đơn lập cùng thời điểm
+    public async Task<IReadOnlyList<Invoice>> GetInvoicesOfChildForGuardianAsync(Guid childId, Guid parentUserId)
+    {
+        return await _dbContext.Invoices
+            .AsNoTracking()
+            .Where(i => i.ChildId == childId
+                && i.Child.ChildGuardians.Any(cg => cg.GuardianUserId == parentUserId))
+            .OrderByDescending(i => i.IssuedAt)
+            .ThenBy(i => i.Id)
+            .ToListAsync();
+    }
+
+    public async Task<Invoice?> FindInvoiceOfChildForGuardianAsync(Guid childId, Guid invoiceId, Guid parentUserId)
+    {
+        return await _dbContext.Invoices
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == invoiceId
+                && i.ChildId == childId
+                && i.Child.ChildGuardians.Any(cg => cg.GuardianUserId == parentUserId));
+    }
+
     // BR-TUITION-12: điều kiện status = 'unpaid' nằm ngay trong câu UPDATE. Hóa đơn được ghi nhận
     // thanh toán giữa lúc Service đọc và lúc lưu thì không dòng nào khớp, số tiền cũ được giữ nguyên.
     public async Task<bool> UpdateUnpaidInvoiceAsync(Guid id, Guid childId, decimal amount, string description)

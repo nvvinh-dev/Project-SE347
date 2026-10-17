@@ -14,6 +14,10 @@ public interface ITuitionRepository
     Task<Invoice?> FindInvoiceByIdAsync(Guid id);
     void AddInvoice(Invoice invoice);
 
+    // Phụ huynh xem hóa đơn: chỉ khớp khi trẻ có liên kết với parentUserId trong child_guardians
+    Task<IReadOnlyList<Invoice>> GetInvoicesOfChildForGuardianAsync(Guid childId, Guid parentUserId);
+    Task<Invoice?> FindInvoiceOfChildForGuardianAsync(Guid childId, Guid invoiceId, Guid parentUserId);
+
     // Sửa hóa đơn bằng một câu UPDATE chỉ khớp khi hóa đơn còn unpaid; false khi không dòng nào khớp
     Task<bool> UpdateUnpaidInvoiceAsync(Guid id, Guid childId, decimal amount, string description);
 
