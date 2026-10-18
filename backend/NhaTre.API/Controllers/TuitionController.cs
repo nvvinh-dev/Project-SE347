@@ -5,17 +5,22 @@ using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Tuition;
 using NhaTre.Application.Interfaces;
 using NhaTre.Domain.Constants;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace NhaTre.API.Controllers;
 
-// Module Học phí gồm các tài nguyên tuition-fees, invoices và revenue-reports, nên route gốc
-// của Controller là api/ và mỗi action tự ghi tên tài nguyên.
+// Module Học phí gồm các tài nguyên tuition-fees, invoices, revenue-reports và hóa đơn theo con
+// của phụ huynh (children/{childId}/invoices), nên route gốc của Controller là api/ và mỗi action
+// tự ghi tên tài nguyên. Hai vai trò dùng chung nên Roles gắn theo từng action; [Authorize] ở mức
+// class để action nào quên gắn Roles vẫn bắt đăng nhập: Program.cs không có fallback policy.
 // Chỉ Kế toán quản lý biểu phí (FR-TUITION-01) và hóa đơn (FR-TUITION-02):
 // Tạo + Sửa + Xem, không Xóa — D40 mục 1.
 // Chỉ Kế toán sinh và xem báo cáo doanh thu (FR-TUITION-03); Admin xem doanh thu qua dashboard
+// FR-TUITION-05: Phụ huynh chỉ xem hóa đơn của con mình (child_guardians, D39 mục 10), không thanh
+// toán trong hệ thống (D21)
 [ApiController]
 [Route("api")]
-[Authorize(Roles = Roles.Accountant)]
+[Authorize]
 public class TuitionController : ControllerBase
 {
     private readonly ITuitionService _tuitionService;
@@ -33,6 +38,7 @@ public class TuitionController : ControllerBase
     }
 
     [HttpGet("tuition-fees")]
+    [Authorize(Roles = Roles.Accountant)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<TuitionFeeResponse>>>> GetFees()
     {
         var result = await _tuitionService.GetFeesAsync();
@@ -40,6 +46,7 @@ public class TuitionController : ControllerBase
     }
 
     [HttpGet("tuition-fees/{id:guid}")]
+    [Authorize(Roles = Roles.Accountant)]
     public async Task<ActionResult<ApiResponse<TuitionFeeResponse>>> GetFeeById(Guid id)
     {
         var result = await _tuitionService.GetFeeByIdAsync(id);
@@ -51,6 +58,7 @@ public class TuitionController : ControllerBase
     }
 
     [HttpPost("tuition-fees")]
+    [Authorize(Roles = Roles.Accountant)]
     public async Task<ActionResult<ApiResponse<TuitionFeeResponse>>> CreateFee([FromBody] TuitionFeeRequest request)
     {
         var validationResult = await _tuitionFeeValidator.ValidateAsync(request);
@@ -71,6 +79,7 @@ public class TuitionController : ControllerBase
     }
 
     [HttpPut("tuition-fees/{id:guid}")]
+    [Authorize(Roles = Roles.Accountant)]
     public async Task<ActionResult<ApiResponse<TuitionFeeResponse>>> UpdateFee(Guid id, [FromBody] TuitionFeeRequest request)
     {
         var validationResult = await _tuitionFeeValidator.ValidateAsync(request);
@@ -89,6 +98,7 @@ public class TuitionController : ControllerBase
     }
 
     [HttpGet("invoices")]
+    [Authorize(Roles = Roles.Accountant)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<InvoiceResponse>>>> GetInvoices(
         [FromQuery] Guid? childId, [FromQuery] string? status)
     {
@@ -101,6 +111,7 @@ public class TuitionController : ControllerBase
     }
 
     [HttpGet("invoices/{id:guid}")]
+    [Authorize(Roles = Roles.Accountant)]
     public async Task<ActionResult<ApiResponse<InvoiceResponse>>> GetInvoiceById(Guid id)
     {
         var result = await _tuitionService.GetInvoiceByIdAsync(id);
@@ -112,6 +123,7 @@ public class TuitionController : ControllerBase
     }
 
     [HttpPost("invoices")]
+    [Authorize(Roles = Roles.Accountant)]
     public async Task<ActionResult<ApiResponse<InvoiceResponse>>> CreateInvoice([FromBody] InvoiceRequest request)
     {
         var validationResult = await _invoiceValidator.ValidateAsync(request);
@@ -135,6 +147,7 @@ public class TuitionController : ControllerBase
     }
 
     [HttpPut("invoices/{id:guid}")]
+    [Authorize(Roles = Roles.Accountant)]
     public async Task<ActionResult<ApiResponse<InvoiceResponse>>> UpdateInvoice(Guid id, [FromBody] InvoiceRequest request)
     {
         var validationResult = await _invoiceValidator.ValidateAsync(request);
@@ -157,11 +170,42 @@ public class TuitionController : ControllerBase
         };
     }
 
+    // Trẻ không tồn tại và trẻ không liên kết với mình cùng trả 404; con mình chưa có hóa đơn nào
+    // thì danh sách rỗng
+    [HttpGet("children/{childId:guid}/invoices")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<ChildInvoiceResponse>>>> GetChildInvoices(Guid childId)
+    {
+        var result = await _tuitionService.GetChildInvoicesForGuardianAsync(childId, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<IReadOnlyList<ChildInvoiceResponse>>.Fail("Không tìm thấy trẻ."));
+
+        return Ok(ApiResponse<IReadOnlyList<ChildInvoiceResponse>>.Ok(result));
+    }
+
+    // Đổi id hóa đơn hay id trẻ trên URL sang dữ liệu ngoài phạm vi đều 404 (AC-TUITION-07)
+    [HttpGet("children/{childId:guid}/invoices/{invoiceId:guid}")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<ChildInvoiceResponse>>> GetChildInvoiceById(Guid childId, Guid invoiceId)
+    {
+        var result = await _tuitionService.GetChildInvoiceForGuardianAsync(childId, invoiceId, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<ChildInvoiceResponse>.Fail("Không tìm thấy hóa đơn."));
+
+        return Ok(ApiResponse<ChildInvoiceResponse>.Ok(result));
+    }
+
     // Báo cáo không lưu vào bảng nào, mỗi lần gọi tính lại cho tháng hiện tại (D39 mục 12)
     [HttpGet("revenue-reports/current")]
+    [Authorize(Roles = Roles.Accountant)]
     public async Task<ActionResult<ApiResponse<RevenueReportResponse>>> GetCurrentRevenueReport()
     {
         var result = await _tuitionService.GetRevenueReportAsync();
         return Ok(ApiResponse<RevenueReportResponse>.Ok(result));
     }
+
+    // ActiveUserMiddleware đã kiểm tra claim sub là Guid hợp lệ trước khi vào đây
+    private Guid CurrentUserId() => Guid.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
 }
