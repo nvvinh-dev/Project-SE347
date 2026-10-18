@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -33,7 +34,7 @@ export function ChildProfileForm({
     clearErrors,
     setError,
     setFocus,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<ChildProfileRequest>({
     defaultValues: {
       fullName: child?.fullName ?? "",
@@ -41,6 +42,16 @@ export function ChildProfileForm({
       enrollmentDate: child?.enrollmentDate.slice(0, 10) ?? "",
     },
   });
+
+  useEffect(() => {
+    // Nhận bản mới từ API khi chưa sửa; không ghi đè bản nháp đang nhập.
+    if (!child || isDirty) return;
+    reset({
+      fullName: child.fullName,
+      dateOfBirth: child.dateOfBirth.slice(0, 10),
+      enrollmentDate: child.enrollmentDate.slice(0, 10),
+    });
+  }, [child, isDirty, reset]);
 
   const submit = async (data: ChildProfileRequest) => {
     if (isBusy) return;
