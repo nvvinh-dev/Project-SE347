@@ -752,7 +752,7 @@ export default function AdminUsersPage() {
               <div className="rounded-xl bg-danger-bg border border-danger-border p-3 text-xs text-danger">
                 <p className="font-semibold">⚠️ Lưu ý an toàn hệ thống:</p>
                 <p className="mt-1 text-[11px] leading-relaxed">
-                  Tài khoản sẽ bị khóa quyền truy cập ngay lập tức ở request tiếp theo. Mọi bản ghi điểm danh, sự cố, hóa đơn do người dùng này tạo vẫn được bảo toàn nguyên vẹn.
+                  Tài khoản sẽ bị khóa quyền truy cập ngay ở lần thao tác tiếp theo. Mọi bản ghi điểm danh, sự cố, hóa đơn do người dùng này tạo vẫn được bảo toàn nguyên vẹn.
                 </p>
               </div>
             </div>

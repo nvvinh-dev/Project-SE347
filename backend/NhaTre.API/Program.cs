@@ -123,7 +123,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
                 var field = string.Join('.', entry.Key.TrimStart('$', '.').Split('.')
                     .Select(JsonNamingPolicy.CamelCase.ConvertName));
                 return string.IsNullOrEmpty(field)
-                    ? "Dữ liệu gửi lên không đọc được (JSON không hợp lệ)."
+                    ? "Dữ liệu gửi lên không đọc được (sai định dạng hoặc vượt quá dung lượng cho phép)."
                     : $"Trường '{field}' bị thiếu hoặc sai kiểu dữ liệu.";
             })
             .Distinct()
@@ -190,6 +190,8 @@ builder.Services.AddScoped<IHealthRepository, HealthRepository>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<IValidator<QuickHealthStatusRequest>, QuickHealthStatusRequestValidator>();
 builder.Services.AddScoped<IValidator<GrowthMeasurementRequest>, GrowthMeasurementRequestValidator>();
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IIncidentRepository, IncidentRepository>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IValidator<CreateIncidentRequest>, CreateIncidentRequestValidator>();
@@ -323,7 +325,7 @@ app.UseStatusCodePages(async statusCodeContext =>
     {
         StatusCodes.Status404NotFound => "Không tìm thấy đường dẫn yêu cầu.",
         StatusCodes.Status405MethodNotAllowed => "Phương thức HTTP không được hỗ trợ cho đường dẫn này.",
-        StatusCodes.Status415UnsupportedMediaType => "Định dạng dữ liệu không được hỗ trợ (cần Content-Type: application/json).",
+        StatusCodes.Status415UnsupportedMediaType => "Định dạng dữ liệu không được hỗ trợ (kiểm tra lại Content-Type của request).",
         _ => "Yêu cầu không hợp lệ."
     };
 
