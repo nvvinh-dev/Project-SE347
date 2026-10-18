@@ -51,7 +51,10 @@ export function useCreateChild() {
     },
     onSuccess: (child) => {
       queryClient.setQueryData(childQueryKey(child.id), child);
-      return queryClient.invalidateQueries({ queryKey: CHILDREN_QUERY_KEY });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: CHILDREN_QUERY_KEY, exact: true }),
+        queryClient.invalidateQueries({ queryKey: childQueryKey(child.id), exact: true }),
+      ]);
     },
   });
 }
@@ -65,7 +68,10 @@ export function useUpdateChild() {
     },
     onSuccess: (child) => {
       queryClient.setQueryData(childQueryKey(child.id), child);
-      return queryClient.invalidateQueries({ queryKey: CHILDREN_QUERY_KEY });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: CHILDREN_QUERY_KEY, exact: true }),
+        queryClient.invalidateQueries({ queryKey: childQueryKey(child.id), exact: true }),
+      ]);
     },
   });
 }
