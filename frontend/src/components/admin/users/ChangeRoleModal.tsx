@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useChangeRole } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { Button } from "@/components/ui/Button";
 import { UserRoleBadge } from "./UserRoleBadge";
 import { USER_ROLES } from "@/types/user";
@@ -20,7 +21,6 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
   const [selectedRole, setSelectedRole] = useState<Role | "">("");
   const [serverError, setServerError] = useState<string | null>(null);
   const changeRole = useChangeRole();
-  const dialogRef = useRef<HTMLDivElement>(null);
 
   const handleClose = useCallback(() => {
     if (changeRole.isPending) return;
@@ -29,53 +29,11 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
     onClose();
   }, [changeRole.isPending, onClose]);
 
-  useEffect(() => {
-    if (!isOpen || !user) return;
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (!changeRole.isPending) {
-          handleClose();
-        }
-        return;
-      }
-
-      if (e.key === "Tab") {
-        const dialog = dialogRef.current;
-        if (!dialog) return;
-
-        const focusableElements = dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusableElements.length === 0) return;
-
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement.focus();
-          }
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [isOpen, user, handleClose, changeRole.isPending]);
+  const { containerRef } = useFocusTrap({
+    isOpen: isOpen && user !== null,
+    isLoading: changeRole.isPending,
+    onClose: handleClose,
+  });
 
   if (!isOpen || !user) return null;
 
@@ -115,6 +73,8 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
 
   return (
     <div
+      ref={containerRef}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
@@ -129,7 +89,6 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
 
       {/* Modal Dialog Card */}
       <div
-        ref={dialogRef}
         className="relative z-10 w-full max-w-lg my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200"
       >
         {/* Header */}
@@ -190,7 +149,7 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
           </p>
         </div>
 
-        {/* Role Selection Form: 2 cột ngay từ màn nhỏ theo review Lead */}
+        {/* Role Selection Form: 2 cột ngay từ màn nhỏ */}
         <form onSubmit={handleSubmit} className="mt-3 sm:mt-5 space-y-3 sm:space-y-4">
           <div>
             <label className="text-xs font-bold text-foreground block mb-1.5">

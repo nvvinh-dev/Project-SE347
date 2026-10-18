@@ -6,4 +6,6 @@ public static class PickupPersonPriorities
 {
     public const short Primary = 1; // Người đón chính
     public const short Backup = 2;  // Người đón dự phòng
+
+    public static bool IsValid(short? priority) => priority is Primary or Backup;
 }
