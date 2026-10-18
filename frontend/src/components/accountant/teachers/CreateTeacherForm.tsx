@@ -29,6 +29,7 @@ function normalizeSearch(value: string) {
 export function CreateTeacherForm({ isBusy, initialFocusRef, onSave, onClose }: CreateTeacherFormProps) {
   const accounts = useTeacherAccounts();
   const searchId = useId();
+  const accountErrorId = useId();
   const focusSearchRef = useRef(false);
   const {
     register, control, handleSubmit, clearErrors, setError, setFocus, setValue,
@@ -48,9 +49,10 @@ export function CreateTeacherForm({ isBusy, initialFocusRef, onSave, onClose }: 
     onChange: () => clearErrors(),
   });
   const accountField = register("userId", {
-    required: "Vui lòng chọn tài khoản giáo viên.",
-    validate: (value) => records.some((account) => account.userId === value)
-      || "Tài khoản không còn khả dụng. Vui lòng chọn lại.",
+    // Kiểm tra giá trị RHF giữ lại khi tài khoản đã chọn bị bộ lọc ẩn đi.
+    validate: (value) => !value ? "Vui lòng chọn tài khoản giáo viên."
+      : records.some((account) => account.userId === value)
+        || "Tài khoản không còn khả dụng. Vui lòng chọn lại.",
     onChange: () => clearErrors(),
   });
 
@@ -94,6 +96,9 @@ export function CreateTeacherForm({ isBusy, initialFocusRef, onSave, onClose }: 
               placeholder="Nhập họ tên hoặc email"
               autoComplete="off"
               disabled={disabled}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.preventDefault();
+              }}
             />
           </FormField>
           <p className="mt-2 text-xs leading-relaxed text-muted">
@@ -101,8 +106,8 @@ export function CreateTeacherForm({ isBusy, initialFocusRef, onSave, onClose }: 
           </p>
         </div>
 
-        <FormField error={errors.userId?.message}>
-          <fieldset disabled={disabled} aria-invalid={!!errors.userId}>
+        <div className="space-y-1.5">
+          <fieldset disabled={disabled} aria-describedby={errors.userId ? accountErrorId : undefined}>
             <legend className="mb-3 text-sm font-semibold">
               Tài khoản giáo viên <span className="text-danger">*</span>
             </legend>
@@ -140,7 +145,10 @@ export function CreateTeacherForm({ isBusy, initialFocusRef, onSave, onClose }: 
               </div>
             )}
           </fieldset>
-        </FormField>
+          <div id={accountErrorId} role="alert" aria-atomic="true">
+            <FormField error={errors.userId?.message}>{null}</FormField>
+          </div>
+        </div>
 
         {selected && !selectedIsVisible && !accounts.isError && (
           <div className="rounded-xl border border-brand-border bg-brand-subtle p-4 [overflow-wrap:anywhere]">
