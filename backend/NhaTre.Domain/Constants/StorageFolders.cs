@@ -15,4 +15,22 @@ public static class StorageFolders
     };
 
     public static bool IsValid(string? folder) => folder is not null && All.Contains(folder);
+
+    // Khóa file đúng dạng "<thư mục>/<tên file>": thư mục thuộc danh sách trên, tên file không rỗng,
+    // không lồng thêm thư mục và không chứa "..", để không ký URL hay xóa nhầm ra ngoài ba thư mục ảnh
+    public static bool IsValidFileReference(string? fileReference)
+    {
+        if (fileReference is null)
+            return false;
+
+        var slashIndex = fileReference.IndexOf('/');
+        if (slashIndex < 0)
+            return false;
+
+        var fileName = fileReference[(slashIndex + 1)..];
+        return IsValid(fileReference[..slashIndex])
+            && fileName.Length > 0
+            && !fileName.Contains('/')
+            && !fileName.Contains("..");
+    }
 }

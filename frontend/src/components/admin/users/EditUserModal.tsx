@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useUpdateUser } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -24,10 +25,9 @@ interface EditUserModalProps {
 export function EditUserModal({ user, isOpen, onClose, onSuccess }: EditUserModalProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const updateUser = useUpdateUser();
-  const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Form is mounted with key={user.id} at parent level, so defaultValues initializes freshly per user
-  // and is NOT overwritten during form submission (preventing loss of edits on 409 Conflict)
+  // Form được mount với key={user.id} ở cấp cha, nên defaultValues luôn khởi tạo mới theo từng người dùng
+  // và không bị ghi đè khi submit form (giúp bảo toàn dữ liệu vừa nhập khi gặp lỗi 409 Conflict).
   const {
     register,
     handleSubmit,
@@ -45,53 +45,11 @@ export function EditUserModal({ user, isOpen, onClose, onSuccess }: EditUserModa
     onClose();
   }, [updateUser.isPending, onClose]);
 
-  useEffect(() => {
-    if (!isOpen || !user) return;
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (!updateUser.isPending) {
-          handleClose();
-        }
-        return;
-      }
-
-      if (e.key === "Tab") {
-        const dialog = dialogRef.current;
-        if (!dialog) return;
-
-        const focusableElements = dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusableElements.length === 0) return;
-
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement.focus();
-          }
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [isOpen, user, handleClose, updateUser.isPending]);
+  const { containerRef } = useFocusTrap({
+    isOpen: isOpen && user !== null,
+    isLoading: updateUser.isPending,
+    onClose: handleClose,
+  });
 
   if (!isOpen || !user) return null;
 
@@ -125,6 +83,8 @@ export function EditUserModal({ user, isOpen, onClose, onSuccess }: EditUserModa
 
   return (
     <div
+      ref={containerRef}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
@@ -139,7 +99,6 @@ export function EditUserModal({ user, isOpen, onClose, onSuccess }: EditUserModa
 
       {/* Modal Dialog Card */}
       <div
-        ref={dialogRef}
         className="relative z-10 w-full max-w-lg my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl transition-all animate-in zoom-in-95 duration-200"
       >
         {/* Header */}

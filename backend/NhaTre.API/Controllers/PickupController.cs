@@ -16,20 +16,35 @@ namespace NhaTre.API.Controllers;
 // (D40 mục 2). Bản ghi đã tạo không sửa, không xóa.
 // FR-PICKUP-02: Giáo viên xem người đón đã đăng ký của trẻ lớp mình để xác minh, và xem bản ghi
 // đón về của lớp mình trong một ngày; cùng phạm vi lớp chủ nhiệm.
+// FR-PICKUP-03: chỉ Phụ huynh thêm, xem, sửa người đón của con mình (BR-PICKUP-03, BR-SCOPE-01) và
+// xóa người đón dự phòng (D40 mục 1). Trẻ không phải con mình → 404 (AC-PICKUP-07).
 [ApiController]
 [Route("api")]
 [Authorize]
 public class PickupController : ControllerBase
 {
+    // 1 ảnh tối đa 5 MB cộng các trường chữ. Đặt cao hơn 5 MB để ảnh 6 MB vẫn tới validator và nhận 400
+    // (AC-PICKUP-10 f); quá mức này Kestrel dừng đọc và nhận 413, không đọc hết ~28 MB mặc định vào bộ nhớ
+    private const long MultipartRequestSizeLimitBytes = 10 * 1024 * 1024;
+
     private readonly IPickupService _pickupService;
     private readonly IValidator<CreatePickupRequest> _createPickupValidator;
+    private readonly IValidator<CreatePickupPersonRequest> _createPickupPersonValidator;
+    private readonly IValidator<PickupPersonRequest> _updatePickupPersonValidator;
+    private readonly IValidator<UploadedPhoto> _facePhotoValidator;
 
     public PickupController(
         IPickupService pickupService,
-        IValidator<CreatePickupRequest> createPickupValidator)
+        IValidator<CreatePickupRequest> createPickupValidator,
+        IValidator<CreatePickupPersonRequest> createPickupPersonValidator,
+        IValidator<PickupPersonRequest> updatePickupPersonValidator,
+        IValidator<UploadedPhoto> facePhotoValidator)
     {
         _pickupService = pickupService;
         _createPickupValidator = createPickupValidator;
+        _createPickupPersonValidator = createPickupPersonValidator;
+        _updatePickupPersonValidator = updatePickupPersonValidator;
+        _facePhotoValidator = facePhotoValidator;
     }
 
     // Bắt buộc có ngày để không trả cả lịch sử đón về của lớp. Giáo viên chưa được gán lớp hoặc ngày
@@ -105,6 +120,130 @@ public class PickupController : ControllerBase
             _ => throw new InvalidOperationException($"Kết quả ghi nhận đón về không xử lý: {result.Outcome}")
         };
     }
+
+    // Người đón chính trước, người dự phòng sau (AC-PICKUP-03). Con mình chưa có người đón thì danh sách rỗng
+    [HttpGet("children/{childId:guid}/pickup-persons")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<PickupPersonResponse>>>> GetPickupPersonsOfChild(Guid childId)
+    {
+        var result = await _pickupService.GetPickupPersonsForGuardianAsync(childId, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<IReadOnlyList<PickupPersonResponse>>.Fail("Không tìm thấy trẻ."));
+
+        return Ok(ApiResponse<IReadOnlyList<PickupPersonResponse>>.Ok(result));
+    }
+
+    [HttpGet("children/{childId:guid}/pickup-persons/{id:guid}")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<PickupPersonResponse>>> GetPickupPersonOfChild(Guid childId, Guid id)
+    {
+        var result = await _pickupService.GetPickupPersonForGuardianAsync(childId, id, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<PickupPersonResponse>.Fail("Không tìm thấy người đón đã đăng ký của trẻ."));
+
+        return Ok(ApiResponse<PickupPersonResponse>.Ok(result));
+    }
+
+    // Multipart: priority, 4 thông tin, consentConfirmed và đúng 1 ảnh ở trường facePhoto (D24)
+    [HttpPost("children/{childId:guid}/pickup-persons")]
+    [Authorize(Roles = Roles.Parent)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MultipartRequestSizeLimitBytes)]
+    public async Task<ActionResult<ApiResponse<PickupPersonResponse>>> CreatePickupPerson(
+        Guid childId, [FromForm] CreatePickupPersonRequest request, List<IFormFile>? facePhoto)
+    {
+        var photos = ToUploadedPhotos(facePhoto);
+        var errors = await ValidatePickupPersonAsync(_createPickupPersonValidator, request, photos, photoRequired: true);
+        if (errors.Count > 0)
+            return BadRequest(ApiResponse<PickupPersonResponse>.Fail(errors));
+
+        var result = await _pickupService.CreatePickupPersonAsync(childId, request, photos[0], CurrentUserId());
+
+        if (result.Outcome != PickupPersonOutcome.Success)
+            return PickupPersonFailure<PickupPersonResponse>(result.Outcome);
+
+        return CreatedAtAction(nameof(GetPickupPersonOfChild), new { childId, id = result.Person!.Id },
+            ApiResponse<PickupPersonResponse>.Ok(result.Person));
+    }
+
+    // Như khi thêm nhưng không có priority; không gửi ảnh thì giữ ảnh cũ
+    [HttpPut("children/{childId:guid}/pickup-persons/{id:guid}")]
+    [Authorize(Roles = Roles.Parent)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MultipartRequestSizeLimitBytes)]
+    public async Task<ActionResult<ApiResponse<PickupPersonResponse>>> UpdatePickupPerson(
+        Guid childId, Guid id, [FromForm] PickupPersonRequest request, List<IFormFile>? facePhoto)
+    {
+        var photos = ToUploadedPhotos(facePhoto);
+        var errors = await ValidatePickupPersonAsync(_updatePickupPersonValidator, request, photos, photoRequired: false);
+        if (errors.Count > 0)
+            return BadRequest(ApiResponse<PickupPersonResponse>.Fail(errors));
+
+        var result = await _pickupService.UpdatePickupPersonAsync(childId, id, request, photos.FirstOrDefault(),
+            CurrentUserId());
+
+        if (result.Outcome != PickupPersonOutcome.Success)
+            return PickupPersonFailure<PickupPersonResponse>(result.Outcome);
+
+        return Ok(ApiResponse<PickupPersonResponse>.Ok(result.Person!));
+    }
+
+    // Một trong hai endpoint DELETE của hệ thống (D40 mục 1): chỉ xóa người đón dự phòng
+    [HttpDelete("children/{childId:guid}/pickup-persons/{id:guid}")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<object?>>> DeletePickupPerson(Guid childId, Guid id)
+    {
+        var result = await _pickupService.DeletePickupPersonAsync(childId, id, CurrentUserId());
+
+        if (result.Outcome != PickupPersonOutcome.Success)
+            return PickupPersonFailure<object?>(result.Outcome);
+
+        return Ok(ApiResponse<object?>.Ok(null, "Đã xóa người đón dự phòng."));
+    }
+
+    // D39 mục 5: ảnh khuôn mặt gửi ở trường facePhoto, đúng 1 ảnh khi thêm và tối đa 1 ảnh khi sửa. Kiểm ở
+    // đây, trước khi file tới IFileStorageService; lỗi của 4 thông tin và của ảnh trả chung một lần
+    private async Task<List<string>> ValidatePickupPersonAsync<TRequest>(IValidator<TRequest> validator,
+        TRequest request, IReadOnlyList<UploadedPhoto> photos, bool photoRequired)
+    {
+        var errors = (await validator.ValidateAsync(request)).Errors.Select(e => e.ErrorMessage).ToList();
+
+        if (photos.Count > 1)
+            errors.Add("Chỉ gửi đúng 1 ảnh khuôn mặt cho mỗi người đón.");
+        else if (photos.Count == 0 && photoRequired)
+            errors.Add("Cần 1 ảnh khuôn mặt của người đón.");
+        else if (photos.Count == 1)
+            errors.AddRange((await _facePhotoValidator.ValidateAsync(photos[0])).Errors.Select(e => e.ErrorMessage));
+
+        return errors;
+    }
+
+    private static IReadOnlyList<UploadedPhoto> ToUploadedPhotos(List<IFormFile>? files)
+        => files?.Select(f => new UploadedPhoto(f.FileName, f.ContentType, f.Length, f.OpenReadStream)).ToList()
+            ?? new List<UploadedPhoto>();
+
+    // Thêm, sửa, xóa người đón dùng chung message cho từng kết quả thất bại
+    private ActionResult PickupPersonFailure<T>(PickupPersonOutcome outcome) => outcome switch
+    {
+        PickupPersonOutcome.ChildNotFound => NotFound(ApiResponse<T>.Fail("Không tìm thấy trẻ.")),
+        PickupPersonOutcome.PickupPersonNotFound => NotFound(ApiResponse<T>.Fail(
+            "Không tìm thấy người đón đã đăng ký của trẻ.")),
+        PickupPersonOutcome.PrimaryAlreadyExists => Conflict(ApiResponse<T>.Fail(
+            "Trẻ đã có người đón chính. Muốn đổi người đón chính thì sửa thông tin người đó.")),
+        PickupPersonOutcome.BackupAlreadyExists => Conflict(ApiResponse<T>.Fail(
+            "Trẻ đã có người đón dự phòng. Muốn đổi người thì sửa hoặc xóa người dự phòng hiện tại.")),
+        PickupPersonOutcome.NoPrimaryPerson => Conflict(ApiResponse<T>.Fail(
+            "Cần đăng ký người đón chính trước khi thêm người đón dự phòng.")),
+        PickupPersonOutcome.DuplicateCitizenId => Conflict(ApiResponse<T>.Fail(
+            "Người đón chính và người đón dự phòng không được trùng số CCCD.")),
+        PickupPersonOutcome.CannotDeletePrimary => Conflict(ApiResponse<T>.Fail(
+            "Không xóa được người đón chính, chỉ sửa được thông tin.")),
+        PickupPersonOutcome.ChangedConcurrently => Conflict(ApiResponse<T>.Fail(
+            "Thông tin người đón vừa được thay đổi. Vui lòng tải lại rồi thử lại.")),
+        _ => throw new InvalidOperationException($"Kết quả quản lý người đón không xử lý: {outcome}")
+    };
 
     // ActiveUserMiddleware đã kiểm tra claim sub là Guid hợp lệ trước khi vào đây
     private Guid CurrentUserId() => Guid.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);

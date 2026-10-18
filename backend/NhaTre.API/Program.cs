@@ -121,7 +121,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
                 var field = string.Join('.', entry.Key.TrimStart('$', '.').Split('.')
                     .Select(JsonNamingPolicy.CamelCase.ConvertName));
                 return string.IsNullOrEmpty(field)
-                    ? "Dữ liệu gửi lên không đọc được (JSON không hợp lệ)."
+                    ? "Dữ liệu gửi lên không đọc được (sai định dạng hoặc vượt quá dung lượng cho phép)."
                     : $"Trường '{field}' bị thiếu hoặc sai kiểu dữ liệu.";
             })
             .Distinct()
@@ -181,10 +181,15 @@ builder.Services.AddScoped<IValidator<CheckInRequest>, CheckInRequestValidator>(
 builder.Services.AddScoped<IPickupRepository, PickupRepository>();
 builder.Services.AddScoped<IPickupService, PickupService>();
 builder.Services.AddScoped<IValidator<CreatePickupRequest>, CreatePickupRequestValidator>();
+builder.Services.AddScoped<IValidator<CreatePickupPersonRequest>, CreatePickupPersonRequestValidator>();
+builder.Services.AddScoped<IValidator<PickupPersonRequest>, PickupPersonRequestValidator>();
+builder.Services.AddScoped<IValidator<UploadedPhoto>, FacePhotoValidator>();
 builder.Services.AddScoped<IHealthRepository, HealthRepository>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<IValidator<QuickHealthStatusRequest>, QuickHealthStatusRequestValidator>();
 builder.Services.AddScoped<IValidator<GrowthMeasurementRequest>, GrowthMeasurementRequestValidator>();
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddHttpClient<IFileStorageService, SupabaseFileStorageService>(); // D22, D53: Supabase:Url và Supabase:ServiceKey đọc lúc gọi, không chặn khởi động
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -315,7 +320,7 @@ app.UseStatusCodePages(async statusCodeContext =>
     {
         StatusCodes.Status404NotFound => "Không tìm thấy đường dẫn yêu cầu.",
         StatusCodes.Status405MethodNotAllowed => "Phương thức HTTP không được hỗ trợ cho đường dẫn này.",
-        StatusCodes.Status415UnsupportedMediaType => "Định dạng dữ liệu không được hỗ trợ (cần Content-Type: application/json).",
+        StatusCodes.Status415UnsupportedMediaType => "Định dạng dữ liệu không được hỗ trợ (kiểm tra lại Content-Type của request).",
         _ => "Yêu cầu không hợp lệ."
     };
 

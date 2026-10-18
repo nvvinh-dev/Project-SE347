@@ -56,6 +56,17 @@ public class HealthRepository : IHealthRepository
         return await _dbContext.Children.AnyAsync(c => c.Id == childId);
     }
 
+    // Không lọc theo lớp nên không cần Include(Class). Trùng họ tên thì sắp tiếp theo id như danh sách
+    // lớp chủ nhiệm
+    public async Task<IReadOnlyList<Child>> GetAllChildrenAsync()
+    {
+        return await _dbContext.Children
+            .AsNoTracking()
+            .OrderBy(c => c.FullName)
+            .ThenBy(c => c.Id)
+            .ToListAsync();
+    }
+
     // Mới nhất trước, như lịch sử gộp Y tế xem (D39 mục 9). Trùng thời điểm thì sắp tiếp theo id để
     // thứ tự không đổi giữa các lần gọi
     public async Task<IReadOnlyList<GrowthMeasurement>> GetGrowthMeasurementsOfChildAsync(Guid childId)
