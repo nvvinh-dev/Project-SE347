@@ -40,6 +40,8 @@ export default function AccountantTeachersPage() {
     });
   };
   const handleRowClick = (event: MouseEvent<HTMLElement>) => {
+    // Thả chuột sau khi bôi đen để sao chép không phải thao tác mở hồ sơ.
+    if (window.getSelection()?.toString()) return;
     const target = event.target;
     if (!(target instanceof Element) || target.closest("button, a")) return;
     const trigger = target.closest("tbody tr")?.querySelector<HTMLButtonElement>("[data-teacher-id]");
