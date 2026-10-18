@@ -8,4 +8,7 @@ public interface IIncidentService
     Task<IncidentResponse?> CreateIncidentAsync(CreateIncidentRequest request, Guid teacherUserId);
 
     Task<IncidentResponse?> GetIncidentByIdAsync(Guid id, Guid teacherUserId);
+
+    // Trả sự cố kèm mọi ảnh đã đính. null khi sự cố không tồn tại hoặc ngoài phạm vi lớp chủ nhiệm → 404
+    Task<IncidentResponse?> AttachPhotosAsync(Guid incidentId, AttachIncidentPhotosRequest request, Guid teacherUserId);
 }

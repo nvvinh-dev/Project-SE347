@@ -25,12 +25,14 @@ public class IncidentRepository : IIncidentRepository
                 && c.Class!.HomeroomTeacher!.UserId == teacherUserId);
     }
 
-    // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với lúc tạo
+    // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với lúc tạo. Ảnh xếp theo id: EF sinh id
+    // kiểu UUIDv7 tăng theo thời gian, nên đây cũng là thứ tự đính
     public async Task<Incident?> FindIncidentInHomeroomClassAsync(Guid id, Guid teacherUserId)
     {
         return await _dbContext.Incidents
             .AsNoTracking()
             .Include(i => i.Child)
+            .Include(i => i.IncidentPhotos.OrderBy(p => p.Id))
             .FirstOrDefaultAsync(i => i.Id == id
                 && i.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
     }
@@ -38,6 +40,13 @@ public class IncidentRepository : IIncidentRepository
     public void AddIncident(Incident incident)
     {
         _dbContext.Incidents.Add(incident);
+    }
+
+    // Sự cố nạp ở trên không được theo dõi, nên chỉ ghi các dòng incident_photos mới. Id do EF sinh ngay
+    // lúc thêm, trước khi SaveChangesAsync
+    public void AddIncidentPhotos(IEnumerable<IncidentPhoto> photos)
+    {
+        _dbContext.IncidentPhotos.AddRange(photos);
     }
 
     public async Task SaveChangesAsync()

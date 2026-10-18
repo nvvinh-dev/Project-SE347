@@ -8,10 +8,12 @@ public interface IIncidentRepository
     // null khi trẻ không tồn tại, chưa xếp lớp hoặc thuộc lớp giáo viên khác
     Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId);
 
-    // Sự cố kèm Child, cùng phạm vi lớp chủ nhiệm như trên
+    // Sự cố kèm Child và IncidentPhotos, cùng phạm vi lớp chủ nhiệm như trên
     Task<Incident?> FindIncidentInHomeroomClassAsync(Guid id, Guid teacherUserId);
 
     void AddIncident(Incident incident);
+
+    void AddIncidentPhotos(IEnumerable<IncidentPhoto> photos);
 
     Task SaveChangesAsync();
 }
