@@ -301,7 +301,13 @@ function PickupWorkspace({ userId }: { userId: string }) {
                 <FormField id="confirming-person" label="Người đã đồng ý qua điện thoại" required error={phone.formState.errors.pickupPersonId?.message}>
                   <Select id="confirming-person" disabled={mutation.isPending} error={phone.formState.errors.pickupPersonId?.message} aria-invalid={!!phone.formState.errors.pickupPersonId} placeholder="Chọn người đã đồng ý" options={pending.persons.map((person) => ({ value: person.id, label: `${person.fullName} — ${person.priority === 1 ? "Người đón chính" : "Người dự phòng"}` }))} {...phone.register("pickupPersonId", { validate: (value) => pending.persons.some((person) => person.id === value) || "Vui lòng chọn người đã đồng ý." })} />
                 </FormField>
-                {confirmingPerson && <p className="text-xs">{confirmingPerson.relationship} · SĐT: {confirmingPerson.phoneNumber}</p>}
+                {confirmingPerson && (
+                  <div className="space-y-1 text-xs">
+                    <p className="font-semibold text-foreground">{confirmingPerson.fullName}</p>
+                    <p>{confirmingPerson.priority === 1 ? "Người đón chính" : "Người dự phòng"} · {confirmingPerson.relationship}</p>
+                    <p>SĐT: {confirmingPerson.phoneNumber}</p>
+                  </div>
+                )}
                 <p className="text-xs">Giáo viên tự gọi bằng điện thoại của mình.</p>
                 <p className="rounded-lg border border-warning-border bg-warning-bg p-3 text-xs text-foreground">Không ai xác nhận thì không giao trẻ.</p>
               </form>
