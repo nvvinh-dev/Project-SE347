@@ -18,6 +18,7 @@ namespace NhaTre.API.Controllers;
 // Chỉ Kế toán sinh và xem báo cáo doanh thu (FR-TUITION-03); Admin xem doanh thu qua dashboard
 // FR-TUITION-05: Phụ huynh chỉ xem hóa đơn của con mình (child_guardians, D39 mục 10), không thanh
 // toán trong hệ thống (D21)
+// FR-TUITION-06: chỉ Kế toán ghi nhận khoản phụ huynh đã nộp, là đường duy nhất để hóa đơn sang paid (D21)
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -26,15 +27,18 @@ public class TuitionController : ControllerBase
     private readonly ITuitionService _tuitionService;
     private readonly IValidator<TuitionFeeRequest> _tuitionFeeValidator;
     private readonly IValidator<InvoiceRequest> _invoiceValidator;
+    private readonly IValidator<RecordPaymentRequest> _recordPaymentValidator;
 
     public TuitionController(
         ITuitionService tuitionService,
         IValidator<TuitionFeeRequest> tuitionFeeValidator,
-        IValidator<InvoiceRequest> invoiceValidator)
+        IValidator<InvoiceRequest> invoiceValidator,
+        IValidator<RecordPaymentRequest> recordPaymentValidator)
     {
         _tuitionService = tuitionService;
         _tuitionFeeValidator = tuitionFeeValidator;
         _invoiceValidator = invoiceValidator;
+        _recordPaymentValidator = recordPaymentValidator;
     }
 
     [HttpGet("tuition-fees")]
@@ -167,6 +171,31 @@ public class TuitionController : ControllerBase
             InvoiceOutcome.InvoicePaid => Conflict(ApiResponse<InvoiceResponse>.Fail(
                 "Hóa đơn đã thanh toán, không sửa được số tiền, mô tả hay trẻ.")),
             _ => throw new InvalidOperationException($"Kết quả sửa hóa đơn không xử lý: {result.Outcome}")
+        };
+    }
+
+    // FR-TUITION-06: hành động nghiệp vụ riêng trên hóa đơn nên là POST, thành công trả 200. Ghi nhận rồi
+    // thì không sửa, không xóa được (BR-TUITION-13)
+    [HttpPost("invoices/{id:guid}/record-payment")]
+    [Authorize(Roles = Roles.Accountant)]
+    public async Task<ActionResult<ApiResponse<PaymentResponse>>> RecordPayment(Guid id, [FromBody] RecordPaymentRequest request)
+    {
+        var validationResult = await _recordPaymentValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<PaymentResponse>.Fail(errors));
+        }
+
+        var result = await _tuitionService.RecordPaymentAsync(id, request, CurrentUserId());
+
+        return result.Outcome switch
+        {
+            PaymentOutcome.Success => Ok(ApiResponse<PaymentResponse>.Ok(result.Payment!)),
+            PaymentOutcome.InvoiceNotFound => NotFound(ApiResponse<PaymentResponse>.Fail("Không tìm thấy hóa đơn.")),
+            PaymentOutcome.InvoicePaid => Conflict(ApiResponse<PaymentResponse>.Fail(
+                "Hóa đơn đã được ghi nhận thanh toán, không ghi nhận lại được.")),
+            _ => throw new InvalidOperationException($"Kết quả ghi nhận thanh toán không xử lý: {result.Outcome}")
         };
     }
 

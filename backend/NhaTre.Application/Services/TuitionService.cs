@@ -1,4 +1,5 @@
 using System.Globalization;
+using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Tuition;
 using NhaTre.Application.Interfaces;
 using NhaTre.Domain.Constants;
@@ -15,24 +16,24 @@ public class TuitionService : ITuitionService
         NumberDecimalSeparator = ","
     };
 
-    // Tháng của báo cáo doanh thu tính theo giờ Việt Nam, không theo múi giờ của máy chủ
-    private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
-
     private readonly ITuitionRepository _tuitionRepository;
     private readonly IChildRepository _childRepository;
     private readonly IChildGuardianRepository _childGuardianRepository;
     private readonly INotificationService _notificationService;
+    private readonly ISecurityEventService _securityEventService;
 
     public TuitionService(
         ITuitionRepository tuitionRepository,
         IChildRepository childRepository,
         IChildGuardianRepository childGuardianRepository,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        ISecurityEventService securityEventService)
     {
         _tuitionRepository = tuitionRepository;
         _childRepository = childRepository;
         _childGuardianRepository = childGuardianRepository;
         _notificationService = notificationService;
+        _securityEventService = securityEventService;
     }
 
     public async Task<IReadOnlyList<TuitionFeeResponse>> GetFeesAsync()
@@ -172,6 +173,33 @@ public class TuitionService : ITuitionService
             request.Amount, description, InvoiceStatuses.Unpaid, invoice.IssuedAt));
     }
 
+    // FR-TUITION-06, D21: đường duy nhất để hóa đơn sang paid. Số tiền, thời điểm và người ghi nhận do
+    // server đặt (BR-TUITION-11). Không chuyển được hóa đơn nào thì mới đọc lại để tách 404 với 409: không
+    // có thao tác xóa hóa đơn, nên hóa đơn còn tồn tại thì đã paid. Không sinh thông báo (D39 mục 6)
+    public async Task<PaymentResult> RecordPaymentAsync(Guid invoiceId, RecordPaymentRequest request, Guid accountantUserId)
+    {
+        var externalReference = request.PaymentMethod == PaymentMethods.BankTransfer
+            ? request.ExternalReference!.Trim()
+            : null;
+
+        var payment = await _tuitionRepository.RecordPaymentAsync(invoiceId, request.PaymentMethod,
+            externalReference, accountantUserId, DateTime.UtcNow);
+
+        if (payment is null)
+            return new PaymentResult(await _tuitionRepository.InvoiceExistsAsync(invoiceId)
+                ? PaymentOutcome.InvoicePaid
+                : PaymentOutcome.InvoiceNotFound);
+
+        // D50: ghi sau khi transaction của thanh toán đã commit
+        await _securityEventService.RecordAsync(
+            SecurityEventTypes.InvoiceMarkedPaid,
+            actorUserId: accountantUserId,
+            targetUserId: null,
+            targetReference: invoiceId.ToString());
+
+        return new PaymentResult(PaymentOutcome.Success, ToResponse(payment));
+    }
+
     // FR-TUITION-05: trẻ không tồn tại và trẻ không liên kết với mình cùng trả 404 (D39 mục 10).
     // Kiểm riêng liên kết để phân biệt trẻ ngoài phạm vi với con mình chưa có hóa đơn nào (danh sách rỗng)
     public async Task<IReadOnlyList<ChildInvoiceResponse>?> GetChildInvoicesForGuardianAsync(
@@ -199,24 +227,13 @@ public class TuitionService : ITuitionService
     public async Task<RevenueReportResponse> GetRevenueReportAsync()
     {
         var generatedAtUtc = DateTime.UtcNow;
-        var (year, month, periodStartUtc, periodEndUtc) = GetMonthPeriod(generatedAtUtc);
+        var (year, month, periodStartUtc, periodEndUtc) = VietnamTime.MonthOf(generatedAtUtc);
 
         var totalCollected = await _tuitionRepository.SumPaymentsAsync(periodStartUtc, periodEndUtc);
         var unpaidInvoiceCount = await _tuitionRepository.CountUnpaidInvoicesAsync();
 
         return new RevenueReportResponse(year, month, periodStartUtc, periodEndUtc, generatedAtUtc,
             totalCollected, unpaidInvoiceCount);
-    }
-
-    // Tháng chứa thời điểm nowUtc theo giờ Việt Nam, trả ra ranh giới UTC dạng nửa mở [start, end)
-    private static (int Year, int Month, DateTime StartUtc, DateTime EndUtc) GetMonthPeriod(DateTime nowUtc)
-    {
-        var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, VietnamTimeZone);
-        var startVietnam = new DateTime(nowVietnam.Year, nowVietnam.Month, 1, 0, 0, 0, DateTimeKind.Unspecified);
-
-        return (startVietnam.Year, startVietnam.Month,
-            TimeZoneInfo.ConvertTimeToUtc(startVietnam, VietnamTimeZone),
-            TimeZoneInfo.ConvertTimeToUtc(startVietnam.AddMonths(1), VietnamTimeZone));
     }
 
     private static string NewInvoiceMessage(string childFullName, string description, decimal amount)
@@ -234,4 +251,8 @@ public class TuitionService : ITuitionService
 
     private static ChildInvoiceResponse ToChildInvoiceResponse(Invoice invoice)
         => new(invoice.Id, invoice.Amount, invoice.Description, invoice.Status, invoice.IssuedAt);
+
+    private static PaymentResponse ToResponse(Payment payment)
+        => new(payment.Id, payment.InvoiceId, payment.Amount, payment.PaymentMethod,
+            payment.ExternalReference, payment.PaidAt);
 }

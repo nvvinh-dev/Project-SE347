@@ -457,7 +457,8 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnName("amount");
 
                     b.Property<string>("ExternalReference")
-                        .HasColumnType("text")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("external_reference");
 
                     b.Property<Guid>("InvoiceId")
@@ -468,15 +469,30 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("paid_at");
 
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<Guid>("RecordedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recorded_by_user_id");
+
                     b.HasKey("Id")
                         .HasName("pk_payments");
 
                     b.HasIndex("InvoiceId")
                         .HasDatabaseName("ix_payments_invoice_id");
 
+                    b.HasIndex("RecordedByUserId")
+                        .HasDatabaseName("ix_payments_recorded_by_user_id");
+
                     b.ToTable("payments", null, t =>
                         {
                             t.HasCheckConstraint("CK_Payment_AmountPositive", "amount > 0");
+
+                            t.HasCheckConstraint("CK_Payment_Method", "payment_method IN ('Cash', 'BankTransfer')");
                         });
                 });
 
@@ -1073,6 +1089,13 @@ namespace NhaTre.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_payments_invoices_invoice_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("RecordedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_payments_users_recorded_by_user_id");
 
                     b.Navigation("Invoice");
                 });
