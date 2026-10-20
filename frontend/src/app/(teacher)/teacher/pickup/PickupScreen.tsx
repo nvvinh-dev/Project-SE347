@@ -163,13 +163,20 @@ function PickupWorkspace({ userId }: { userId: string }) {
   const busy = mutation.isPending || refreshing;
   const canWrite = isToday && dataReady && !fetching && !busy && !needsReload;
   const recordByChild = new Map((pickups.data ?? []).map((record) => [record.childId, record]));
-  const children = (attendance.data ?? []).filter((child) => child.status === "Present" && child.attendanceDate === date);
+  const children = (attendance.data ?? [])
+    .filter((child) => child.status === "Present" && child.attendanceDate === date)
+    .sort((a, b) => Number(recordByChild.has(a.childId)) - Number(recordByChild.has(b.childId)));
   const pickedUp = children.filter((child) => recordByChild.has(child.childId)).length;
   const filtered = children.filter((child) => {
     const matchesName = child.childFullName.toLocaleLowerCase("vi-VN").includes(search.trim().toLocaleLowerCase("vi-VN"));
     const picked = recordByChild.has(child.childId);
     return matchesName && (status === "All" || (status === "PickedUp" ? picked : !picked));
   });
+  const metrics = [
+    { label: isToday ? "Có mặt hôm nay" : "Có mặt trong ngày", value: children.length, color: "text-success" },
+    { label: isToday ? "Đang chờ đón" : "Chưa ghi nhận đón về", value: children.length - pickedUp, color: "text-warning" },
+    { label: "Đã đón về", value: pickedUp, color: "text-success" },
+  ];
 
   function choose(child: AttendanceResponse, persons: PickupPerson[], person: PickupPerson | null, trigger: HTMLButtonElement) {
     if (!canWrite || date !== getVietnamDate() || writeLock.current) return;
@@ -206,83 +213,100 @@ function PickupWorkspace({ userId }: { userId: string }) {
   return (
     <div className="space-y-5">
       <PageHeader title="Đón trẻ buổi chiều" description="Xác minh người đón và ghi nhận đón về cho trẻ có mặt hôm nay." />
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-end sm:justify-between">
-        <FormField id="pickup-date" label="Ngày đón về" error={dateText && !dateIsValid ? "Nhập ngày hợp lệ theo dd/mm/yyyy, không muộn hơn hôm nay." : undefined} className="min-w-0 sm:w-64">
-          <Input id="pickup-date" placeholder="dd/mm/yyyy" inputMode="numeric" autoComplete="off" disabled={busy || !!pending} error={dateText && !dateIsValid ? "Ngày không hợp lệ" : undefined} aria-invalid={!!dateText && !dateIsValid} {...filters.register("date")} className="min-h-11"
-            rightIcon={<Button variant="ghost" size="sm" aria-label="Mở lịch chọn ngày đón về" disabled={busy || !!pending} className="min-h-9 min-w-9 p-1" onClick={() => datePicker.current?.showPicker?.()}>
-              <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" /></svg>
-            </Button>} />
-          <Input ref={datePicker} type="date" tabIndex={-1} aria-hidden="true" max={today} value={date} disabled={busy || !!pending} className="sr-only" onChange={(event) => filters.setValue("date", event.target.value ? formatAttendanceDate(event.target.value) : "")} />
-        </FormField>
-        <Button ref={refreshButton} variant="secondary" disabled={busy || !dateIsValid || !!pending} isLoading={refreshing} onClick={() => void reload()} className="min-h-11">Làm mới</Button>
-      </div>
-
-      <p className="rounded-lg border border-brand-border bg-brand-subtle px-4 py-3 text-sm text-brand-text">
-        {isToday ? "Đối chiếu khuôn mặt và CCCD trước khi giao trẻ." : "Chỉ xem dữ liệu trong ngày đã chọn. Chỉ ghi nhận đón về cho hôm nay."}
-      </p>
-
-      {notice && (
-        <div ref={noticeRef} tabIndex={-1} role={notice.kind === "error" ? "alert" : "status"} className={`rounded-xl border p-4 text-sm wrap-anywhere focus:outline-none focus:ring-2 focus:ring-brand/30 ${notice.kind === "success" ? "border-success-border bg-success-bg text-success" : "border-danger-border bg-danger-bg text-danger"}`}>
-          <p>{notice.message}</p>
-          {!!notice.errors?.length && <ul className="mt-2 list-inside list-disc">{notice.errors.map((error, index) => <li key={index}>{error}</li>)}</ul>}
-        </div>
-      )}
-      {needsReload && (
-        <div role="alert" className="space-y-3 rounded-xl border border-warning-border bg-warning-bg p-4 text-sm text-foreground">
-          <p>Chưa xác định được kết quả ghi nhận. Cần tải lại dữ liệu thành công trước khi giao trẻ tiếp.</p>
-          <Button variant="secondary" disabled={busy} onClick={() => void reload()} className="min-h-11">Tải lại dữ liệu</Button>
-        </div>
-      )}
-
-      <form onSubmit={(event) => event.preventDefault()} className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs">
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_15rem]">
-          <FormField id="pickup-search" label="Tìm theo tên trẻ">
-            <Input id="pickup-search" placeholder="Nhập họ tên trẻ" {...filters.register("search")} className="min-h-11" />
-          </FormField>
-          <FormField id="pickup-status" label="Trạng thái đón về">
-            <Select id="pickup-status" {...filters.register("status")} options={[{ value: "All", label: "Tất cả trạng thái" }, { value: "Waiting", label: "Chờ đón" }, { value: "PickedUp", label: "Đã đón" }]} className="min-h-11" />
-          </FormField>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs font-medium" aria-label="Số trẻ trong ngày đã chọn">
-          <span className="rounded-lg bg-brand-subtle px-3 py-2 text-brand-text">Có mặt <strong className="ml-1 tabular-nums">{dataReady ? children.length : "—"}</strong></span>
-          <span className="rounded-lg bg-warning-bg px-3 py-2 text-foreground">Chờ đón <strong className="ml-1 tabular-nums">{dataReady ? children.length - pickedUp : "—"}</strong></span>
-          <span className="rounded-lg bg-success-bg px-3 py-2 text-success">Đã đón <strong className="ml-1 tabular-nums">{dataReady ? pickedUp : "—"}</strong></span>
-          {(search || status !== "All") && <Button variant="ghost" size="sm" onClick={() => { filters.setValue("search", ""); filters.setValue("status", "All"); }} className="min-h-11">Xóa bộ lọc</Button>}
-        </div>
-      </form>
-
-      {!dateIsValid ? (
-        <StatusMessage status="empty" title="Chọn ngày đón về" message="Vui lòng chọn ngày hợp lệ, không muộn hơn hôm nay." />
-      ) : errorQuery ? (
-        <StatusMessage status="error" title="Không thể tải dữ liệu đón về" message={errorQuery.error?.message} onRetry={() => void reload()} />
-      ) : loading ? (
-        <StatusMessage status="loading" title="Đang tải dữ liệu đón về..." />
-      ) : !children.length ? (
-        <StatusMessage status="empty" title="Chưa có trẻ có mặt trong ngày" message="Chỉ trẻ đã điểm danh có mặt mới được ghi nhận đón về." action={isToday ? <Link href="/teacher/attendance" className="text-sm font-medium text-brand-text underline underline-offset-4">Mở điểm danh vào lớp</Link> : undefined} />
-      ) : !filtered.length ? (
-        <StatusMessage status="empty" title="Không có trẻ phù hợp bộ lọc" message="Hãy đổi tên tìm kiếm hoặc trạng thái đón về." />
-      ) : (
-        <>
-          <div className="grid items-start gap-4 xl:grid-cols-2">
-            {filtered.map((child) => <PickupChildCard key={`${date}:${child.childId}`} child={child} record={recordByChild.get(child.childId)} userId={userId} today={isToday} canWrite={canWrite} photoVersion={photoVersion} onChoose={choose} />)}
+      <section aria-label="Số trẻ trong ngày đã chọn" aria-busy={loading}>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {metrics.map((metric, index) => (
+            <div key={index} className={`min-w-0 rounded-xl border border-border bg-card p-3.5 shadow-xs sm:p-4 ${index === 0 ? "col-span-2 sm:col-span-1" : ""}`}>
+              <dt className="text-xs font-medium leading-tight text-muted">{metric.label}</dt>
+              <dd className="mt-2.5 flex items-baseline justify-between gap-2">
+                <span className={`text-xl font-bold tabular-nums sm:text-2xl ${metric.color}`}>{dataReady ? metric.value : "—"}</span>
+                <span className="text-xs text-muted-light">trẻ</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      <section aria-label="Đón về trong ngày" className="min-w-0 rounded-xl border border-border bg-card shadow-xs">
+        <form onSubmit={(event) => event.preventDefault()} className="border-b border-border p-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-3 md:grid-cols-[11rem_minmax(0,1fr)_12rem_2.75rem]">
+            <FormField id="pickup-date" label="Ngày đón về" error={dateText && !dateIsValid ? "Nhập ngày hợp lệ theo dd/mm/yyyy, không muộn hơn hôm nay." : undefined} className="col-span-2 min-w-0 md:col-span-1">
+              <Input id="pickup-date" placeholder="dd/mm/yyyy" inputMode="numeric" autoComplete="off" disabled={busy || !!pending} error={dateText && !dateIsValid ? "Ngày không hợp lệ" : undefined} aria-invalid={!!dateText && !dateIsValid} {...filters.register("date")} className="min-h-11"
+                rightIcon={<Button variant="ghost" size="sm" aria-label="Mở lịch chọn ngày đón về" disabled={busy || !!pending} className="min-h-9 min-w-9 p-1" onClick={() => datePicker.current?.showPicker?.()}>
+                  <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" /></svg>
+                </Button>} />
+              <Input ref={datePicker} type="date" tabIndex={-1} aria-hidden="true" max={today} value={date} disabled={busy || !!pending} className="sr-only" onChange={(event) => filters.setValue("date", event.target.value ? formatAttendanceDate(event.target.value) : "")} />
+            </FormField>
+            <FormField id="pickup-search" label="Tìm theo tên trẻ" className="col-span-2 min-w-0 md:col-span-1">
+              <Input id="pickup-search" placeholder="Nhập họ tên trẻ" {...filters.register("search")} className="min-h-11" />
+            </FormField>
+            <FormField id="pickup-status" label="Trạng thái đón về" className="min-w-0">
+              <Select id="pickup-status" {...filters.register("status")} options={[{ value: "All", label: "Tất cả trạng thái" }, { value: "Waiting", label: "Chờ đón" }, { value: "PickedUp", label: "Đã đón" }]} className="min-h-11" />
+            </FormField>
+            <Button ref={refreshButton} variant="secondary" size="sm" aria-label="Làm mới dữ liệu đón về" title="Làm mới dữ liệu đón về" aria-busy={refreshing} disabled={busy || !dateIsValid || !!pending} isLoading={refreshing} onClick={() => void reload()} className="mt-[1.375rem] h-11 w-11 p-0">
+              {!refreshing && <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7v5h-5M4 17v-5h5M6.1 6.1A8 8 0 0120 12M4 12a8 8 0 0013.9 5.9" /></svg>}
+            </Button>
           </div>
-          <p className="text-xs text-muted">Hiển thị {filtered.length}/{children.length} trẻ có mặt · {formatAttendanceDate(date)}</p>
-        </>
-      )}
+        </form>
+
+        <div className="space-y-4 p-4">
+          {!isToday && <p className="text-xs leading-relaxed text-muted">Chỉ xem dữ liệu trong ngày đã chọn. Chỉ ghi nhận đón về cho hôm nay.</p>}
+
+          {notice && (
+            <div ref={noticeRef} tabIndex={-1} role={notice.kind === "error" ? "alert" : "status"} className={`rounded-xl border p-4 text-sm wrap-anywhere focus:outline-none focus:ring-2 focus:ring-brand/30 ${notice.kind === "success" ? "border-success-border bg-success-bg text-success" : "border-danger-border bg-danger-bg text-danger"}`}>
+              <p>{notice.message}</p>
+              {!!notice.errors?.length && <ul className="mt-2 list-inside list-disc">{notice.errors.map((error, index) => <li key={index}>{error}</li>)}</ul>}
+            </div>
+          )}
+          {needsReload && (
+            <div role="alert" className="space-y-3 rounded-xl border border-warning-border bg-warning-bg p-4 text-sm text-foreground">
+              <p>Chưa xác định được kết quả ghi nhận. Cần tải lại dữ liệu thành công trước khi giao trẻ tiếp.</p>
+              <Button variant="secondary" disabled={busy} onClick={() => void reload()} className="min-h-11">Tải lại dữ liệu</Button>
+            </div>
+          )}
+
+          {(search || status !== "All") && (
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={() => { filters.setValue("search", ""); filters.setValue("status", "All"); }} className="min-h-11">Xóa bộ lọc</Button>
+            </div>
+          )}
+
+          {!dateIsValid ? (
+            <StatusMessage status="empty" title="Chọn ngày đón về" message="Vui lòng chọn ngày hợp lệ, không muộn hơn hôm nay." />
+          ) : errorQuery ? (
+            <StatusMessage status="error" title="Không thể tải dữ liệu đón về" message={errorQuery.error?.message} onRetry={() => void reload()} />
+          ) : loading ? (
+            <StatusMessage status="loading" title="Đang tải dữ liệu đón về..." />
+          ) : !children.length ? (
+            <StatusMessage status="empty" title="Chưa có trẻ có mặt trong ngày" message="Chỉ trẻ đã điểm danh có mặt mới được ghi nhận đón về." action={isToday ? <Link href="/teacher/attendance" className="text-sm font-medium text-brand-text underline underline-offset-4">Mở điểm danh vào lớp</Link> : undefined} />
+          ) : !filtered.length ? (
+            <StatusMessage status="empty" title="Không có trẻ phù hợp bộ lọc" message="Hãy đổi tên tìm kiếm hoặc trạng thái đón về." />
+          ) : (
+            <>
+              <div className="grid items-start gap-4 xl:grid-cols-2">
+                {filtered.map((child) => <PickupChildCard key={`${date}:${child.childId}`} child={child} record={recordByChild.get(child.childId)} userId={userId} today={isToday} canWrite={canWrite} photoVersion={photoVersion} onChoose={choose} />)}
+              </div>
+              <div className="-mx-4 space-y-1 border-t border-border px-4 pt-3 text-xs text-muted">
+                {isToday && <p>Đối chiếu khuôn mặt với ảnh đã đăng ký; kiểm tra CCCD khi cần.</p>}
+                <p>Hiển thị {filtered.length}/{children.length} trẻ có mặt · {formatAttendanceDate(date)}</p>
+              </div>
+            </>
+          )}
+
+        </div>
+      </section>
 
       <ConfirmDialog
         isOpen={!!pending}
-        title={pending?.person ? "Xác nhận giao trẻ" : "Xác nhận người khác đến đón"}
+        title={pending?.person ? "Xác nhận giao trẻ" : "Người khác đến đón"}
         confirmText="Xác nhận giao trẻ"
         cancelText="Hủy"
         isLoading={mutation.isPending}
         onClose={() => { if (!writeLock.current) closeDialog(); }}
         onConfirm={() => { if (pending?.person) submit(); else void phone.handleSubmit((values) => submit(values))(); }}
         description={pending && (
-          <div className="max-h-[calc(100dvh-17rem)] w-[min(17rem,calc(100vw-9rem))] space-y-4 overflow-y-auto overscroll-contain pr-1 wrap-anywhere">
-            <div className="rounded-lg bg-brand-subtle p-3">
-              <p className="text-xs text-muted">Trẻ được đón</p>
-              <p className="mt-1 font-semibold text-foreground">{pending.child.childFullName}</p>
+          <div className="max-h-[calc(100dvh-17rem)] w-[min(21rem,calc(100vw-9rem))] space-y-3 overflow-y-auto overscroll-contain pr-1 wrap-anywhere">
+            <div className="rounded-lg bg-brand-subtle px-3 py-2">
+              <p className="text-sm text-foreground"><span className="text-muted">Trẻ: </span><strong>{pending.child.childFullName}</strong></p>
             </div>
             {pending.person ? (
               <div className="space-y-2">
@@ -292,24 +316,24 @@ function PickupWorkspace({ userId }: { userId: string }) {
                 <p>Chỉ xác nhận sau khi đã đối chiếu người đến đón.</p>
               </div>
             ) : (
-              <form className="space-y-4" onSubmit={(event) => { void phone.handleSubmit((values) => submit(values))(event); }}>
-                <p className="text-xs">Chỉ ghi nhận sau khi người đón chính hoặc dự phòng đã đồng ý qua điện thoại.</p>
+              <form className="space-y-3" onSubmit={(event) => { void phone.handleSubmit((values) => submit(values))(event); }}>
                 <FormField id="picker-name" label="Họ tên người đến đón" required error={phone.formState.errors.pickerFullName?.message}>
                   <Input id="picker-name" autoComplete="off" disabled={mutation.isPending} error={phone.formState.errors.pickerFullName?.message} aria-invalid={!!phone.formState.errors.pickerFullName} {...phone.register("pickerFullName", { validate: (value) => value.trim().length > 0 ? value.trim().length <= 100 || "Họ tên không được dài quá 100 ký tự." : "Vui lòng nhập họ tên người đến đón." })} />
-                  <p className="text-xs text-muted">Tối đa 100 ký tự.</p>
                 </FormField>
-                <FormField id="confirming-person" label="Người đã đồng ý qua điện thoại" required error={phone.formState.errors.pickupPersonId?.message}>
-                  <Select id="confirming-person" disabled={mutation.isPending} error={phone.formState.errors.pickupPersonId?.message} aria-invalid={!!phone.formState.errors.pickupPersonId} placeholder="Chọn người đã đồng ý" options={pending.persons.map((person) => ({ value: person.id, label: `${person.fullName} — ${person.priority === 1 ? "Người đón chính" : "Người dự phòng"}` }))} {...phone.register("pickupPersonId", { validate: (value) => pending.persons.some((person) => person.id === value) || "Vui lòng chọn người đã đồng ý." })} />
+                <FormField id="confirming-person" label="Người đã xác nhận" required error={phone.formState.errors.pickupPersonId?.message}>
+                  <Select id="confirming-person" disabled={mutation.isPending} error={phone.formState.errors.pickupPersonId?.message} aria-invalid={!!phone.formState.errors.pickupPersonId} placeholder="Chọn người đã đồng ý qua điện thoại" options={pending.persons.map((person) => ({ value: person.id, label: `${person.fullName} (${person.relationship}) — ${person.priority === 1 ? "Chính" : "Dự phòng"}` }))} {...phone.register("pickupPersonId", { validate: (value) => pending.persons.some((person) => person.id === value) || "Vui lòng chọn người đã đồng ý." })} />
                 </FormField>
                 {confirmingPerson && (
                   <div className="space-y-1 text-xs">
-                    <p className="font-semibold text-foreground">{confirmingPerson.fullName}</p>
-                    <p>{confirmingPerson.priority === 1 ? "Người đón chính" : "Người dự phòng"} · {confirmingPerson.relationship}</p>
-                    <p>SĐT: {confirmingPerson.phoneNumber}</p>
+                    <p className="font-semibold text-foreground">{confirmingPerson.fullName} <span className="font-normal text-muted">({confirmingPerson.relationship})</span></p>
+                    <p>{confirmingPerson.priority === 1 ? "Người đón chính" : "Người dự phòng"} · SĐT: {confirmingPerson.phoneNumber}</p>
                   </div>
                 )}
-                <p className="text-xs">Giáo viên tự gọi bằng điện thoại của mình.</p>
-                <p className="rounded-lg border border-warning-border bg-warning-bg p-3 text-xs text-foreground">Không ai xác nhận thì không giao trẻ.</p>
+                <p className="border-l-2 border-warning-border pl-2 text-xs font-medium text-foreground">Không ai xác nhận thì không giao trẻ.</p>
+                <details className="text-xs text-muted">
+                  <summary className="cursor-pointer font-medium text-brand-text">Hướng dẫn xác minh</summary>
+                  <p className="mt-2">Tự gọi người đón chính trước; không nghe máy thì gọi dự phòng nếu có. Hệ thống không thực hiện cuộc gọi.</p>
+                </details>
               </form>
             )}
           </div>

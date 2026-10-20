@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { SignedImage } from "@/components/ui/SignedImage";
@@ -8,8 +9,9 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError } from "@/lib/axios";
 import { formatAttendanceTime } from "@/lib/attendance";
 import type { AttendanceResponse } from "@/types/attendance";
-import { getPickupPersons, pickupKeys } from "./_lib/pickup";
+import { getPickupPersons, pickupKeys, samePerson } from "./_lib/pickup";
 import { PICKUP_METHOD_LABELS, type PickupPerson, type PickupRecord } from "./_types/pickup";
+import PickupPhotoPreview from "./PickupPhotoPreview";
 
 interface Props {
   child: AttendanceResponse;
@@ -22,6 +24,7 @@ interface Props {
 }
 
 export default function PickupChildCard({ child, record, userId, today, canWrite, photoVersion, onChoose }: Props) {
+  const [previewPerson, setPreviewPerson] = useState<PickupPerson | null>(null);
   const queryClient = useQueryClient();
   const persons = useApiQuery<PickupPerson[]>({
     queryKey: pickupKeys.persons(userId, child.childId),
@@ -36,7 +39,7 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
   const hasPrimary = registered.some((person) => person.priority === 1);
   const ready = canWrite && !persons.isError && !persons.isFetching && hasPrimary;
 
-  async function refreshPhoto(personId: string): Promise<string> {
+  async function refreshPhoto(person: PickupPerson): Promise<string> {
     // Một truy vấn riêng cho ảnh tránh thay key của ảnh đang thử tải lại.
     const fresh = await queryClient.fetchQuery({
       queryKey: pickupKeys.photo(userId, child.childId),
@@ -45,9 +48,11 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
       gcTime: 0,
       retry: false,
     });
-    const url = fresh.find((person) => person.id === personId)?.facePhotoUrl;
-    if (!url) throw new ApiError("Không thể tải ảnh người đón. Vui lòng tải lại thông tin.", null, null);
-    return url;
+    const current = fresh.find((item) => item.id === person.id);
+    if (!current?.facePhotoUrl || !samePerson(person, current)) {
+      throw new ApiError("Không thể tải ảnh hoặc thông tin người đón đã thay đổi. Vui lòng tải lại thông tin.", null, null);
+    }
+    return current.facePhotoUrl;
   }
 
   return (
@@ -78,35 +83,38 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
       ) : persons.isPending ? (
         <StatusMessage status="loading" title="Đang tải thông tin người đón..." />
       ) : !registered.length ? (
-        <StatusMessage status="empty" title="Chưa đăng ký người đón" message="Chưa thể ghi nhận đón về." />
+        <StatusMessage status="empty" title="Chưa đăng ký người đón" message="Liên hệ phụ huynh đăng ký người đón chính, sau đó tải lại dữ liệu để xác minh và ghi nhận đón về." />
       ) : (
         <>
           <p className="mb-3 text-xs font-semibold text-muted">NGƯỜI ĐÓN ĐÃ ĐĂNG KÝ</p>
           <div className="space-y-4">
             {registered.map((person) => (
               <div key={person.id} className="space-y-3 rounded-lg border border-border p-3">
-                <div className="flex items-start gap-3">
-                  <SignedImage
-                    key={`${person.id}:${person.facePhotoUrl}:${photoVersion}`}
-                    src={person.facePhotoUrl}
-                    getUrl={() => refreshPhoto(person.id)}
-                    alt={`Ảnh khuôn mặt ${person.fullName}`}
-                    fallbackText="Ảnh chưa tải được"
-                    className="h-24 w-20 shrink-0 rounded-lg border border-border object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="min-w-0 flex-1 space-y-1 wrap-anywhere">
-                    <h3 className="text-sm font-semibold text-foreground">{person.fullName}</h3>
-                    <span className={`inline-block rounded-md px-2 py-0.5 text-[11px] font-medium ${person.priority === 1 ? "bg-brand-subtle text-brand-text" : "bg-background text-muted"}`}>
-                      {person.priority === 1 ? "Người đón chính" : "Người dự phòng"}
+                <div className="grid grid-cols-[3rem_minmax(0,1fr)] grid-rows-[auto_auto_auto_auto] items-start gap-x-2 gap-y-1 min-[375px]:grid-cols-[4rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-x-3">
+                  <div className="col-start-2 row-start-1 flex min-w-0 items-start justify-between gap-2">
+                    <h3 className="min-w-0 flex-1 text-xs font-semibold text-foreground wrap-anywhere min-[375px]:text-sm">{person.fullName} <span className="font-normal text-muted">({person.relationship})</span></h3>
+                    <span title={person.priority === 1 ? "Người đón chính" : "Người dự phòng"} className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium ${person.priority === 1 ? "bg-brand-subtle text-brand-text" : "bg-background text-muted"}`}>
+                      <span className="min-[480px]:hidden" aria-hidden="true">{person.priority === 1 ? "Chính" : "Dự phòng"}</span>
+                      <span className="sr-only min-[480px]:not-sr-only">{person.priority === 1 ? "Người đón chính" : "Người dự phòng"}</span>
                     </span>
-                    <p className="text-xs text-muted">{person.relationship}</p>
-                    <p className="text-xs text-muted tabular-nums">SĐT: {person.phoneNumber}</p>
-                    <p className="text-xs text-muted tabular-nums">CCCD: {person.citizenIdNumber}</p>
                   </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button disabled={!ready} className="min-h-11 w-full sm:w-auto" onClick={(event) => onChoose(child, registered, person, event.currentTarget)}>
+                  <Button variant="ghost" aria-label={`Xem ảnh lớn của ${person.fullName}`} aria-haspopup="dialog" title="Bấm để xem ảnh lớn" onClick={() => setPreviewPerson(person)} className="relative col-start-1 row-span-4 row-start-1 h-full min-h-24 w-full cursor-zoom-in overflow-hidden rounded-lg p-0!">
+                    <SignedImage
+                      key={`${person.id}:${person.facePhotoUrl}:${photoVersion}`}
+                      src={person.facePhotoUrl}
+                      getUrl={() => refreshPhoto(person)}
+                      alt={`Ảnh khuôn mặt ${person.fullName}`}
+                      fallbackText="Ảnh chưa tải được"
+                      className="absolute inset-0 h-full w-full rounded-lg border border-border bg-background object-cover object-center"
+                      referrerPolicy="no-referrer"
+                    />
+                    <span aria-hidden="true" className="absolute right-1 bottom-1 rounded bg-card/90 p-0.5 text-muted">
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><circle cx="10" cy="10" r="6" /><path strokeLinecap="round" d="m15 15 5 5M7 10h6m-3-3v6" /></svg>
+                    </span>
+                  </Button>
+                  <p className="col-start-2 row-start-2 min-w-0 text-xs text-muted tabular-nums wrap-anywhere">SĐT: {person.phoneNumber}</p>
+                  <p className="col-start-2 row-start-3 min-w-0 text-xs text-muted tabular-nums wrap-anywhere">CCCD: {person.citizenIdNumber}</p>
+                  <Button variant="outline" size="sm" disabled={!ready} className="col-start-2 row-start-4 min-h-8 max-w-full justify-self-end whitespace-normal px-2.5 py-1 text-center" onClick={(event) => onChoose(child, registered, person, event.currentTarget)}>
                     Giao cho người này
                   </Button>
                 </div>
@@ -119,6 +127,7 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
           </Button>
         </>
       )}
+      {previewPerson && !record && today && <PickupPhotoPreview person={previewPerson} childName={child.childFullName} getUrl={() => refreshPhoto(previewPerson)} onClose={() => setPreviewPerson(null)} />}
     </article>
   );
 }
