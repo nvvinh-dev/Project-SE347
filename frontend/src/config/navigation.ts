@@ -10,6 +10,7 @@ export interface NavItem {
 export const accountantNav: NavItem[] = [
   { title: "Tổng quan", href: "/accountant", icon: "dashboard", exact: true },
   { title: "Hồ sơ trẻ", href: "/accountant/students", icon: "students" },
+  { title: "Hồ sơ giáo viên", href: "/accountant/teachers", icon: "teachers" },
   { title: "Học phí & Hóa đơn", href: "/accountant/tuition", icon: "tuition" },
   { title: "Thực đơn tuần", href: "/accountant/menu", icon: "menu" },
   { title: "Thông báo nghỉ học", href: "/accountant/notifications", icon: "notifications" },

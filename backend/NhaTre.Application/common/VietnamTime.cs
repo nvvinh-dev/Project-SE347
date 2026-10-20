@@ -8,5 +8,20 @@ public static class VietnamTime
 
     // Nhận thời điểm UTC thay vì tự đọc đồng hồ, để ngày và giờ của một bản ghi lấy từ cùng một lần đọc
     public static DateOnly DateOf(DateTime utcNow)
-        => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utcNow, TimeZone));
+        => DateOnly.FromDateTime(ToVietnamTime(utcNow));
+
+    // Giờ Việt Nam của một thời điểm UTC, ví dụ để ghi giờ xảy ra sự cố trong thông báo
+    public static DateTime ToVietnamTime(DateTime utc)
+        => TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZone);
+
+    // Tháng theo giờ Việt Nam chứa thời điểm utcNow, ranh giới trả ra dạng UTC nửa mở [StartUtc, EndUtc)
+    public static (int Year, int Month, DateTime StartUtc, DateTime EndUtc) MonthOf(DateTime utcNow)
+    {
+        var nowVietnam = ToVietnamTime(utcNow);
+        var startVietnam = new DateTime(nowVietnam.Year, nowVietnam.Month, 1, 0, 0, 0, DateTimeKind.Unspecified);
+
+        return (startVietnam.Year, startVietnam.Month,
+            TimeZoneInfo.ConvertTimeToUtc(startVietnam, TimeZone),
+            TimeZoneInfo.ConvertTimeToUtc(startVietnam.AddMonths(1), TimeZone));
+    }
 }

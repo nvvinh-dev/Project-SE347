@@ -13,6 +13,11 @@ public interface ITuitionService
     Task<InvoiceResponse?> GetInvoiceByIdAsync(Guid id);
     Task<InvoiceResult> CreateInvoiceAsync(InvoiceRequest request);
     Task<InvoiceResult> UpdateInvoiceAsync(Guid id, InvoiceRequest request);
+    Task<PaymentResult> RecordPaymentAsync(Guid invoiceId, RecordPaymentRequest request, Guid accountantUserId);
+
+    // null khi trẻ không tồn tại hoặc không liên kết với phụ huynh (Controller trả 404)
+    Task<IReadOnlyList<ChildInvoiceResponse>?> GetChildInvoicesForGuardianAsync(Guid childId, Guid parentUserId);
+    Task<ChildInvoiceResponse?> GetChildInvoiceForGuardianAsync(Guid childId, Guid invoiceId, Guid parentUserId);
 
     Task<RevenueReportResponse> GetRevenueReportAsync();
 }
