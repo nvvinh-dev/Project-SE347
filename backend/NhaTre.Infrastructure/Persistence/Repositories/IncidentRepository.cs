@@ -25,8 +25,9 @@ public class IncidentRepository : IIncidentRepository
                 && c.Class!.HomeroomTeacher!.UserId == teacherUserId);
     }
 
-    // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với lúc tạo. Ảnh xếp theo id: EF sinh id
-    // kiểu UUIDv7 tăng theo thời gian, nên đây cũng là thứ tự đính
+    // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với lúc tạo. Ảnh xếp theo id để mỗi lần
+    // xem cùng một thứ tự. Không phải thứ tự đính: EF sinh id UUIDv7, nhưng các id sinh trong cùng mili
+    // giây (các ảnh của một lần upload) không tăng dần
     public async Task<Incident?> FindIncidentInHomeroomClassAsync(Guid id, Guid teacherUserId)
     {
         return await _dbContext.Incidents

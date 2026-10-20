@@ -88,9 +88,10 @@ public class IncidentService : IIncidentService
             _incidentRepository.AddIncidentPhotos(newPhotos);
 
             // Ký URL trước khi ghi database, như người đón: bước này lỗi thì chưa lưu gì, giáo viên gửi lại
-            // không bị trùng ảnh
+            // không bị trùng ảnh. Xếp theo Id như GET (repository ORDER BY id) để hai endpoint trả cùng thứ
+            // tự; Guid.CompareTo so sánh theo đúng thứ tự byte của kiểu uuid trong PostgreSQL
             var response = await ToResponseAsync(incident, incident.Child.FullName,
-                incident.IncidentPhotos.Concat(newPhotos));
+                incident.IncidentPhotos.Concat(newPhotos).OrderBy(p => p.Id));
 
             await _incidentRepository.SaveChangesAsync();
             saved = true;
