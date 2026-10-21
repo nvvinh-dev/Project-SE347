@@ -588,7 +588,13 @@ function PickupWorkspace({ userId }: { userId: string }) {
           else void phone.handleSubmit((values) => submit(values))();
         }}
         description={pending && (
-          <div className="max-h-[calc(100dvh-17rem)] w-[min(21rem,calc(100vw-9rem))] space-y-3 overflow-y-auto overscroll-contain pr-1 wrap-anywhere">
+          <div
+            className={`max-h-[calc(100dvh-17rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 wrap-anywhere ${
+              pending.person
+                ? "w-[min(21rem,calc(100vw-9rem))]"
+                : "-ml-15 w-[min(24.75rem,calc(100vw-5.125rem))] pt-5"
+            }`}
+          >
             <div className="rounded-lg bg-brand-subtle px-3 py-2">
               <p className="text-sm text-foreground"><span className="text-muted">Trẻ: </span><strong>{pending.child.childFullName}</strong></p>
             </div>
