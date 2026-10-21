@@ -19,11 +19,10 @@ interface Props {
   userId: string;
   today: boolean;
   canWrite: boolean;
-  photoVersion: number;
   onChoose: (child: AttendanceResponse, persons: PickupPerson[], person: PickupPerson | null, trigger: HTMLButtonElement) => void;
 }
 
-export default function PickupChildCard({ child, record, userId, today, canWrite, photoVersion, onChoose }: Props) {
+export default function PickupChildCard({ child, record, userId, today, canWrite, onChoose }: Props) {
   const [previewPerson, setPreviewPerson] = useState<PickupPerson | null>(null);
   const queryClient = useQueryClient();
   const persons = useApiQuery<PickupPerson[]>({
@@ -78,7 +77,7 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
         </div>
       ) : !today ? (
         <p className="rounded-lg bg-background p-4 text-sm text-muted">Chưa có bản ghi đón về trong ngày đã chọn.</p>
-      ) : persons.isError ? (
+      ) : persons.isError && (persons.data === undefined || !registered.length) ? (
         <StatusMessage status="error" title="Không thể tải người đón" message={persons.error.message} onRetry={() => void persons.refetch()} />
       ) : persons.isPending ? (
         <StatusMessage status="loading" title="Đang tải thông tin người đón..." />
@@ -86,6 +85,14 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
         <StatusMessage status="empty" title="Chưa đăng ký người đón" message="Liên hệ phụ huynh đăng ký người đón chính, sau đó tải lại dữ liệu để xác minh và ghi nhận đón về." />
       ) : (
         <>
+          {persons.isError && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-warning" role="alert">
+              <p>Chưa cập nhật được người đón. Tạm khóa giao trẻ; thông tin bên dưới là lần tải trước.</p>
+              <Button variant="ghost" size="sm" onClick={() => void persons.refetch()}>
+                Thử lại
+              </Button>
+            </div>
+          )}
           <p className="mb-3 text-xs font-semibold text-muted">NGƯỜI ĐÓN ĐÃ ĐĂNG KÝ</p>
           <div className="space-y-4">
             {registered.map((person) => (
@@ -100,7 +107,7 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
                   </div>
                   <Button variant="ghost" aria-label={`Xem ảnh lớn của ${person.fullName}`} aria-haspopup="dialog" title="Bấm để xem ảnh lớn" onClick={() => setPreviewPerson(person)} className="relative col-start-1 row-span-4 row-start-1 h-full min-h-24 w-full cursor-zoom-in overflow-hidden rounded-lg p-0!">
                     <SignedImage
-                      key={`${person.id}:${person.facePhotoUrl}:${photoVersion}`}
+                      key={`${person.id}:${person.facePhotoUrl}`}
                       src={person.facePhotoUrl}
                       getUrl={() => refreshPhoto(person)}
                       alt={`Ảnh khuôn mặt ${person.fullName}`}

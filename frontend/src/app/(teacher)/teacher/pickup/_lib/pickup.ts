@@ -71,7 +71,6 @@ export async function createPickup(payload: CreatePickupRequest, date: string): 
 }
 
 export const pickupKeys = {
-  roster: (userId: string) => ["teacher-homeroom-children", userId] as const,
   attendance: (userId: string, date: string) => ["teacher-pickup-attendance", userId, date] as const,
   records: (userId: string, date: string) => ["teacher-pickups", userId, date] as const,
   persons: (userId: string, childId: string) => ["teacher-pickup-persons", userId, childId] as const,
