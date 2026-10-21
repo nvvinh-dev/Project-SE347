@@ -28,4 +28,7 @@ public static class ImageContentTypes
 
     // D39 mục 5: mỗi ảnh tối đa 5 MB
     public const long MaxFileSizeBytes = 5 * 1024 * 1024;
+
+    // D39 mục 5: ảnh sự cố và ảnh hoạt động tối đa 5 ảnh mỗi lần upload; ảnh khuôn mặt người đón đúng 1 ảnh
+    public const int MaxPhotosPerUpload = 5;
 }
