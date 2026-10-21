@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { ChildSelect } from "@/components/parent/attendance/ChildSelect";
+import { ChildSelect } from "@/components/parent/ChildSelect";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { FormField } from "@/components/ui/FormField";
 import { Pagination } from "@/components/ui/Pagination";
@@ -51,10 +52,29 @@ function getPresentTime(record: ChildAttendanceResponse) {
   return { utc, label: formatAttendanceTime(utc) };
 }
 
+function RefreshErrorNotice({ message, onRetry, isFetching }: {
+  message: string;
+  onRetry: () => void;
+  isFetching: boolean;
+}) {
+  return (
+    <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-warning-border bg-warning-bg px-4 py-3 text-sm sm:px-6">
+      <p className="min-w-0 flex-1 text-foreground">
+        {message} <span className="text-muted">Đang hiển thị dữ liệu đã tải trước đó.</span>
+      </p>
+      <Button size="sm" variant="secondary" disabled={isFetching} onClick={onRetry}>Thử lại</Button>
+    </div>
+  );
+}
+
 function AttendanceHistory({ attendance }: { attendance: ReturnType<typeof useParentAttendance> }) {
   const [page, setPage] = useState(1);
   // API đã sắp ngày mới nhất trước; giữ nguyên thứ tự khi phân trang tại frontend.
   const records = attendance.data ?? [];
+  // Lỗi tạm thời giữ dữ liệu cũ; lỗi ngoài phạm vi phải ẩn toàn bộ dữ liệu đã lưu.
+  const hasVisibleData = attendance.data !== undefined
+    && attendance.error?.status !== 403 && attendance.error?.status !== 404;
+  const showError = attendance.isError && !hasVisibleData;
   const safePage = Math.min(page, Math.max(1, Math.ceil(records.length / PAGE_SIZE)));
   const start = (safePage - 1) * PAGE_SIZE;
   const columns: Column<ChildAttendanceResponse>[] = [
@@ -95,21 +115,25 @@ function AttendanceHistory({ attendance }: { attendance: ReturnType<typeof usePa
         const time = getPresentTime(record);
         return time
           ? <time dateTime={time.utc} className="tabular-nums">{time.label}</time>
-          : <span className="text-muted" aria-label={record.status === "Present" ? "Chưa có giờ ghi nhận" : "Không áp dụng"}>—</span>;
+          : <span className="text-muted" aria-label={record.status === "Present" ? "Chưa có giờ ghi nhận" : "Ẩn giờ ghi nhận khi vắng"}>—</span>;
       },
     },
   ];
 
   return (
     <>
-      <div aria-live="polite" aria-busy={attendance.isFetching}>
-        <div role={attendance.isError ? "alert" : undefined}>
+      {attendance.isError && hasVisibleData && (
+        <RefreshErrorNotice message={attendance.error.message} isFetching={attendance.isFetching}
+          onRetry={() => { void attendance.refetch(); }} />
+      )}
+      <div aria-busy={attendance.isFetching}>
+        <div role={attendance.isLoading ? "status" : showError ? "alert" : undefined}>
           <DataTable
             columns={columns}
             data={records.slice(start, start + PAGE_SIZE)}
             keyExtractor={(record) => record.id}
             isLoading={attendance.isLoading}
-            isError={attendance.isError}
+            isError={showError}
             errorMessage={attendance.error?.message}
             onRetry={() => { void attendance.refetch(); }}
             emptyMessage="Chưa có bản ghi điểm danh cho trẻ này."
@@ -117,7 +141,7 @@ function AttendanceHistory({ attendance }: { attendance: ReturnType<typeof usePa
           />
         </div>
       </div>
-      {attendance.isSuccess && records.length > PAGE_SIZE && (
+      {hasVisibleData && records.length > PAGE_SIZE && (
         <Pagination
           page={safePage}
           pageSize={PAGE_SIZE}
@@ -139,6 +163,8 @@ function ChildAttendanceViewer({ childOptions }: { childOptions: MyChildResponse
   // Nếu liên kết bị gỡ khi tải lại danh sách, không tiếp tục hiển thị trẻ đã bị loại.
   const child = childOptions.find((item) => item.id === childId) ?? childOptions[0];
   const attendance = useParentAttendance(child.id);
+  const showCount = (attendance.data?.length ?? 0) > 0
+    && attendance.error?.status !== 403 && attendance.error?.status !== 404;
 
   return (
     <section aria-labelledby="attendance-heading" className="min-w-0 rounded-2xl border border-border bg-card shadow-xs">
@@ -160,9 +186,9 @@ function ChildAttendanceViewer({ childOptions }: { childOptions: MyChildResponse
             />
           </FormField>
         </div>
-        {attendance.isSuccess && (
+        {showCount && (
           <p role="status" className="text-sm text-muted sm:pb-2.5">
-            {attendance.isFetching ? "Đang cập nhật…" : `${attendance.data.length} ngày điểm danh`}
+            {attendance.isFetching ? "Đang cập nhật…" : `${attendance.data?.length} ngày điểm danh`}
           </p>
         )}
       </div>
@@ -177,14 +203,22 @@ function ChildAttendanceViewer({ childOptions }: { childOptions: MyChildResponse
 export default function ParentAttendancePage() {
   const children = useMyChildren();
   const records = children.data ?? [];
+  const hasVisibleData = children.data !== undefined
+    && children.error?.status !== 403 && children.error?.status !== 404;
 
   return (
     <div className="min-w-0 space-y-5">
       <PageHeader title="Lịch sử điểm danh" />
-      <div aria-live="polite" aria-busy={children.isFetching}>
+      {children.isError && hasVisibleData && (
+        <div className="overflow-hidden rounded-xl border border-warning-border">
+          <RefreshErrorNotice message={children.error.message} isFetching={children.isFetching}
+            onRetry={() => { void children.refetch(); }} />
+        </div>
+      )}
+      <div aria-busy={children.isFetching}>
         {children.isLoading ? (
-          <StatusMessage status="loading" title="Đang tải danh sách con…" />
-        ) : children.isError ? (
+          <div role="status"><StatusMessage status="loading" title="Đang tải danh sách con…" /></div>
+        ) : children.isError && !hasVisibleData ? (
           <div role="alert">
             <StatusMessage
               status="error"
