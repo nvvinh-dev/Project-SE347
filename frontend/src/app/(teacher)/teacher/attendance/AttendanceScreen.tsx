@@ -103,11 +103,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
 
   const students: StudentAttendanceItem[] =
     roster === undefined
-      ? records.map((record) => ({
-          childId: record.childId,
-          fullName: record.childFullName,
-          attendance: record,
-        }))
+      ? []
       : roster.map((child) => ({
           ...child,
           attendance: recordByChild.get(child.childId) ?? null,
@@ -176,8 +172,8 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
       setFeedback({ kind: "error", text: error.message, errors: error.errors });
       closeDialog(false);
       if (error.status !== 400) {
-        // Kết quả ghi hoặc phạm vi lớp có thể đã thay đổi; phải xác minh cả hai nguồn trước khi gửi tiếp.
-        setNeedsRecheck(true);
+        // Lỗi 4xx đã rõ kết quả; mất kết nối, lỗi máy chủ hoặc phản hồi thành công không hợp lệ cần xác minh.
+        setNeedsRecheck(error.status == null || error.status < 400 || error.status >= 500);
         await recheck();
       }
     },
@@ -222,7 +218,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
 
   const isRefreshing = query.isFetching || (providedRoster === undefined && rosterQuery.isFetching);
   const hasRoster = roster !== undefined;
-  const hasCurrentData = query.data !== undefined;
+  const hasCurrentData = hasRoster && query.data !== undefined;
   const count = (value: AttendanceStatus) =>
     students.filter((child) => child.attendance?.status === value).length;
   const unchecked = students.filter((child) => !child.attendance).length;
@@ -499,18 +495,6 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
         ))}
       </section>
 
-      {providedRoster === undefined && rosterQuery.isError && roster === undefined && (
-        <div
-          role="status"
-          className="rounded-xl border border-warning-border bg-warning-bg p-4 text-sm text-warning"
-        >
-          <p className="font-semibold">Danh sách học sinh của lớp chưa sẵn sàng</p>
-          <p className="mt-1 text-xs">
-            Vui lòng tải lại danh sách lớp trước khi ghi điểm danh.
-          </p>
-        </div>
-      )}
-
       {feedback && (
         <div
           role={feedback.kind === "error" ? "alert" : "status"}
@@ -533,7 +517,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
 
       <div
         className={`grid min-w-0 items-start gap-4 ${
-          showHealth ? "xl:grid-cols-[minmax(0,1fr)_340px]" : "xl:grid-cols-[minmax(0,1fr)_64px]"
+          hasRoster ? (showHealth ? "xl:grid-cols-[minmax(0,1fr)_340px]" : "xl:grid-cols-[minmax(0,1fr)_64px]") : ""
         }`}
       >
         <section
@@ -703,7 +687,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
           )}
         </section>
 
-        <aside
+        {hasRoster && <aside
           aria-label="Lưu ý sức khỏe của học sinh"
           className="hidden min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs xl:block"
         >
@@ -803,7 +787,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
               </Link>
             </div>
           </div>
-        </aside>
+        </aside>}
       </div>
 
       <ConfirmDialog
