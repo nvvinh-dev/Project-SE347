@@ -11,6 +11,12 @@ export interface ChildProfileRequest {
   enrollmentDate: string;
 }
 
+// GET /api/children/mine chỉ trả thông tin cần để phụ huynh chọn con.
+export interface MyChildResponse {
+  id: string;
+  fullName: string;
+}
+
 export interface GuardianResponse {
   userId: string;
   fullName: string;

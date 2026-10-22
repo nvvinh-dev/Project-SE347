@@ -26,6 +26,14 @@ export interface AttendanceChild {
   healthNotes?: string | null;
 }
 
+// DTO phía phụ huynh không có thông tin lớp hay người ghi nhận.
+export interface ChildAttendanceResponse {
+  id: string;
+  attendanceDate: string;
+  checkInTimeUtc: string;
+  status: AttendanceStatus;
+}
+
 export interface HomeroomChildResponse {
   id: string;
   fullName: string;
