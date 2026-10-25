@@ -214,6 +214,7 @@ function PickupWorkspace({ userId }: { userId: string }) {
       if (!chosen || !previous || !samePerson(previous, chosen)) {
         throw new ApiError("Thông tin người đón đã thay đổi. Vui lòng đối chiếu lại trước khi giao trẻ.", null, 409);
       }
+      // TanStack truyền cùng object submission tới onError để phân biệt lỗi trước/sau POST, kể cả response 201 thiếu trường.
       submission.postStarted = true;
       const record = await createPickup(payload, selection.date);
       if (record.attendanceId !== selection.child.id) {
@@ -588,6 +589,8 @@ function PickupWorkspace({ userId }: { userId: string }) {
           else void phone.handleSubmit((values) => submit(values))();
         }}
         description={pending && (
+          // Bù icon 44px + gap 16px; pt-5 đưa form xuống dưới icon của ConfirmDialog.
+          // Rộng tối đa 396px = hộp 448px - lề 2×24px - viền 2px - dư 2px; trên mobile trừ thêm lề ngoài 2×16px (tổng 82px).
           <div
             className={`max-h-[calc(100dvh-17rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 wrap-anywhere ${
               pending.person
