@@ -578,6 +578,8 @@ function PickupWorkspace({ userId }: { userId: string }) {
       <ConfirmDialog
         isOpen={!!pending}
         title={pending?.person ? "Xác nhận giao trẻ" : "Người khác đến đón"}
+        compactHeader={!pending?.person}
+        layout={pending?.person ? "inline" : "stacked"}
         confirmText="Xác nhận giao trẻ"
         cancelText="Hủy"
         isLoading={mutation.isPending}
@@ -589,13 +591,9 @@ function PickupWorkspace({ userId }: { userId: string }) {
           else void phone.handleSubmit((values) => submit(values))();
         }}
         description={pending && (
-          // Bù icon 44px + gap 16px; pt-5 đưa form xuống dưới icon của ConfirmDialog.
-          // Rộng tối đa 396px = hộp 448px - lề 2×24px - viền 2px - dư 2px; trên mobile trừ thêm lề ngoài 2×16px (tổng 82px).
           <div
             className={`max-h-[calc(100dvh-17rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 wrap-anywhere ${
-              pending.person
-                ? "w-[min(21rem,calc(100vw-9rem))]"
-                : "-ml-15 w-[min(24.75rem,calc(100vw-5.125rem))] pt-5"
+              pending.person ? "w-[min(21rem,calc(100vw-9rem))]" : ""
             }`}
           >
             <div className="rounded-lg bg-brand-subtle px-3 py-2">
