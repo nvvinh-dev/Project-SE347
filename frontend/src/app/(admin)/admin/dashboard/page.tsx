@@ -3,42 +3,51 @@
 import React from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { useChildrenStatistics } from "@/hooks/useDashboard";
+import {
+  useChildrenStatistics,
+  useAttendanceStatistics,
+} from "@/hooks/useDashboard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusMessage } from "@/components/ui/StatusMessage";
-
-const emptySubscribe = () => () => {};
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
   const displayName = user?.fullName?.trim() ? user.fullName : "Quản trị viên";
 
+  // FR-DASH-02: Thống kê số lượng trẻ
   const {
     data: stats,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    dataUpdatedAt,
+    isLoading: isLoadingChildren,
+    isError: isErrorChildren,
+    error: errorChildren,
+    refetch: refetchChildren,
+    dataUpdatedAt: childrenUpdatedAt,
   } = useChildrenStatistics();
 
-  // Chuẩn React 19: dùng useSyncExternalStore để phân định client/server nhất quán, không gây cascading render
-  const isClient = React.useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false
-  );
+  // FR-DASH-03: Thống kê điểm danh tháng hiện tại
+  const {
+    data: attendanceStats,
+    isLoading: isLoadingAttendance,
+    isError: isErrorAttendance,
+    error: errorAttendance,
+    refetch: refetchAttendance,
+    dataUpdatedAt: attendanceUpdatedAt,
+  } = useAttendanceStatistics();
 
-  // Xác định thời điểm và lời chào động (chỉ tính toán chi tiết sau khi client đã mount)
-  const now = React.useMemo(() => new Date(), []);
+  // Cập nhật mốc thời gian động theo thời điểm đồng bộ dữ liệu mới nhất (Review PR #46)
+  const latestUpdatedAt = Math.max(childrenUpdatedAt || 0, attendanceUpdatedAt || 0);
+  const now = React.useMemo(() => {
+    return latestUpdatedAt > 0 ? new Date(latestUpdatedAt) : new Date();
+  }, [latestUpdatedAt]);
+
   const currentHour = now.getHours();
-  const greeting = isClient
-    ? currentHour < 12
+  const greeting =
+    currentHour < 12
       ? "Chào buổi sáng"
       : currentHour < 18
         ? "Chào buổi chiều"
-        : "Chào buổi tối"
-    : "Xin chào";
+        : "Chào buổi tối";
+  const greetingIcon = currentHour < 12 ? "🌅" : currentHour < 18 ? "☀️" : "🌙";
 
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -54,12 +63,16 @@ export default function AdminDashboardPage() {
 
   const hasUnassignedChildren = (stats?.unassignedStudents ?? 0) > 0;
 
-  // Sắp xếp danh sách lớp ổn định theo minAgeMonths tăng dần để bảo đảm gán theme màu và icon luôn nhất quán
-  const sortedClasses = (stats?.classes ?? []).slice().sort(
+  // Sắp xếp danh sách lớp ổn định theo minAgeMonths tăng dần (Mầm -> Chồi -> Lá)
+  const sortedChildrenClasses = (stats?.classes ?? []).slice().sort(
     (a, b) => (a.minAgeMonths ?? 0) - (b.minAgeMonths ?? 0)
   );
 
-  // Cấu hình theme visual cho các khối lớp theo thứ tự độ tuổi tăng dần (Mầm, Chồi, Lá)
+  const sortedAttendanceClasses = (attendanceStats?.classes ?? []).slice().sort(
+    (a, b) => (a.minAgeMonths ?? 0) - (b.minAgeMonths ?? 0)
+  );
+
+  // Cấu hình theme visual nhất quán cho 3 khối lớp mầm non
   const classThemes = [
     {
       badgeBg: "bg-brand-subtle",
@@ -84,12 +97,20 @@ export default function AdminDashboardPage() {
     },
   ];
 
+  const handleRefetchAll = () => {
+    refetchChildren();
+    refetchAttendance();
+  };
+
+  const isInitialLoading = isLoadingChildren && isLoadingAttendance;
+  const hasOverallError = isErrorChildren && isErrorAttendance;
+
   return (
     <div className="space-y-6">
       {/* 1. Header chuẩn đồng bộ với các trang Admin khác */}
       <PageHeader
         title="Tổng quan"
-        description="Tổng quan tình hình học sinh và cơ cấu phân bổ các khối lớp học"
+        description="Tổng quan tình hình học sinh, chuyên cần và phân bổ các khối lớp học"
       >
         <div className="flex items-center gap-2 flex-wrap">
           <Link
@@ -133,34 +154,29 @@ export default function AdminDashboardPage() {
         </div>
       </PageHeader>
 
-      {/* 2. Welcome Banner mềm mại */}
+      {/* 2. Welcome Banner mềm mại (đã tinh gọn isClient và đồng bộ icon lời chào theo giờ) */}
       <div className="rounded-2xl bg-card border border-border p-4 sm:p-5 shadow-2xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span
-              suppressHydrationWarning
-              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-subtle text-brand-text border border-brand-border shrink-0 whitespace-nowrap"
-            >
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-subtle text-brand-text border border-brand-border shrink-0 whitespace-nowrap">
               <span className="w-1.5 h-1.5 rounded-full bg-brand" />
               Năm học {schoolYear}
             </span>
             <span className="text-xs text-muted font-medium flex items-center gap-1.5 flex-wrap">
-              {isClient ? (
-                <span>
-                  {now.toLocaleDateString("vi-VN", {
-                    weekday: "long",
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })}
-                </span>
-              ) : null}
-              {isClient && stats && dataUpdatedAt ? (
+              <span>
+                {now.toLocaleDateString("vi-VN", {
+                  weekday: "long",
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </span>
+              {latestUpdatedAt > 0 ? (
                 <>
                   <span>•</span>
                   <span className="text-[11px] text-muted">
                     Đồng bộ dữ liệu lúc{" "}
-                    {new Date(dataUpdatedAt).toLocaleTimeString("vi-VN", {
+                    {new Date(latestUpdatedAt).toLocaleTimeString("vi-VN", {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
@@ -170,40 +186,39 @@ export default function AdminDashboardPage() {
             </span>
           </div>
 
-          <h2
-            suppressHydrationWarning
-            className="text-xl sm:text-2xl font-bold text-foreground tracking-tight pt-1"
-          >
-            {greeting}, {displayName}! ☀️
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight pt-1">
+            {greeting}, {displayName}! {greetingIcon}
           </h2>
           <p className="text-xs text-muted">
-            Theo dõi sĩ số học sinh và tiến độ phân bổ vào các khối lớp mầm non.
+            Theo dõi sĩ số học sinh, chuyên cần điểm danh và tiến độ phân bổ vào các khối lớp mầm non.
           </p>
         </div>
       </div>
 
       {/* 3. Loading / Error / Data View */}
-      {isLoading ? (
+      {isInitialLoading ? (
         <div className="p-12 text-center">
           <StatusMessage status="loading" message="Đang tải dữ liệu tổng quan..." />
         </div>
-      ) : isError ? (
+      ) : hasOverallError ? (
         <div className="p-8 text-center space-y-4 rounded-2xl bg-card border border-border">
           <div className="p-4 rounded-xl bg-danger-bg border border-danger-border text-danger text-xs font-medium inline-block max-w-lg">
             <p className="font-bold">Không thể tải dữ liệu dashboard</p>
-            <p className="mt-1">{error?.message ?? "Đã xảy ra lỗi khi kết nối máy chủ."}</p>
+            <p className="mt-1">
+              {errorChildren?.message ?? errorAttendance?.message ?? "Đã xảy ra lỗi khi kết nối máy chủ."}
+            </p>
           </div>
           <div>
             <button
               type="button"
-              onClick={() => refetch()}
+              onClick={handleRefetchAll}
               className="px-4 py-2 rounded-full text-xs font-semibold bg-background hover:bg-card border border-border text-foreground transition-all cursor-pointer"
             >
               Thử tải lại
             </button>
           </div>
         </div>
-      ) : stats ? (
+      ) : (
         <div className="space-y-6">
           {/* 4. Trung tâm Cảnh báo Nhiệm vụ */}
           {hasUnassignedChildren ? (
@@ -231,7 +246,7 @@ export default function AdminDashboardPage() {
                   <span>
                     Còn{" "}
                     <strong className="text-warning font-bold">
-                      {stats.unassignedStudents} trẻ
+                      {stats?.unassignedStudents} trẻ
                     </strong>{" "}
                     chưa được xếp vào lớp học.
                   </span>
@@ -244,7 +259,7 @@ export default function AdminDashboardPage() {
                 </Link>
               </div>
             </div>
-          ) : (
+          ) : stats ? (
             <div className="flex items-center gap-2.5 p-3.5 px-4 rounded-2xl bg-brand-subtle border border-brand-border text-brand-text text-xs font-semibold shadow-2xs">
               <span className="text-base">✨</span>
               <span>
@@ -254,11 +269,11 @@ export default function AdminDashboardPage() {
                   : "Hệ thống đã sẵn sàng tiếp nhận và phân bổ học sinh vào các lớp học."}
               </span>
             </div>
-          )}
+          ) : null}
 
-          {/* 5. Bộ 3 Thẻ KPI Thống kê Số lượng Trẻ (Thuộc phạm vi FR-DASH-02, BR-DASHBOARD-02) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
-            {/* KPI 1: Mint Pastel - Sĩ số học sinh toàn trường */}
+          {/* 5. Bộ 4 Thẻ KPI Pastel Đa tầng Ngữ nghĩa (§7.7.2 KPI Cards) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {/* KPI 1: Mint Pastel - Sĩ số học sinh toàn trường (FR-DASH-02) */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div className="w-10 h-10 rounded-xl bg-brand-subtle text-brand flex items-center justify-center">
@@ -275,27 +290,35 @@ export default function AdminDashboardPage() {
                     <circle cx="9" cy="7" r="4" />
                   </svg>
                 </div>
-                {stats.totalStudents === 0 ? (
+                {isLoadingChildren ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-background text-muted border border-border">
+                    Đang tải...
+                  </span>
+                ) : isErrorChildren ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-danger-bg text-danger border border-danger-border">
+                    Lỗi tải
+                  </span>
+                ) : stats?.totalStudents === 0 ? (
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-background text-muted border border-border">
                     Chưa có học sinh
                   </span>
-                ) : stats.unassignedStudents === 0 ? (
+                ) : stats?.unassignedStudents === 0 ? (
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand-subtle text-brand-text border border-brand-border">
                     ✓ 100% đã xếp lớp
                   </span>
                 ) : (
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-warning border border-warning-border">
-                    ⚠ {stats.unassignedStudents} chờ xếp
+                    ⚠ {stats?.unassignedStudents} chờ xếp
                   </span>
                 )}
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                  Sĩ số học sinh toàn trường
+                  Sĩ số toàn trường
                 </p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
                   <span className="text-2xl font-extrabold text-foreground">
-                    {stats.totalStudents}
+                    {isLoadingChildren || isErrorChildren ? "—" : stats?.totalStudents}
                   </span>
                   <span className="text-xs text-muted">học sinh</span>
                 </div>
@@ -303,12 +326,91 @@ export default function AdminDashboardPage() {
               <p className="text-[11px] text-muted flex items-center gap-1.5 pt-1 border-t border-border">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand" />
                 <span>
-                  {stats.assignedStudents} đã xếp lớp • {stats.unassignedStudents} chờ xếp
+                  {isLoadingChildren || isErrorChildren
+                    ? "—"
+                    : `${stats?.assignedStudents} đã xếp • ${stats?.unassignedStudents} chờ xếp`}
                 </span>
               </p>
             </div>
 
-            {/* KPI 2: Warm Pastel - Tỷ lệ trẻ đã xếp lớp */}
+            {/* KPI 2: Baby Blue Pastel - Điểm danh chuyên cần tháng hiện tại (FR-DASH-03, AC-DASH-03, D23) */}
+            <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-xl bg-info-bg text-info flex items-center justify-center">
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                    <path d="m9 16 2 2 4-4" />
+                  </svg>
+                </div>
+                {isLoadingAttendance ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-background text-muted border border-border">
+                    Đang tải...
+                  </span>
+                ) : isErrorAttendance ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-danger-bg text-danger border border-danger-border">
+                    Lỗi tải
+                  </span>
+                ) : !attendanceStats || attendanceStats.totalRecords === 0 ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-background text-muted border border-border">
+                    Chưa có lượt ghi
+                  </span>
+                ) : attendanceStats.overallAttendanceRate >= 90 ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-info-bg text-info-text border border-info-border">
+                    ✓ Chuyên cần tốt
+                  </span>
+                ) : attendanceStats.overallAttendanceRate >= 75 ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand-subtle text-brand-text border border-brand-border">
+                    Đạt chuẩn
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-warning border border-warning-border">
+                    Cần lưu ý
+                  </span>
+                )}
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                  Chuyên cần tháng {attendanceStats?.month ?? currentMonth}
+                </p>
+                <div className="flex items-baseline gap-1.5 mt-0.5">
+                  <span className="text-2xl font-extrabold text-foreground">
+                    {isLoadingAttendance || isErrorAttendance
+                      ? "—"
+                      : attendanceStats && attendanceStats.totalRecords > 0
+                        ? `${attendanceStats.overallAttendanceRate}%`
+                        : "—"}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {attendanceStats && attendanceStats.totalRecords > 0
+                      ? "tỷ lệ có mặt"
+                      : "chưa có dữ liệu"}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted flex items-center gap-1.5 pt-1 border-t border-border">
+                <span className="w-1.5 h-1.5 rounded-full bg-info" />
+                <span>
+                  {isLoadingAttendance || isErrorAttendance
+                    ? "—"
+                    : attendanceStats && attendanceStats.totalRecords > 0
+                      ? `${attendanceStats.presentRecords} / ${attendanceStats.totalRecords} lượt có mặt`
+                      : "Chưa ghi nhận điểm danh tháng này"}
+                </span>
+              </p>
+            </div>
+
+            {/* KPI 3: Warm Pastel - Tỷ lệ trẻ đã xếp lớp */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div className="w-10 h-10 rounded-xl bg-warning-bg text-warning flex items-center justify-center">
@@ -326,19 +428,21 @@ export default function AdminDashboardPage() {
                   </svg>
                 </div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-warning border border-warning-border">
-                  {stats.assignedStudents}/{stats.totalStudents} học sinh
+                  {isLoadingChildren || isErrorChildren
+                    ? "—"
+                    : `${stats?.assignedStudents}/${stats?.totalStudents} học sinh`}
                 </span>
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                  Tỷ lệ trẻ đã xếp lớp
+                  Tỷ lệ đã xếp lớp
                 </p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
                   <span className="text-2xl font-extrabold text-foreground">
-                    {assignedRatio}%
+                    {isLoadingChildren || isErrorChildren ? "—" : `${assignedRatio}%`}
                   </span>
                   <span className="text-xs text-muted">
-                    {stats.totalStudents > 0 ? "hoàn thành" : "chưa có học sinh"}
+                    {stats && stats.totalStudents > 0 ? "hoàn thành" : "chưa có học sinh"}
                   </span>
                 </div>
               </div>
@@ -353,7 +457,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* KPI 3: Peach Pastel - Học sinh chờ phân lớp */}
+            {/* KPI 4: Peach Pastel - Học sinh chờ phân lớp (Đã tinh chỉnh ngữ cảnh khi 0 trẻ theo Review PR #46) */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div className="w-10 h-10 rounded-xl bg-danger-bg text-danger flex items-center justify-center">
@@ -372,12 +476,22 @@ export default function AdminDashboardPage() {
                 </div>
                 <span
                   className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                    stats.unassignedStudents === 0
-                      ? "bg-brand-subtle text-brand-text border-brand-border"
-                      : "bg-danger-bg text-danger border-danger-border"
+                    isLoadingChildren || isErrorChildren
+                      ? "bg-background text-muted border-border"
+                      : stats?.totalStudents === 0
+                        ? "bg-background text-muted border-border"
+                        : stats?.unassignedStudents === 0
+                          ? "bg-brand-subtle text-brand-text border-brand-border"
+                          : "bg-danger-bg text-danger border-danger-border"
                   }`}
                 >
-                  {stats.unassignedStudents === 0 ? "✓ Hoàn tất" : "Cần xếp lớp"}
+                  {isLoadingChildren || isErrorChildren
+                    ? "—"
+                    : stats?.totalStudents === 0
+                      ? "Chưa có học sinh"
+                      : stats?.unassignedStudents === 0
+                        ? "✓ Hoàn tất"
+                        : "Cần xếp lớp"}
                 </span>
               </div>
               <div>
@@ -386,27 +500,148 @@ export default function AdminDashboardPage() {
                 </p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
                   <span className="text-2xl font-extrabold text-foreground">
-                    {stats.unassignedStudents}
+                    {isLoadingChildren || isErrorChildren ? "—" : stats?.unassignedStudents}
                   </span>
                   <span className="text-xs text-muted">học sinh</span>
                 </div>
               </div>
               <p className="text-[11px] text-muted flex items-center gap-1.5 pt-1 border-t border-border">
-                <span className="w-1.5 h-1.5 rounded-full bg-danger" />
-                <span>Phân bổ vào {stats.totalClasses} khối lớp cố định</span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    (stats?.unassignedStudents ?? 0) > 0 ? "bg-danger" : "bg-brand"
+                  }`}
+                />
+                <span>
+                  {isLoadingChildren || isErrorChildren
+                    ? "—"
+                    : stats?.totalStudents === 0
+                      ? "Hệ thống chưa có hồ sơ học sinh"
+                      : stats?.unassignedStudents === 0
+                        ? "Toàn bộ học sinh đã được xếp lớp"
+                        : `Cần phân bổ vào ${stats?.totalClasses ?? 3} khối lớp cố định`}
+                </span>
               </p>
             </div>
           </div>
 
-          {/* 6. Chi tiết Phân bổ Các Khối Lớp Học (FR-DASH-02, AC-DASH-02, BR-DASHBOARD-02) */}
+          {/* 6. Thống Kê Điểm Danh Chuyên Cần Theo Khối Lớp (FR-DASH-03, AC-DASH-03, D23) */}
           <div className="p-5 sm:p-6 rounded-2xl bg-card border border-border shadow-2xs space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
               <div>
-                <h3 className="text-base font-bold text-foreground">
-                  Phân bổ học sinh theo từng lớp học
-                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-info" />
+                  <h3 className="text-base font-bold text-foreground">
+                    Tỷ lệ điểm danh chuyên cần theo khối lớp
+                  </h3>
+                </div>
                 <p className="text-xs text-muted mt-0.5">
-                  Thống kê số lượng học sinh của {stats.totalClasses} khối lớp mầm non cố định
+                  Thống kê tỷ lệ có mặt trong tháng {attendanceStats?.month ?? currentMonth}/{attendanceStats?.year ?? currentYear} (chỉ tính trạng thái Có mặt theo D23)
+                </p>
+              </div>
+
+              {attendanceStats && attendanceStats.totalRecords > 0 ? (
+                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-info-bg text-info-text border border-info-border self-start sm:self-auto">
+                  Toàn trường: {attendanceStats.overallAttendanceRate}% ({attendanceStats.presentRecords}/{attendanceStats.totalRecords} lượt)
+                </span>
+              ) : null}
+            </div>
+
+            {isLoadingAttendance ? (
+              <div className="p-8 text-center">
+                <StatusMessage status="loading" message="Đang tải dữ liệu chuyên cần..." />
+              </div>
+            ) : isErrorAttendance ? (
+              <div className="p-6 text-center space-y-3 rounded-xl bg-danger-bg/50 border border-danger-border text-xs">
+                <p className="font-semibold text-danger">
+                  Không thể tải thống kê điểm danh: {errorAttendance?.message ?? "Lỗi kết nối máy chủ"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => refetchAttendance()}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-card border border-border text-foreground hover:bg-background cursor-pointer"
+                >
+                  Thử tải lại
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+                {sortedAttendanceClasses.map((cls, index) => {
+                  const theme = classThemes[index % classThemes.length];
+                  const hasData = cls.totalRecords > 0;
+
+                  return (
+                    <div
+                      key={cls.classId}
+                      className="p-5 rounded-xl bg-background/50 border border-border shadow-2xs space-y-3.5 hover:border-border-hover transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}
+                        >
+                          <span>{theme.icon}</span>
+                          <span>{cls.className}</span>
+                        </span>
+
+                        <div className="text-right">
+                          <span className="text-base font-extrabold text-foreground">
+                            {hasData ? `${cls.attendanceRate}%` : "—"}
+                          </span>
+                          <span className="text-xs text-muted block">tỷ lệ có mặt</span>
+                        </div>
+                      </div>
+
+                      {/* Thanh tỷ lệ có mặt */}
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between text-[11px] text-muted">
+                          <span>
+                            {hasData
+                              ? `${cls.presentRecords}/${cls.totalRecords} lượt có mặt`
+                              : "Chưa có lượt điểm danh"}
+                          </span>
+                          {hasData ? (
+                            <span className="font-semibold text-foreground">
+                              {cls.attendanceRate >= 90
+                                ? "Xuất sắc"
+                                : cls.attendanceRate >= 75
+                                  ? "Đạt chuẩn"
+                                  : "Cần lưu ý"}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-border overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              !hasData
+                                ? "bg-transparent"
+                                : cls.attendanceRate >= 90
+                                  ? "bg-info"
+                                  : cls.attendanceRate >= 75
+                                    ? "bg-brand"
+                                    : "bg-warning"
+                            } transition-all duration-500`}
+                            style={{ width: hasData ? `${cls.attendanceRate}%` : "0%" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 7. Chi tiết Phân bổ Các Khối Lớp Học (FR-DASH-02, AC-DASH-02, BR-DASHBOARD-02) */}
+          <div className="p-5 sm:p-6 rounded-2xl bg-card border border-border shadow-2xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-brand" />
+                  <h3 className="text-base font-bold text-foreground">
+                    Phân bổ học sinh theo từng lớp học
+                  </h3>
+                </div>
+                <p className="text-xs text-muted mt-0.5">
+                  Thống kê số lượng học sinh của {stats?.totalClasses ?? 3} khối lớp mầm non cố định
                 </p>
               </div>
 
@@ -420,7 +655,7 @@ export default function AdminDashboardPage() {
 
             {/* Grid Card Lớp chi tiết (chọn theme và độ tuổi theo dữ liệu backend) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-              {sortedClasses.map((cls, index) => {
+              {sortedChildrenClasses.map((cls, index) => {
                 const theme = classThemes[index % classThemes.length];
                 const ageLabel =
                   cls.minAgeMonths != null && cls.maxAgeMonths != null
@@ -428,7 +663,7 @@ export default function AdminDashboardPage() {
                     : "Theo độ tuổi quy định";
 
                 const percentage =
-                  stats.totalStudents > 0
+                  stats && stats.totalStudents > 0
                     ? Math.round((cls.studentCount / stats.totalStudents) * 100)
                     : 0;
 
@@ -478,7 +713,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
