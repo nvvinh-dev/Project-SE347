@@ -56,6 +56,13 @@ public class HealthRepository : IHealthRepository
         return await _dbContext.Children.AnyAsync(c => c.Id == childId);
     }
 
+    public async Task<Child?> FindChildAsync(Guid childId)
+    {
+        return await _dbContext.Children
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == childId);
+    }
+
     // Không lọc theo lớp nên không cần Include(Class). Trùng họ tên thì sắp tiếp theo id như danh sách
     // lớp chủ nhiệm
     public async Task<IReadOnlyList<Child>> GetAllChildrenAsync()
@@ -89,6 +96,24 @@ public class HealthRepository : IHealthRepository
     public void AddGrowthMeasurement(GrowthMeasurement growthMeasurement)
     {
         _dbContext.GrowthMeasurements.Add(growthMeasurement);
+    }
+
+    // Lịch sử gộp đọc thẳng bảng incidents thay vì đi qua IncidentRepository: repository viết theo
+    // từng tính năng (D35), và tính năng này của Y tế không lọc theo lớp chủ nhiệm như phía giáo viên
+    public async Task<IReadOnlyList<Incident>> GetIncidentsOfChildAsync(Guid childId)
+    {
+        return await _dbContext.Incidents
+            .AsNoTracking()
+            .Where(i => i.ChildId == childId)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<QuickHealthStatus>> GetQuickHealthStatusesOfChildAsync(Guid childId)
+    {
+        return await _dbContext.QuickHealthStatuses
+            .AsNoTracking()
+            .Where(q => q.ChildId == childId)
+            .ToListAsync();
     }
 
     public async Task SaveChangesAsync()

@@ -19,6 +19,8 @@ namespace NhaTre.API.Controllers;
 // toàn trường (D43 mục 2). Số đo đã tạo không sửa, không xóa
 // Danh sách trẻ cho Y tế chọn: chỉ Y tế, trẻ toàn trường, kèm lưu ý sức khỏe nhưng không kèm lớp
 // (D40 mục 3, D45). FR-HEALTH-04 và FR-HEALTH-06 dùng lại danh sách này
+// FR-HEALTH-04: chỉ Y tế xem lịch sử gộp sự cố, sức khỏe nhanh và số đo của trẻ toàn trường
+// (BR-HEALTH-04); vai trò khác → 403 (AC-HEALTH-08), phụ huynh xem con mình qua FR-HEALTH-05
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -102,6 +104,20 @@ public class HealthController : ControllerBase
     {
         var result = await _healthService.GetSchoolChildrenAsync();
         return Ok(ApiResponse<IReadOnlyList<SchoolChildResponse>>.Ok(result));
+    }
+
+    // Trẻ cùng dạng với danh sách trên, kèm lịch sử gộp mới nhất trước (D39 mục 9); trẻ chưa có bản ghi
+    // nào thì items rỗng. Trẻ toàn trường nên chỉ trẻ không tồn tại mới 404
+    [HttpGet("school-children/{childId:guid}/health-history")]
+    [Authorize(Roles = Roles.Medical)]
+    public async Task<ActionResult<ApiResponse<HealthHistoryResponse>>> GetHealthHistory(Guid childId)
+    {
+        var result = await _healthService.GetHealthHistoryAsync(childId);
+
+        if (result is null)
+            return NotFound(ApiResponse<HealthHistoryResponse>.Fail("Không tìm thấy trẻ."));
+
+        return Ok(ApiResponse<HealthHistoryResponse>.Ok(result));
     }
 
     // Lịch sử số đo của một trẻ, mới nhất trước; trẻ chưa có số đo nào thì danh sách rỗng

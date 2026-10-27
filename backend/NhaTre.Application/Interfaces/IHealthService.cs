@@ -28,4 +28,7 @@ public interface IHealthService
 
     // null khi số đo không tồn tại
     Task<GrowthMeasurementResponse?> GetGrowthMeasurementByIdAsync(Guid id);
+
+    // null khi trẻ không tồn tại; trẻ chưa có bản ghi nào thì Items rỗng
+    Task<HealthHistoryResponse?> GetHealthHistoryAsync(Guid childId);
 }
