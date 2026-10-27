@@ -38,5 +38,16 @@ public interface IHealthRepository
 
     Task<IReadOnlyList<QuickHealthStatus>> GetQuickHealthStatusesOfChildAsync(Guid childId);
 
+    // Phụ huynh (FR-HEALTH-05): trẻ chỉ khi có liên kết với tài khoản này trong child_guardians
+    // (BR-SCOPE-01); null khi trẻ không tồn tại hoặc không liên kết
+    Task<Child?> FindChildOfGuardianAsync(Guid childId, Guid parentUserId);
+
+    // Cùng phạm vi child_guardians như trên, mới nhất trước; con chưa có bản ghi nào thì rỗng
+    Task<IReadOnlyList<QuickHealthStatus>> GetQuickHealthStatusesOfChildForGuardianAsync(
+        Guid childId, Guid parentUserId);
+
+    Task<IReadOnlyList<GrowthMeasurement>> GetGrowthMeasurementsOfChildForGuardianAsync(
+        Guid childId, Guid parentUserId);
+
     Task SaveChangesAsync();
 }

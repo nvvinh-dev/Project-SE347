@@ -116,6 +116,43 @@ public class HealthRepository : IHealthRepository
             .ToListAsync();
     }
 
+    // Liên kết phụ huynh–trẻ nằm ngay trong câu truy vấn, như phạm vi lớp chủ nhiệm ở phía giáo viên.
+    // Không kèm Class: phụ huynh xem con mình không phụ thuộc lớp (D39 mục 10)
+    public async Task<Child?> FindChildOfGuardianAsync(Guid childId, Guid parentUserId)
+    {
+        return await _dbContext.Children
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == childId
+                && c.ChildGuardians.Any(cg => cg.GuardianUserId == parentUserId));
+    }
+
+    // Hai truy vấn dưới vẫn lọc liên kết dù Service đã tìm trẻ trong phạm vi trước, để liên kết bị gỡ
+    // giữa hai lần đọc thì không trả dữ liệu. Trùng thời điểm thì sắp tiếp theo id để thứ tự không đổi
+    // giữa các lần gọi
+    public async Task<IReadOnlyList<QuickHealthStatus>> GetQuickHealthStatusesOfChildForGuardianAsync(
+        Guid childId, Guid parentUserId)
+    {
+        return await _dbContext.QuickHealthStatuses
+            .AsNoTracking()
+            .Where(q => q.ChildId == childId
+                && q.Child.ChildGuardians.Any(cg => cg.GuardianUserId == parentUserId))
+            .OrderByDescending(q => q.RecordedAt)
+            .ThenBy(q => q.Id)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<GrowthMeasurement>> GetGrowthMeasurementsOfChildForGuardianAsync(
+        Guid childId, Guid parentUserId)
+    {
+        return await _dbContext.GrowthMeasurements
+            .AsNoTracking()
+            .Where(g => g.ChildId == childId
+                && g.Child.ChildGuardians.Any(cg => cg.GuardianUserId == parentUserId))
+            .OrderByDescending(g => g.MeasuredAt)
+            .ThenBy(g => g.Id)
+            .ToListAsync();
+    }
+
     public async Task SaveChangesAsync()
     {
         await _dbContext.SaveChangesAsync();

@@ -31,4 +31,8 @@ public interface IHealthService
 
     // null khi trẻ không tồn tại; trẻ chưa có bản ghi nào thì Items rỗng
     Task<HealthHistoryResponse?> GetHealthHistoryAsync(Guid childId);
+
+    // null khi trẻ không tồn tại hoặc không liên kết với tài khoản phụ huynh này; con chưa có bản ghi
+    // nào thì hai danh sách rỗng
+    Task<ChildHealthResponse?> GetChildHealthForGuardianAsync(Guid childId, Guid parentUserId);
 }
