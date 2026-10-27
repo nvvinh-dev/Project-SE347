@@ -149,6 +149,28 @@ public class HealthService : IHealthService
         return new HealthHistoryResponse(ToSchoolChild(child), history);
     }
 
+    // FR-HEALTH-05. Phạm vi là các trẻ có liên kết với tài khoản này trong child_guardians (BR-SCOPE-01,
+    // D39 mục 10), không phụ thuộc lớp. Trẻ không tồn tại và trẻ không liên kết cùng trả null để
+    // Controller trả 404 mà không lộ trẻ đó có tồn tại hay không (AC-HEALTH-11). Chỉ đọc (BR-HEALTH-06)
+    public async Task<ChildHealthResponse?> GetChildHealthForGuardianAsync(Guid childId, Guid parentUserId)
+    {
+        // Tìm trẻ trong phạm vi trước để phân biệt trẻ ngoài phạm vi (404) với con mình chưa có bản ghi nào
+        // (danh sách rỗng); lưu ý sức khỏe cũng lấy từ đây
+        var child = await _healthRepository.FindChildOfGuardianAsync(childId, parentUserId);
+        if (child is null)
+            return null;
+
+        var quickHealthStatuses =
+            await _healthRepository.GetQuickHealthStatusesOfChildForGuardianAsync(childId, parentUserId);
+        var growthMeasurements =
+            await _healthRepository.GetGrowthMeasurementsOfChildForGuardianAsync(childId, parentUserId);
+
+        return new ChildHealthResponse(
+            HealthNotesOrNull(child),
+            quickHealthStatuses.Select(ToChildQuickHealthStatus).ToList(),
+            growthMeasurements.Select(ToChildGrowthMeasurement).ToList());
+    }
+
     private static string QuickHealthStatusMessage(string childFullName, QuickHealthStatus quickHealthStatus)
     {
         var temperature = quickHealthStatus.TemperatureCelsius is null
@@ -197,6 +219,14 @@ public class HealthService : IHealthService
 
     private static GrowthMeasurementHistoryItemResponse ToGrowthMeasurementHistoryItem(
         GrowthMeasurement growthMeasurement)
+        => new(growthMeasurement.Id, growthMeasurement.MeasuredAt, growthMeasurement.HeightCm,
+            growthMeasurement.WeightKg);
+
+    private static ChildQuickHealthStatusResponse ToChildQuickHealthStatus(QuickHealthStatus quickHealthStatus)
+        => new(quickHealthStatus.Id, quickHealthStatus.RecordedAt, quickHealthStatus.Mood,
+            quickHealthStatus.TemperatureCelsius, quickHealthStatus.Notes);
+
+    private static ChildGrowthMeasurementResponse ToChildGrowthMeasurement(GrowthMeasurement growthMeasurement)
         => new(growthMeasurement.Id, growthMeasurement.MeasuredAt, growthMeasurement.HeightCm,
             growthMeasurement.WeightKg);
 }

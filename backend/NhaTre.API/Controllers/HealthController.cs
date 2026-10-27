@@ -21,6 +21,9 @@ namespace NhaTre.API.Controllers;
 // (D40 mục 3, D45). FR-HEALTH-04 và FR-HEALTH-06 dùng lại danh sách này
 // FR-HEALTH-04: chỉ Y tế xem lịch sử gộp sự cố, sức khỏe nhanh và số đo của trẻ toàn trường
 // (BR-HEALTH-04); vai trò khác → 403 (AC-HEALTH-08), phụ huynh xem con mình qua FR-HEALTH-05
+// FR-HEALTH-05: Phụ huynh xem lưu ý sức khỏe, sức khỏe nhanh và số đo của con mình (child_guardians,
+// D39 mục 10) qua một route riêng, chỉ đọc (BR-HEALTH-06); các route tạo, xem của Giáo viên và Y tế ở
+// trên không mở cho phụ huynh
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -118,6 +121,21 @@ public class HealthController : ControllerBase
             return NotFound(ApiResponse<HealthHistoryResponse>.Fail("Không tìm thấy trẻ."));
 
         return Ok(ApiResponse<HealthHistoryResponse>.Ok(result));
+    }
+
+    // Lưu ý sức khỏe kèm sức khỏe nhanh và số đo, mỗi danh sách mới nhất trước; con mình chưa có bản ghi
+    // nào thì hai danh sách rỗng. Trẻ không tồn tại và trẻ không liên kết với mình cùng trả 404
+    // (AC-HEALTH-11). Phụ huynh gọi các route tạo bản ghi của controller này thì 403 (AC-HEALTH-12)
+    [HttpGet("children/{childId:guid}/health")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<ChildHealthResponse>>> GetChildHealth(Guid childId)
+    {
+        var result = await _healthService.GetChildHealthForGuardianAsync(childId, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<ChildHealthResponse>.Fail("Không tìm thấy trẻ."));
+
+        return Ok(ApiResponse<ChildHealthResponse>.Ok(result));
     }
 
     // Lịch sử số đo của một trẻ, mới nhất trước; trẻ chưa có số đo nào thì danh sách rỗng
