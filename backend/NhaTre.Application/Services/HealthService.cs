@@ -125,6 +125,30 @@ public class HealthService : IHealthService
         return growthMeasurement is null ? null : ToGrowthMeasurement(growthMeasurement);
     }
 
+    // FR-HEALTH-04. Y tế xem lịch sử của trẻ toàn trường (BR-HEALTH-04), nên chỉ trẻ không tồn tại mới
+    // là 404. Gộp cả 3 nguồn, mới nhất trước (D39 mục 9); trùng thời điểm thì sắp tiếp theo id để thứ tự
+    // không đổi giữa các lần gọi. Không phân trang, như các lịch sử khác (api-conventions §2.1)
+    public async Task<HealthHistoryResponse?> GetHealthHistoryAsync(Guid childId)
+    {
+        var child = await _healthRepository.FindChildAsync(childId);
+        if (child is null)
+            return null;
+
+        var incidents = await _healthRepository.GetIncidentsOfChildAsync(childId);
+        var quickHealthStatuses = await _healthRepository.GetQuickHealthStatusesOfChildAsync(childId);
+        var growthMeasurements = await _healthRepository.GetGrowthMeasurementsOfChildAsync(childId);
+
+        IEnumerable<HealthHistoryItemResponse> items = incidents.Select(ToIncidentHistoryItem);
+        var history = items
+            .Concat(quickHealthStatuses.Select(ToQuickHealthStatusHistoryItem))
+            .Concat(growthMeasurements.Select(ToGrowthMeasurementHistoryItem))
+            .OrderByDescending(item => item.OccurredAtUtc)
+            .ThenBy(item => item.Id)
+            .ToList();
+
+        return new HealthHistoryResponse(ToSchoolChild(child), history);
+    }
+
     private static string QuickHealthStatusMessage(string childFullName, QuickHealthStatus quickHealthStatus)
     {
         var temperature = quickHealthStatus.TemperatureCelsius is null
@@ -162,4 +186,17 @@ public class HealthService : IHealthService
     private static GrowthMeasurementResponse ToGrowthMeasurement(GrowthMeasurement growthMeasurement)
         => new(growthMeasurement.Id, growthMeasurement.ChildId, growthMeasurement.MeasuredAt,
             growthMeasurement.HeightCm, growthMeasurement.WeightKg);
+
+    private static IncidentHistoryItemResponse ToIncidentHistoryItem(Incident incident)
+        => new(incident.Id, incident.OccurredAt, incident.Description);
+
+    private static QuickHealthStatusHistoryItemResponse ToQuickHealthStatusHistoryItem(
+        QuickHealthStatus quickHealthStatus)
+        => new(quickHealthStatus.Id, quickHealthStatus.RecordedAt, quickHealthStatus.Mood,
+            quickHealthStatus.TemperatureCelsius, quickHealthStatus.Notes);
+
+    private static GrowthMeasurementHistoryItemResponse ToGrowthMeasurementHistoryItem(
+        GrowthMeasurement growthMeasurement)
+        => new(growthMeasurement.Id, growthMeasurement.MeasuredAt, growthMeasurement.HeightCm,
+            growthMeasurement.WeightKg);
 }
