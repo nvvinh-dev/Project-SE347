@@ -381,11 +381,7 @@ export default function AdminDashboardPage() {
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-background text-muted border border-border">
                     Chưa có lượt ghi
                   </span>
-                ) : (
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-info-bg text-info-text border border-info-border">
-                    {attendanceStats.presentRecords}/{attendanceStats.totalRecords} lượt
-                  </span>
-                )}
+                ) : null}
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
@@ -400,9 +396,11 @@ export default function AdminDashboardPage() {
                         : "—"}
                   </span>
                   <span className="text-xs text-muted">
-                    {attendanceStats && attendanceStats.totalRecords > 0
-                      ? "tỷ lệ có mặt"
-                      : "chưa có dữ liệu"}
+                    {isLoadingAttendance || isErrorAttendance
+                      ? "—"
+                      : attendanceStats && attendanceStats.totalRecords > 0
+                        ? "tỷ lệ có mặt"
+                        : "chưa có dữ liệu"}
                   </span>
                 </div>
               </div>
@@ -414,7 +412,7 @@ export default function AdminDashboardPage() {
                     : isErrorAttendance
                       ? errorAttendance?.message ?? "Không thể tải số liệu"
                       : attendanceStats && attendanceStats.totalRecords > 0
-                        ? `${attendanceStats.presentRecords} / ${attendanceStats.totalRecords} lượt có mặt`
+                        ? `${attendanceStats.presentRecords}/${attendanceStats.totalRecords} lượt có mặt`
                         : "Chưa ghi nhận điểm danh tháng này"}
                 </span>
               </p>
