@@ -41,6 +41,39 @@ public class DashboardService : IDashboardService
         var startDate = new DateOnly(year, month, 1);
         var endDate = startDate.AddMonths(1);
 
-        return await _dashboardRepository.GetAttendanceStatisticsAsync(year, month, startDate, endDate);
+        var classCounts = await _dashboardRepository.GetClassAttendanceCountsAsync(startDate, endDate);
+
+        var classDtos = classCounts.Select(c =>
+        {
+            var rate = c.TotalRecords > 0
+                ? Math.Round((double)c.PresentRecords / c.TotalRecords * 100, 1)
+                : 0.0;
+
+            return new ClassAttendanceDto(
+                ClassId: c.ClassId,
+                ClassName: c.ClassName,
+                TotalRecords: c.TotalRecords,
+                PresentRecords: c.PresentRecords,
+                AttendanceRate: rate,
+                MinAgeMonths: c.MinAgeMonths,
+                MaxAgeMonths: c.MaxAgeMonths
+            );
+        }).ToList();
+
+        // Số liệu toàn trường tính bằng tổng các lớp hiện tại để bảo đảm tính nhất quán (khớp chính xác tổng 3 lớp)
+        var totalRecords = classDtos.Sum(c => c.TotalRecords);
+        var presentRecords = classDtos.Sum(c => c.PresentRecords);
+        var overallRate = totalRecords > 0
+            ? Math.Round((double)presentRecords / totalRecords * 100, 1)
+            : 0.0;
+
+        return new AttendanceStatisticsResponse(
+            Year: year,
+            Month: month,
+            TotalRecords: totalRecords,
+            PresentRecords: presentRecords,
+            OverallAttendanceRate: overallRate,
+            Classes: classDtos
+        );
     }
 }
