@@ -35,9 +35,7 @@ public class DashboardService : IDashboardService
     public async Task<AttendanceStatisticsResponse> GetAttendanceStatisticsAsync()
     {
         // D23, D39 mục 12: Thống kê điểm danh theo tháng hiện tại theo giờ Việt Nam, không có bộ lọc khoảng ngày tùy chọn
-        var nowVietnam = VietnamTime.ToVietnamTime(DateTime.UtcNow);
-        var year = nowVietnam.Year;
-        var month = nowVietnam.Month;
+        var (year, month, _, _) = VietnamTime.MonthOf(DateTime.UtcNow);
         var startDate = new DateOnly(year, month, 1);
         var endDate = startDate.AddMonths(1);
 
