@@ -149,6 +149,23 @@ public class HealthService : IHealthService
         return new HealthHistoryResponse(ToSchoolChild(child), history);
     }
 
+    // FR-HEALTH-06. Y tế ghi lưu ý cho trẻ toàn trường (D43 mục 2), nên chỉ trẻ không tồn tại mới là 404.
+    // Đây là chỗ chuẩn hóa duy nhất của lưu ý (D39 mục 14): bỏ khoảng trắng hai đầu, còn rỗng thì lưu
+    // null. Chỉ sửa health_notes, không lưu lịch sử các lần sửa (UC-HEALTH-05). Không sinh thông báo
+    // (D39 mục 6), không ghi security_events (D50)
+    public async Task<SchoolChildResponse?> UpdateHealthNotesAsync(Guid childId, UpdateHealthNotesRequest request)
+    {
+        var child = await _healthRepository.FindChildForUpdateAsync(childId);
+        if (child is null)
+            return null;
+
+        child.HealthNotes = string.IsNullOrWhiteSpace(request.HealthNotes) ? null : request.HealthNotes.Trim();
+        await _healthRepository.SaveChangesAsync();
+
+        // Trả luôn trẻ vừa sửa để màn hình Y tế cập nhật mà không phải tải lại danh sách
+        return ToSchoolChild(child);
+    }
+
     // FR-HEALTH-05. Phạm vi là các trẻ có liên kết với tài khoản này trong child_guardians (BR-SCOPE-01,
     // D39 mục 10), không phụ thuộc lớp. Trẻ không tồn tại và trẻ không liên kết cùng trả null để
     // Controller trả 404 mà không lộ trẻ đó có tồn tại hay không (AC-HEALTH-11). Chỉ đọc (BR-HEALTH-06)
@@ -201,7 +218,8 @@ public class HealthService : IHealthService
     private static SchoolChildResponse ToSchoolChild(Child child)
         => new(child.Id, child.FullName, child.DateOfBirth, HealthNotesOrNull(child));
 
-    // Lưu ý chỉ có khoảng trắng coi như không có, để giao diện chỉ phải xét null khi đánh dấu trẻ (AC-HEALTH-16)
+    // Lưu ý chỉ có khoảng trắng coi như không có, để giao diện chỉ phải xét null khi đánh dấu trẻ (AC-HEALTH-16).
+    // Ghi qua UpdateHealthNotesAsync đã chuẩn hóa sẵn; đây chỉ là chốt chặn phía đọc
     private static string? HealthNotesOrNull(Child child)
         => string.IsNullOrWhiteSpace(child.HealthNotes) ? null : child.HealthNotes;
 

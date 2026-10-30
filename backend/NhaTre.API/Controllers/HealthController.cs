@@ -24,6 +24,8 @@ namespace NhaTre.API.Controllers;
 // FR-HEALTH-05: Phụ huynh xem lưu ý sức khỏe, sức khỏe nhanh và số đo của con mình (child_guardians,
 // D39 mục 10) qua một route riêng, chỉ đọc (BR-HEALTH-06); các route tạo, xem của Giáo viên và Y tế ở
 // trên không mở cho phụ huynh
+// FR-HEALTH-06: chỉ Y tế ghi, sửa hoặc xóa trắng lưu ý sức khỏe của trẻ toàn trường (BR-HEALTH-07);
+// vai trò khác, kể cả giáo viên chủ nhiệm và phụ huynh của trẻ → 403 (AC-HEALTH-12, AC-HEALTH-15)
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -32,15 +34,18 @@ public class HealthController : ControllerBase
     private readonly IHealthService _healthService;
     private readonly IValidator<QuickHealthStatusRequest> _quickHealthStatusValidator;
     private readonly IValidator<GrowthMeasurementRequest> _growthMeasurementValidator;
+    private readonly IValidator<UpdateHealthNotesRequest> _updateHealthNotesValidator;
 
     public HealthController(
         IHealthService healthService,
         IValidator<QuickHealthStatusRequest> quickHealthStatusValidator,
-        IValidator<GrowthMeasurementRequest> growthMeasurementValidator)
+        IValidator<GrowthMeasurementRequest> growthMeasurementValidator,
+        IValidator<UpdateHealthNotesRequest> updateHealthNotesValidator)
     {
         _healthService = healthService;
         _quickHealthStatusValidator = quickHealthStatusValidator;
         _growthMeasurementValidator = growthMeasurementValidator;
+        _updateHealthNotesValidator = updateHealthNotesValidator;
     }
 
     [HttpGet("quick-health-statuses/{id:guid}")]
@@ -121,6 +126,28 @@ public class HealthController : ControllerBase
             return NotFound(ApiResponse<HealthHistoryResponse>.Fail("Không tìm thấy trẻ."));
 
         return Ok(ApiResponse<HealthHistoryResponse>.Ok(result));
+    }
+
+    // Ghi đè toàn bộ lưu ý; gửi rỗng là xóa trắng (AC-HEALTH-14). Trả trẻ sau khi sửa, cùng dạng với
+    // school-children. Trẻ toàn trường nên chỉ trẻ không tồn tại mới 404 (UC-HEALTH-05 E3)
+    [HttpPut("children/{childId:guid}/health-notes")]
+    [Authorize(Roles = Roles.Medical)]
+    public async Task<ActionResult<ApiResponse<SchoolChildResponse>>> UpdateHealthNotes(
+        Guid childId, [FromBody] UpdateHealthNotesRequest request)
+    {
+        var validationResult = await _updateHealthNotesValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<SchoolChildResponse>.Fail(errors));
+        }
+
+        var result = await _healthService.UpdateHealthNotesAsync(childId, request);
+
+        if (result is null)
+            return NotFound(ApiResponse<SchoolChildResponse>.Fail("Không tìm thấy trẻ."));
+
+        return Ok(ApiResponse<SchoolChildResponse>.Ok(result));
     }
 
     // Lưu ý sức khỏe kèm sức khỏe nhanh và số đo, mỗi danh sách mới nhất trước; con mình chưa có bản ghi

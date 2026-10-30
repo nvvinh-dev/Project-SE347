@@ -63,6 +63,14 @@ public class HealthRepository : IHealthRepository
             .FirstOrDefaultAsync(c => c.Id == childId);
     }
 
+    // Có theo dõi: EF chỉ sinh UPDATE cho cột đã đổi, nên ghi lưu ý không đụng họ tên, ngày sinh hay lớp
+    // của trẻ (UC-HEALTH-05 A2)
+    public async Task<Child?> FindChildForUpdateAsync(Guid childId)
+    {
+        return await _dbContext.Children
+            .FirstOrDefaultAsync(c => c.Id == childId);
+    }
+
     // Không lọc theo lớp nên không cần Include(Class). Trùng họ tên thì sắp tiếp theo id như danh sách
     // lớp chủ nhiệm
     public async Task<IReadOnlyList<Child>> GetAllChildrenAsync()
