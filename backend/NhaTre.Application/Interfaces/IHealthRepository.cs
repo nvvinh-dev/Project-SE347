@@ -22,6 +22,9 @@ public interface IHealthRepository
     // Cùng phạm vi toàn trường như trên, không kèm Class; null khi trẻ không tồn tại
     Task<Child?> FindChildAsync(Guid childId);
 
+    // Như trên nhưng có theo dõi thay đổi, để Service sửa lưu ý sức khỏe rồi SaveChangesAsync (FR-HEALTH-06)
+    Task<Child?> FindChildForUpdateAsync(Guid childId);
+
     // Mọi trẻ trong trường, kể cả trẻ chưa xếp lớp, sắp theo họ tên
     Task<IReadOnlyList<Child>> GetAllChildrenAsync();
 
