@@ -43,6 +43,8 @@ public class IncidentsController : ControllerBase
     [Authorize(Roles = Roles.Teacher + "," + Roles.Medical)]
     public async Task<ActionResult<ApiResponse<IncidentResponse>>> GetById(Guid id)
     {
+        // Nhánh còn lại là nhánh giáo viên. Thêm vai trò vào Roles của action này thì phải thêm nhánh cho
+        // vai trò đó; nếu không, vai trò mới bị lọc theo lớp chủ nhiệm và luôn nhận 404
         var result = User.IsInRole(Roles.Medical)
             ? await _incidentService.GetIncidentForMedicalAsync(id)
             : await _incidentService.GetIncidentByIdAsync(id, CurrentUserId());
