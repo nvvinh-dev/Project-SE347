@@ -36,7 +36,7 @@ public interface IHealthRepository
     void AddGrowthMeasurement(GrowthMeasurement growthMeasurement);
 
     // Hai nguồn còn lại của lịch sử gộp (D39 mục 9), chưa sắp thứ tự: Service gộp với số đo rồi mới
-    // sắp. Trẻ chưa có bản ghi nào thì rỗng
+    // sắp. Trẻ chưa có bản ghi nào thì rỗng. Sự cố kèm IncidentPhotos để đếm số ảnh
     Task<IReadOnlyList<Incident>> GetIncidentsOfChildAsync(Guid childId);
 
     Task<IReadOnlyList<QuickHealthStatus>> GetQuickHealthStatusesOfChildAsync(Guid childId);

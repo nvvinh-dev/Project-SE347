@@ -16,10 +16,13 @@ public abstract record HealthHistoryItemResponse(
     [property: JsonPropertyOrder(-2)] Guid Id,
     [property: JsonPropertyOrder(-1)] DateTime OccurredAtUtc);
 
+// PhotoCount là số ảnh đã đính, 0 khi không có ảnh. Lịch sử không kèm URL ảnh: Y tế mở sự cố qua
+// GET /api/incidents/{id} để xem ảnh (D39 mục 9)
 public sealed record IncidentHistoryItemResponse(
     Guid Id,
     DateTime OccurredAtUtc,
-    string Description) : HealthHistoryItemResponse(Id, OccurredAtUtc);
+    string Description,
+    int PhotoCount) : HealthHistoryItemResponse(Id, OccurredAtUtc);
 
 // Mood là giá trị tiếng Anh trong HealthMoods, giao diện hiển thị tiếng Việt
 public sealed record QuickHealthStatusHistoryItemResponse(

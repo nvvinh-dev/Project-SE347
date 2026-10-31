@@ -13,6 +13,7 @@ namespace NhaTre.API.Controllers;
 // Sự cố đã tạo không sửa mô tả, không xóa. [Authorize] ở mức class để action nào quên gắn Roles vẫn bắt
 // đăng nhập: Program.cs không có fallback policy.
 // FR-INCIDENT-02: Giáo viên đính thêm ảnh vào sự cố của trẻ lớp mình, cùng phạm vi; ảnh đã đính không xóa.
+// FR-HEALTH-04: Y tế mở sự cố của mọi trẻ trong trường để xem ảnh, không đính ảnh (D39 mục 9).
 // FR-INCIDENT-03 thêm action vào đây
 [ApiController]
 [Route("api/incidents")]
@@ -36,12 +37,17 @@ public class IncidentsController : ControllerBase
         _attachIncidentPhotosValidator = attachIncidentPhotosValidator;
     }
 
-    // Sự cố không tồn tại và sự cố của trẻ lớp khác cùng trả 404. Ảnh trả kèm URL ký hạn 60 phút (D53)
+    // Giáo viên: sự cố không tồn tại và sự cố của trẻ lớp khác cùng trả 404. Y tế: chỉ sự cố không tồn tại
+    // mới 404 (AC-HEALTH-18). Ảnh trả kèm URL ký hạn 60 phút (D53)
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = Roles.Teacher)]
+    [Authorize(Roles = Roles.Teacher + "," + Roles.Medical)]
     public async Task<ActionResult<ApiResponse<IncidentResponse>>> GetById(Guid id)
     {
-        var result = await _incidentService.GetIncidentByIdAsync(id, CurrentUserId());
+        // Nhánh còn lại là nhánh giáo viên. Thêm vai trò vào Roles của action này thì phải thêm nhánh cho
+        // vai trò đó; nếu không, vai trò mới bị lọc theo lớp chủ nhiệm và luôn nhận 404
+        var result = User.IsInRole(Roles.Medical)
+            ? await _incidentService.GetIncidentForMedicalAsync(id)
+            : await _incidentService.GetIncidentByIdAsync(id, CurrentUserId());
 
         if (result is null)
             return NotFound(ApiResponse<IncidentResponse>.Fail("Không tìm thấy sự cố."));
