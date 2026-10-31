@@ -214,6 +214,7 @@ function PickupWorkspace({ userId }: { userId: string }) {
       if (!chosen || !previous || !samePerson(previous, chosen)) {
         throw new ApiError("Thông tin người đón đã thay đổi. Vui lòng đối chiếu lại trước khi giao trẻ.", null, 409);
       }
+      // TanStack truyền cùng object submission tới onError để phân biệt lỗi trước/sau POST, kể cả response 201 thiếu trường.
       submission.postStarted = true;
       const record = await createPickup(payload, selection.date);
       if (record.attendanceId !== selection.child.id) {
@@ -577,6 +578,8 @@ function PickupWorkspace({ userId }: { userId: string }) {
       <ConfirmDialog
         isOpen={!!pending}
         title={pending?.person ? "Xác nhận giao trẻ" : "Người khác đến đón"}
+        compactHeader={!pending?.person}
+        layout={pending?.person ? "inline" : "stacked"}
         confirmText="Xác nhận giao trẻ"
         cancelText="Hủy"
         isLoading={mutation.isPending}
@@ -590,9 +593,7 @@ function PickupWorkspace({ userId }: { userId: string }) {
         description={pending && (
           <div
             className={`max-h-[calc(100dvh-17rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 wrap-anywhere ${
-              pending.person
-                ? "w-[min(21rem,calc(100vw-9rem))]"
-                : "-ml-15 w-[min(24.75rem,calc(100vw-5.125rem))] pt-5"
+              pending.person ? "w-[min(21rem,calc(100vw-9rem))]" : ""
             }`}
           >
             <div className="rounded-lg bg-brand-subtle px-3 py-2">
