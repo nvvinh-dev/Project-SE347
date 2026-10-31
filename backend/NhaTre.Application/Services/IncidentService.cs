@@ -62,6 +62,14 @@ public class IncidentService : IIncidentService
         return incident is null ? null : await ToResponseAsync(incident, incident.Child.FullName, incident.IncidentPhotos);
     }
 
+    // FR-HEALTH-04, AC-HEALTH-18: Y tế mở sự cố để xem ảnh (D39 mục 9). Trẻ toàn trường (BR-HEALTH-04) nên
+    // chỉ sự cố không tồn tại mới là 404. Cùng response với giáo viên, không kèm lớp hay người ghi nhận (D45)
+    public async Task<IncidentResponse?> GetIncidentForMedicalAsync(Guid id)
+    {
+        var incident = await _incidentRepository.FindIncidentAsync(id);
+        return incident is null ? null : await ToResponseAsync(incident, incident.Child.FullName, incident.IncidentPhotos);
+    }
+
     // FR-INCIDENT-02, AC-INCIDENT-02. Validator đã kiểm số lượng, định dạng và dung lượng ảnh. Sự cố không tồn
     // tại hay của trẻ lớp khác → 404 (AC-INCIDENT-05 b), kiểm trước khi upload nên không file nào lên Storage.
     // Đính thêm không sửa mô tả, không đụng ảnh cũ (UC-INCIDENT-01). Không sinh thông báo: đính ảnh không

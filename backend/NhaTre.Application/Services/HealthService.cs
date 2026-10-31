@@ -228,7 +228,7 @@ public class HealthService : IHealthService
             growthMeasurement.HeightCm, growthMeasurement.WeightKg);
 
     private static IncidentHistoryItemResponse ToIncidentHistoryItem(Incident incident)
-        => new(incident.Id, incident.OccurredAt, incident.Description);
+        => new(incident.Id, incident.OccurredAt, incident.Description, incident.IncidentPhotos.Count);
 
     private static QuickHealthStatusHistoryItemResponse ToQuickHealthStatusHistoryItem(
         QuickHealthStatus quickHealthStatus)

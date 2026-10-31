@@ -107,11 +107,13 @@ public class HealthRepository : IHealthRepository
     }
 
     // Lịch sử gộp đọc thẳng bảng incidents thay vì đi qua IncidentRepository: repository viết theo
-    // từng tính năng (D35), và tính năng này của Y tế không lọc theo lớp chủ nhiệm như phía giáo viên
+    // từng tính năng (D35), và tính năng này của Y tế không lọc theo lớp chủ nhiệm như phía giáo viên.
+    // Ảnh nạp kèm chỉ để đếm; lịch sử không ký URL (D39 mục 9)
     public async Task<IReadOnlyList<Incident>> GetIncidentsOfChildAsync(Guid childId)
     {
         return await _dbContext.Incidents
             .AsNoTracking()
+            .Include(i => i.IncidentPhotos)
             .Where(i => i.ChildId == childId)
             .ToListAsync();
     }
