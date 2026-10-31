@@ -38,7 +38,7 @@ export default function IncidentPhotos({
 
   return (
     <section aria-label="Ảnh minh chứng" className="space-y-1.5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-1">
         <label className="text-xs font-semibold text-foreground">
           Ảnh minh chứng đã lưu
           <span className="ml-1.5 font-normal text-muted">
@@ -74,13 +74,13 @@ export default function IncidentPhotos({
           {record.photos.map((item, index) => {
             const isViewing = expanded === item.id;
             return (
-              <button
+              <Button variant="ghost" size="sm"
                 key={item.id}
                 type="button"
                 aria-label={`Xem ảnh sự cố ${index + 1}`}
                 aria-expanded={isViewing}
                 aria-controls={`incident-photo-preview-${record.id}`}
-                className={`group relative h-20 w-20 overflow-hidden rounded-lg border bg-card text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30 ${
+                className={`group relative h-20 w-20 overflow-hidden rounded-lg border bg-card p-0 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30 ${
                   isViewing
                     ? "border-brand ring-2 ring-brand/20 shadow-xs"
                     : "border-border hover:border-brand-border hover:shadow-2xs"
@@ -97,10 +97,10 @@ export default function IncidentPhotos({
                   fallbackText="Không tải được ảnh"
                   className="h-full w-full object-cover transition-transform group-hover:scale-105"
                 />
-                <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1 py-0.2 text-[9px] font-semibold text-white">
+                <span className="absolute bottom-1 right-1 rounded bg-foreground/70 px-1 py-0.2 text-[9px] font-semibold text-card">
                   #{index + 1}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>

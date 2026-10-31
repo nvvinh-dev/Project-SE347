@@ -17,6 +17,7 @@ import QuickHealthForm from "./QuickHealthForm";
 import RecordDetailModal from "./RecordDetailModal";
 import {
   formatRecordTime,
+  clearLegacyRecentRecords,
   getRecentRecords,
   getServerRecentRecords,
   subscribeRecentRecords,
@@ -48,6 +49,7 @@ function HealthWorkspace({ userId }: { userId: string }) {
     getServerRecentRecords
   );
   const [viewingRecord, setViewingRecord] = useState<RecentRecordItem | null>(null);
+  const closeRecord = useCallback(() => setViewingRecord(null), []);
   const changeTrigger = useRef<HTMLElement | null>(null);
 
   const children = useApiQuery({
@@ -59,6 +61,11 @@ function HealthWorkspace({ userId }: { userId: string }) {
   });
 
   const child = children.data?.find((item) => item.id === childId);
+  const visibleRecords = children.isSuccess
+    ? recentRecords.filter((item) => children.data.some((entry) => entry.id === item.childId))
+    : [];
+
+  useEffect(() => { clearLegacyRecentRecords(userId); }, [userId]);
 
   const onActivity = useCallback((next: FormActivity) => {
     setActivity((current) =>
@@ -248,7 +255,9 @@ function HealthWorkspace({ userId }: { userId: string }) {
               {Boolean(children.data?.length) && (
                 <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2 max-w-lg">
                   {children.data?.map((item) => (
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       key={item.id}
                       type="button"
                       disabled={activity.locked}
@@ -265,7 +274,7 @@ function HealthWorkspace({ userId }: { userId: string }) {
                           !
                         </span>
                       )}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -332,24 +341,24 @@ function HealthWorkspace({ userId }: { userId: string }) {
               Nhật ký ghi nhận trong phiên làm việc
             </h3>
           </div>
-          <span className="rounded-full bg-brand-subtle px-2.5 py-0.5 text-[11px] font-semibold text-brand-text">
-            {recentRecords.length} lượt
+          <span className="shrink-0 whitespace-nowrap rounded-full bg-brand-subtle px-2.5 py-0.5 text-[11px] font-semibold text-brand-text">
+            {visibleRecords.length} lượt
           </span>
         </div>
 
-        {!recentRecords.length ? (
+        {!visibleRecords.length ? (
           <div className="rounded-xl border border-dashed border-border py-6 text-center text-xs text-muted">
-            Chưa có lượt ghi nhận nào trong phiên hôm nay. Các bản ghi sức khỏe và sự cố bạn tạo sẽ được lưu nhật ký tại đây để bạn tiện đối chiếu.
+            Chưa có lượt ghi nhận nào cho trẻ trong danh sách hiện tại. Các lượt ghi nhận trong phiên sẽ xuất hiện tại đây để bạn tiện đối chiếu.
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {recentRecords.map((item) => (
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleRecords.map((item) => (
               <div
                 key={item.id}
-                className="flex flex-col rounded-xl border border-border bg-card p-3 transition-all hover:border-brand-border/70 hover:shadow-2xs"
+                className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-3 transition-all hover:border-brand-border/70 hover:shadow-2xs"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span
                       className={cn(
                         "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold",
@@ -364,10 +373,10 @@ function HealthWorkspace({ userId }: { userId: string }) {
                       {formatRecordTime(item.timeUtc)}
                     </span>
                   </div>
-                  <h4 className="text-sm font-bold text-foreground truncate">
+                  <h4 className="wrap-anywhere text-sm font-bold text-foreground">
                     {item.childFullName}
                   </h4>
-                  <p className="text-xs text-muted line-clamp-2 leading-relaxed">
+                  <p className="wrap-anywhere text-xs text-muted line-clamp-2 leading-relaxed">
                     {item.summary}
                   </p>
                 </div>
@@ -391,9 +400,9 @@ function HealthWorkspace({ userId }: { userId: string }) {
 
       {/* Modal xem chi tiết bản ghi */}
       <RecordDetailModal
-        item={viewingRecord}
+        item={viewingRecord && visibleRecords.some((item) => item.id === viewingRecord.id) ? viewingRecord : null}
         userId={userId}
-        onClose={() => setViewingRecord(null)}
+        onClose={closeRecord}
       />
 
       {/* Hộp thoại xác nhận hủy nội dung chưa lưu */}

@@ -116,14 +116,12 @@ export default function QuickHealthForm({
   const pending = mutation.isPending || checking;
 
   useEffect(() => {
-    // Chỉ coi là dirty khi giáo viên đã thực sự nhập ghi chú quan sát.
-    // Việc chỉ bấm 1 nút tâm trạng hoặc gợi ý nhiệt độ không nên chặn chuyển đổi và khóa cuộn trang.
-    const hasMeaningfulContent = Boolean(currentNotes?.trim());
+    const hasMeaningfulContent = Boolean(currentNotes?.trim() || currentMood || currentTemp);
     onActivity({
       dirty: !record && hasMeaningfulContent,
       locked: pending || unresolved,
     });
-  }, [currentNotes, record, pending, unresolved, onActivity]);
+  }, [currentNotes, currentMood, currentTemp, record, pending, unresolved, onActivity]);
 
   function handleRecordSuccess(saved: QuickHealthRecord) {
     setRecord(saved);
@@ -136,7 +134,6 @@ export default function QuickHealthForm({
       summary: `${MOOD_META[saved.mood]?.label ?? saved.mood}${
         saved.temperatureCelsius !== null ? ` · ${saved.temperatureCelsius} °C` : ""
       }`,
-      detail: saved,
     });
     onRecordSaved?.(saved);
   }
@@ -340,7 +337,7 @@ export default function QuickHealthForm({
                     const isSelected = currentMood === opt.value;
                     const meta = MOOD_META[opt.value];
                     return (
-                      <button
+                      <Button variant="ghost" size="sm"
                         key={opt.value}
                         type="button"
                         aria-pressed={isSelected}
@@ -360,7 +357,7 @@ export default function QuickHealthForm({
                       >
                         <span className="text-base leading-none">{meta?.icon}</span>
                         <span>{meta?.label}</span>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -397,7 +394,7 @@ export default function QuickHealthForm({
                 >
                   <span className="text-[11px] text-muted mr-1">Gợi ý nhanh:</span>
                   {COMMON_TEMPERATURES.map((temp) => (
-                    <button
+                    <Button variant="ghost" size="sm"
                       key={temp}
                       type="button"
                       disabled={pending || unresolved}
@@ -415,10 +412,10 @@ export default function QuickHealthForm({
                       }
                     >
                       {temp} °C
-                    </button>
+                    </Button>
                   ))}
                   {Boolean(currentTemp) && (
-                    <button
+                    <Button variant="ghost" size="sm"
                       type="button"
                       disabled={pending || unresolved}
                       className="inline-flex items-center justify-center rounded-md px-2 py-1 text-xs text-muted hover:text-danger cursor-pointer ml-1"
@@ -430,7 +427,7 @@ export default function QuickHealthForm({
                       }
                     >
                       Xóa
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -457,7 +454,7 @@ export default function QuickHealthForm({
             </FormField>
           </fieldset>
 
-          {/* Action Button - Khoảng cách gọn gàng tham chiếu chuẩn theo nút ghi nhận tiếp */}
+          {/* Thao tác lưu sức khỏe nhanh */}
           <div className="flex items-center justify-center gap-3">
             <Button
               type="submit"
@@ -488,7 +485,7 @@ export default function QuickHealthForm({
         }}
         description={
           pendingSubmit && (
-            <div className="space-y-3 text-xs leading-relaxed text-foreground">
+            <div className="max-h-[calc(100dvh-14rem)] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-1 text-xs leading-relaxed text-foreground wrap-anywhere">
               <div className="rounded-lg bg-brand-subtle px-3 py-2 text-foreground">
                 <p className="text-sm">
                   <span className="font-semibold text-foreground">Trẻ: </span>

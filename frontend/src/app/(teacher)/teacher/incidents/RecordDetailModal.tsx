@@ -2,9 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/Button";
+import { StatusMessage } from "@/components/ui/StatusMessage";
+import { useApiQuery } from "@/hooks/useApiQuery";
 import IncidentPhotos from "./IncidentPhotos";
 import {
   formatRecordTime,
+  getIncident,
+  getQuickHealth,
   type IncidentRecord,
   type QuickHealthRecord,
   type RecentRecordItem,
@@ -28,16 +32,33 @@ export default function RecordDetailModal({
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; });
+  const detail = useApiQuery<QuickHealthRecord | IncidentRecord>({
+    queryKey: ["teacher-record-detail", userId, item?.type, item?.id],
+    queryFn: ({ signal }) => {
+      if (!item) throw new Error("Chưa chọn bản ghi.");
+      return item.type === "health"
+        ? getQuickHealth(item.id, item.childId, signal)
+        : getIncident(item.id, item.childId, signal);
+    },
+    enabled: Boolean(item),
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+  });
 
   useEffect(() => {
     if (!item) return;
     const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = "hidden";
     closeButtonRef.current?.focus({ preventScroll: true });
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        closeRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -71,33 +92,34 @@ export default function RecordDetailModal({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
-  }, [item, onClose]);
+  }, [item]);
 
   if (!item) return null;
 
   const isHealth = item.type === "health";
-  const healthRecord = isHealth ? (item.detail as QuickHealthRecord) : null;
-  const incidentRecord = !isHealth ? (item.detail as IncidentRecord) : null;
+  const ready = !detail.isPending && !detail.isFetching && !detail.isError;
+  const healthRecord = ready && isHealth ? (detail.data as QuickHealthRecord) : null;
+  const incidentRecord = ready && !isHealth ? (detail.data as IncidentRecord) : null;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="record-detail-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-3 backdrop-blur-xs sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl border border-border bg-card shadow-lg overflow-hidden animate-in zoom-in-95 duration-150"
+        className="flex max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lg"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border p-4 sm:p-5">
-          <div className="space-y-1 min-w-0 pr-2">
-            <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-start justify-between border-b border-border p-4 sm:p-5">
+          <div className="min-w-0 flex-1 space-y-1 pr-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span
                 className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${isHealth
                     ? "bg-brand-subtle text-brand-text border border-brand-border/60"
@@ -110,12 +132,13 @@ export default function RecordDetailModal({
                 {formatRecordTime(item.timeUtc)}
               </span>
             </div>
-            <h3 id="record-detail-title" className="text-base font-bold text-foreground truncate">
-              {item.childFullName}
+            <h3 id="record-detail-title" className="wrap-anywhere text-base font-bold text-foreground">
+              {detail.data?.childFullName ?? item.childFullName}
             </h3>
           </div>
 
-          <button
+          <Button
+            variant="ghost"
             ref={closeButtonRef}
             type="button"
             aria-label="Đóng cửa sổ chi tiết"
@@ -125,14 +148,20 @@ export default function RecordDetailModal({
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </Button>
         </div>
 
-        {/* Body */}
-        <div className="overflow-y-auto p-4 sm:p-5 space-y-4 text-sm">
+        <div className="min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4 text-sm">
+          {(detail.isPending || detail.isFetching) ? (
+            <StatusMessage status="loading" title="Đang tải chi tiết bản ghi..." />
+          ) : detail.isError ? (
+            <StatusMessage status="error" title="Không thể xem bản ghi" message={detail.error.message} onRetry={() => void detail.refetch()} />
+          ) : !detail.data ? (
+            <StatusMessage status="empty" title="Không có dữ liệu bản ghi" />
+          ) : null}
           {isHealth && healthRecord && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">Tâm trạng</label>
                   <div className="rounded-xl bg-background/50 p-3 border border-border flex items-center gap-1.5 font-medium text-muted">
@@ -193,8 +222,7 @@ export default function RecordDetailModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end border-t border-border p-4 bg-card">
+        <div className="flex shrink-0 items-center justify-end border-t border-border p-4 bg-card">
           <Button variant="secondary" onClick={onClose} className="min-h-10 px-5">
             Đóng
           </Button>

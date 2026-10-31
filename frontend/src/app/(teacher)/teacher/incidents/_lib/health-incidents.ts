@@ -114,8 +114,12 @@ export async function getIncident(id: string, childId: string, signal?: AbortSig
   if (record.id !== id || record.childId !== childId) throw new ApiError("Sự cố không khớp trẻ đã chọn.", null, 200);
   return record;
 }
-export function validatePhotos(files: readonly File[]): true | string {
-  if (files.length > 5) return "Mỗi lần chỉ được chọn tối đa 5 ảnh. Vui lòng chọn lại cả lượt ảnh.";
+export function validatePhotos(files: readonly File[], savedCount = 0): true | string {
+  if (files.length + savedCount > 5) {
+    return savedCount > 0
+      ? `Sự cố đã có ${savedCount} ảnh. Bạn chỉ được chọn thêm tối đa ${Math.max(0, 5 - savedCount)} ảnh.`
+      : "Mỗi sự cố chỉ được chọn tối đa 5 ảnh. Vui lòng chọn lại ảnh.";
+  }
   for (const [index, file] of files.entries()) {
     const number = index + 1;
     if (!["image/jpeg", "image/png"].includes(file.type) || !/\.(jpe?g|png)$/i.test(file.name)) {
@@ -135,7 +139,7 @@ export function validateSinglePhoto(file: File): { valid: boolean; error?: strin
   return { valid: true };
 }
 export async function attachIncidentPhotos(record: IncidentRecord, files: File[]): Promise<IncidentRecord> {
-  const validation = validatePhotos(files);
+  const validation = validatePhotos(files, record.photos.length);
   if (validation !== true) throw new ApiError(validation, null, 400);
   if (!files.length) throw new ApiError("Vui lòng chọn ít nhất 1 ảnh để đính kèm.", null, 400);
   const body = new FormData();
@@ -204,12 +208,35 @@ export interface RecentRecordItem {
   type: "health" | "incident";
   timeUtc: string;
   summary: string;
-  detail: QuickHealthRecord | IncidentRecord;
 }
 
 const EMPTY_RECORDS: RecentRecordItem[] = [];
 let cachedRaw: string | null = null;
+let cachedUserId: string | null = null;
 let cachedRecords: RecentRecordItem[] = EMPTY_RECORDS;
+
+function recentRecord(value: unknown): RecentRecordItem | null {
+  if (!isObject(value) || !isGuid(value.id) || !isGuid(value.childId) ||
+    !isText(value.childFullName) || !isDate(value.timeUtc) ||
+    (value.type !== "health" && value.type !== "incident") || typeof value.summary !== "string") return null;
+  // Chỉ giữ thông tin danh mục; chi tiết và URL ảnh phải được đọc lại qua API khi mở.
+  return {
+    id: value.id,
+    childId: value.childId,
+    childFullName: value.childFullName,
+    type: value.type,
+    timeUtc: value.timeUtc,
+    summary: value.summary,
+  };
+}
+
+export function clearLegacyRecentRecords(userId: string): void {
+  try {
+    sessionStorage.removeItem(`nhatre_recent_records_${userId}`);
+  } catch {
+    // Trình duyệt có thể chặn lưu trữ; luồng ghi nhận vẫn sử dụng phản hồi từ API.
+  }
+}
 
 export function getServerRecentRecords(): RecentRecordItem[] {
   return EMPTY_RECORDS;
@@ -218,10 +245,20 @@ export function getServerRecentRecords(): RecentRecordItem[] {
 export function getRecentRecords(userId: string): RecentRecordItem[] {
   if (typeof window === "undefined") return EMPTY_RECORDS;
   try {
-    const raw = sessionStorage.getItem(`nhatre_recent_records_${userId}`);
-    if (raw === cachedRaw) return cachedRecords;
+    const raw = sessionStorage.getItem(`nhatre_recent_records_v2_${userId}`);
+    if (raw === cachedRaw && userId === cachedUserId) return cachedRecords;
     cachedRaw = raw;
-    cachedRecords = raw ? JSON.parse(raw) : EMPTY_RECORDS;
+    cachedUserId = userId;
+    cachedRecords = EMPTY_RECORDS;
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) {
+      const unique = new Map<string, RecentRecordItem>();
+      for (const value of parsed) {
+        const item = recentRecord(value);
+        if (item && !unique.has(item.id)) unique.set(item.id, item);
+      }
+      cachedRecords = [...unique.values()].slice(0, 30);
+    }
     return cachedRecords;
   } catch {
     return EMPTY_RECORDS;
@@ -241,12 +278,15 @@ export function subscribeRecentRecords(callback: () => void): () => void {
 export function saveRecentRecord(userId: string, item: RecentRecordItem): void {
   if (typeof window === "undefined") return;
   try {
+    const safeItem = recentRecord(item);
+    if (!safeItem) return;
     const existing = getRecentRecords(userId);
     const filtered = existing.filter((r) => r.id !== item.id);
-    const updated = [item, ...filtered].slice(0, 30);
+    const updated = [safeItem, ...filtered].slice(0, 30);
     const serialized = JSON.stringify(updated);
-    sessionStorage.setItem(`nhatre_recent_records_${userId}`, serialized);
+    sessionStorage.setItem(`nhatre_recent_records_v2_${userId}`, serialized);
     cachedRaw = serialized;
+    cachedUserId = userId;
     cachedRecords = updated;
     window.dispatchEvent(new Event("nhatre_recent_records_updated"));
   } catch {

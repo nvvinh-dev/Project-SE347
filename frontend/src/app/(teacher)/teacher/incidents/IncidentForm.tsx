@@ -79,12 +79,13 @@ export default function IncidentForm({
     defaultValues: { occurredAt: "", description: "", photos: [] },
   });
   const description = useWatch({ control: form.control, name: "description" });
+  const occurredAt = useWatch({ control: form.control, name: "occurredAt" });
   const watchedFiles = useWatch({ control: form.control, name: "photos" });
   const files = useMemo(() => watchedFiles ?? [], [watchedFiles]);
   const photoField = useController({
     control: form.control,
     name: "photos",
-    rules: { validate: validatePhotos },
+    rules: { validate: (batch) => validatePhotos(batch, record?.photos.length ?? 0) },
   });
 
   // Tạo URL xem trước cho các ảnh vừa chọn và dọn dẹp bộ nhớ khi danh sách thay đổi
@@ -135,13 +136,12 @@ export default function IncidentForm({
   const unresolved = unresolvedCreate || Boolean(unresolvedUpload);
 
   useEffect(() => {
-    // Chỉ coi là dirty khi giáo viên đã nhập nội dung mô tả hoặc đã chọn ảnh.
-    const hasMeaningfulContent = Boolean(description?.trim()) || files.length > 0;
+    const hasMeaningfulContent = Boolean(description?.trim() || occurredAt) || files.length > 0;
     onActivity({
-      dirty: !record && hasMeaningfulContent,
+      dirty: record ? files.length > 0 : hasMeaningfulContent,
       locked: pending || unresolved,
     });
-  }, [description, files.length, record, pending, unresolved, onActivity]);
+  }, [description, occurredAt, files.length, record, pending, unresolved, onActivity]);
 
   function fetchRecord(id: string) {
     return client.fetchQuery({
@@ -166,7 +166,7 @@ export default function IncidentForm({
   }
 
   function addFiles(newFiles: FileList | File[] | null) {
-    if (!newFiles || newFiles.length === 0) return;
+    if (pending || unresolved || writeLock.current || !newFiles || newFiles.length === 0) return;
     const added = Array.from(newFiles);
     const combined = [...files, ...added];
     form.setValue("photos", combined, { shouldDirty: true, shouldValidate: true });
@@ -204,12 +204,17 @@ export default function IncidentForm({
       type: "incident",
       timeUtc: saved.occurredAtUtc,
       summary: saved.description.slice(0, 80),
-      detail: saved,
     });
     onRecordSaved?.(saved);
   }
 
   async function uploadBatch(before: IncidentRecord, photos: File[]) {
+    const validation = validatePhotos(photos, before.photos.length);
+    if (validation !== true) {
+      setError(null);
+      form.setError("photos", { message: validation });
+      return;
+    }
     setUploadedCount(0);
     const attempt = { before, count: photos.length };
     try {
@@ -513,14 +518,14 @@ export default function IncidentForm({
                       <span className="text-xs font-semibold text-brand-text">
                         Ảnh chuẩn bị đính thêm ({files.length} ảnh)
                       </span>
-                      <button
+                      <Button variant="ghost" size="sm"
                         type="button"
-                        disabled={pending}
+                        disabled={pending || unresolved}
                         onClick={clearFiles}
                         className="text-xs text-muted hover:text-danger cursor-pointer transition-colors"
                       >
                         Bỏ chọn
-                      </button>
+                      </Button>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -528,27 +533,31 @@ export default function IncidentForm({
                         <div key={index} className="relative h-16 w-16 overflow-hidden rounded-lg border border-border bg-card">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={item.url} alt={`Ảnh mới ${index + 1}`} className="h-full w-full object-cover" />
-                          <button
+                          <Button variant="ghost" size="sm"
                             type="button"
-                            disabled={pending}
+                            disabled={pending || unresolved}
+                            aria-label={`Bỏ ảnh mới ${index + 1}`}
                             onClick={() => removeFileAt(index)}
-                            className="absolute top-0.5 right-0.5 rounded-full bg-black/60 hover:bg-danger text-white p-0.5"
+                            className="absolute top-0.5 right-0.5 rounded-full bg-foreground/70 hover:bg-danger text-card p-0.5"
                           >
                             <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
-                          </button>
+                          </Button>
                         </div>
                       ))}
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 pt-1">
+                    {photoField.fieldState.error && (
+                      <p role="alert" className="wrap-anywhere text-xs text-danger">{photoField.fieldState.error.message}</p>
+                    )}
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
                       <Button
                         type="button"
                         variant="primary"
                         size="sm"
                         isLoading={upload.isPending}
-                        disabled={pending || unresolved}
+                        disabled={pending || unresolved || validatePhotos(files, record.photos.length) !== true}
                         onClick={() => void uploadBatch(record, files)}
                         className="h-8 px-4 text-xs font-semibold"
                       >
@@ -561,7 +570,7 @@ export default function IncidentForm({
             )}
           </div>
 
-          {/* Action buttons khi đã có sự cố */}
+          {/* Thao tác sau khi đã ghi nhận sự cố */}
           <div className="flex items-center justify-center gap-3 pt-1">
             <Button
               type="button"
@@ -656,24 +665,13 @@ export default function IncidentForm({
               {files.length === 0 ? (
                 /* Vùng kéo thả ảnh rộng rãi, trực quan với icon và nút thao tác */
                 <div
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Khu vực kéo thả ảnh hoặc bấm để tải ảnh lên"
+                  role="group"
+                  aria-label="Chọn hoặc kéo thả ảnh sự cố"
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest("button")) return;
-                    photoInput.current?.click();
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      photoInput.current?.click();
-                    }
-                  }}
                   className={cn(
-                    "relative flex flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center transition-all cursor-pointer select-none",
+                    "relative flex flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center transition-all select-none",
                     isDragging
                       ? "border-brand bg-brand-subtle/50 ring-2 ring-brand/30"
                       : "border-border/80 bg-background/30 hover:border-brand-border hover:bg-background/60",
@@ -696,7 +694,7 @@ export default function IncidentForm({
                     </svg>
                   </div>
                   <p className="pointer-events-none text-xs font-semibold text-foreground">
-                    Kéo thả ảnh vào đây hoặc bấm để tải lên
+                    Kéo thả ảnh vào đây hoặc chọn tệp ảnh
                   </p>
 
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
@@ -780,14 +778,14 @@ export default function IncidentForm({
                     <span className="text-muted text-[11px]">
                       Kéo thả thêm ảnh hoặc bấm bỏ bớt nếu cần
                     </span>
-                    <button
+                    <Button variant="ghost" size="sm"
                       type="button"
                       disabled={pending || unresolved}
                       onClick={clearFiles}
                       className="text-[11px] font-medium text-muted hover:text-danger cursor-pointer transition-colors"
                     >
                       Bỏ tất cả ({files.length})
-                    </button>
+                    </Button>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
@@ -814,15 +812,15 @@ export default function IncidentForm({
                               alt={`Ảnh đã chọn ${index + 1}`}
                               className="h-full w-full object-cover"
                             />
-                            <span className="absolute top-1 left-1 rounded-full bg-black/60 px-1.5 py-0.2 text-[9px] font-semibold text-white">
+                            <span className="absolute top-1 left-1 rounded-full bg-foreground/70 px-1.5 py-0.2 text-[9px] font-semibold text-card">
                               {index + 1}
                             </span>
-                            <button
+                            <Button variant="ghost" size="sm"
                               type="button"
-                              disabled={pending}
+                              disabled={pending || unresolved}
                               aria-label={`Bỏ ảnh ${index + 1}`}
                               onClick={() => removeFileAt(index)}
-                              className="absolute top-1 right-1 rounded-full bg-black/60 hover:bg-danger text-white p-1 transition-colors cursor-pointer"
+                              className="absolute top-1 right-1 rounded-full bg-foreground/70 hover:bg-danger text-card p-1 transition-colors cursor-pointer"
                             >
                               <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                                 <path
@@ -831,7 +829,7 @@ export default function IncidentForm({
                                   clipRule="evenodd"
                                 />
                               </svg>
-                            </button>
+                            </Button>
                           </div>
 
                           <div className="p-1 text-xs">
@@ -852,9 +850,9 @@ export default function IncidentForm({
                       );
                     })}
 
-                    {/* Slot Thêm ảnh nếu chưa đủ 5 ảnh */}
+                    {/* Vị trí thêm ảnh nếu chưa đủ 5 ảnh */}
                     {previewItems.length < 5 && (
-                      <button
+                      <Button variant="ghost" size="sm"
                         type="button"
                         disabled={pending || unresolved}
                         onClick={() => photoInput.current?.click()}
@@ -883,7 +881,7 @@ export default function IncidentForm({
                         </div>
                         <span className="text-[10px] font-medium text-foreground">Thêm ảnh</span>
                         <span className="text-[9px] text-muted">{previewItems.length}/5</span>
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -891,7 +889,7 @@ export default function IncidentForm({
             </FormField>
           </fieldset>
 
-          {/* Action Buttons - Căn giữa đồng bộ với form sức khỏe nhanh */}
+          {/* Thao tác lưu sự cố */}
           <div className="flex items-center justify-center gap-3">
             <Button
               type="submit"
@@ -910,8 +908,8 @@ export default function IncidentForm({
         </form>
       )}
 
-      {/* Input ẩn cho file picker */}
-      <input
+      {/* Trường chọn ảnh được mở bằng nút thao tác. */}
+      <Input
         id="incident-photos-picker"
         type="file"
         multiple
@@ -923,8 +921,8 @@ export default function IncidentForm({
         onChange={(event) => addFiles(event.target.files)}
       />
 
-      {/* Input ẩn cho camera */}
-      <input
+      {/* Trường chụp ảnh được mở bằng nút thao tác. */}
+      <Input
         id="incident-photos-camera"
         type="file"
         accept="image/jpeg,image/png"
@@ -952,7 +950,7 @@ export default function IncidentForm({
         }}
         description={
           pendingSubmit && (
-            <div className="space-y-3 text-xs leading-relaxed text-foreground">
+            <div className="max-h-[calc(100dvh-14rem)] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-1 text-xs leading-relaxed text-foreground wrap-anywhere">
               <div className="rounded-lg bg-brand-subtle px-3 py-2 text-foreground">
                 <p className="text-sm">
                   <span className="font-semibold text-foreground">Trẻ: </span>
