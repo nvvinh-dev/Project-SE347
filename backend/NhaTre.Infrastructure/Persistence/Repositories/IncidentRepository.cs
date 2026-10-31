@@ -38,6 +38,16 @@ public class IncidentRepository : IIncidentRepository
                 && i.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
     }
 
+    // Phía Y tế: không lọc lớp, kể cả trẻ chưa xếp lớp. Ảnh xếp theo id như phía giáo viên
+    public async Task<Incident?> FindIncidentAsync(Guid id)
+    {
+        return await _dbContext.Incidents
+            .AsNoTracking()
+            .Include(i => i.Child)
+            .Include(i => i.IncidentPhotos.OrderBy(p => p.Id))
+            .FirstOrDefaultAsync(i => i.Id == id);
+    }
+
     public void AddIncident(Incident incident)
     {
         _dbContext.Incidents.Add(incident);
