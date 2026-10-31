@@ -9,14 +9,17 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace NhaTre.API.Controllers;
 
+// Module Sự cố gồm hai tài nguyên: incidents (giáo viên ghi và xem, Y tế xem) và sự cố theo con của phụ
+// huynh (children/{childId}/incidents), nên route gốc của Controller là api/ và mỗi action tự ghi tên tài
+// nguyên. Ba vai trò dùng chung nên Roles gắn theo từng action; [Authorize] ở mức class để action nào quên
+// gắn Roles vẫn bắt đăng nhập: Program.cs không có fallback policy.
 // FR-INCIDENT-01: chỉ Giáo viên ghi sự cố (BR-INCIDENT-01), và chỉ cho trẻ lớp mình chủ nhiệm (D40 mục 2).
-// Sự cố đã tạo không sửa mô tả, không xóa. [Authorize] ở mức class để action nào quên gắn Roles vẫn bắt
-// đăng nhập: Program.cs không có fallback policy.
+// Sự cố đã tạo không sửa mô tả, không xóa.
 // FR-INCIDENT-02: Giáo viên đính thêm ảnh vào sự cố của trẻ lớp mình, cùng phạm vi; ảnh đã đính không xóa.
 // FR-HEALTH-04: Y tế mở sự cố của mọi trẻ trong trường để xem ảnh, không đính ảnh (D39 mục 9).
-// FR-INCIDENT-03 thêm action vào đây
+// FR-INCIDENT-03: Phụ huynh chỉ xem sự cố và ảnh sự cố của con mình (child_guardians, D39 mục 10).
 [ApiController]
-[Route("api/incidents")]
+[Route("api")]
 [Authorize]
 public class IncidentsController : ControllerBase
 {
@@ -39,7 +42,7 @@ public class IncidentsController : ControllerBase
 
     // Giáo viên: sự cố không tồn tại và sự cố của trẻ lớp khác cùng trả 404. Y tế: chỉ sự cố không tồn tại
     // mới 404 (AC-HEALTH-18). Ảnh trả kèm URL ký hạn 60 phút (D53)
-    [HttpGet("{id:guid}")]
+    [HttpGet("incidents/{id:guid}")]
     [Authorize(Roles = Roles.Teacher + "," + Roles.Medical)]
     public async Task<ActionResult<ApiResponse<IncidentResponse>>> GetById(Guid id)
     {
@@ -55,7 +58,7 @@ public class IncidentsController : ControllerBase
         return Ok(ApiResponse<IncidentResponse>.Ok(result));
     }
 
-    [HttpPost]
+    [HttpPost("incidents")]
     [Authorize(Roles = Roles.Teacher)]
     public async Task<ActionResult<ApiResponse<IncidentResponse>>> Create([FromBody] CreateIncidentRequest request)
     {
@@ -77,7 +80,7 @@ public class IncidentsController : ControllerBase
 
     // Multipart: 1–5 ảnh ở trường photos (D39 mục 5). Trả sự cố kèm mọi ảnh đã đính, kể cả ảnh của các lần
     // trước. Sự cố không tồn tại và sự cố của trẻ lớp khác cùng trả 404 (AC-INCIDENT-05 b)
-    [HttpPost("{id:guid}/photos")]
+    [HttpPost("incidents/{id:guid}/photos")]
     [Authorize(Roles = Roles.Teacher)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MultipartRequestSizeLimitBytes)]
@@ -104,11 +107,10 @@ public class IncidentsController : ControllerBase
     }
 
     // FR-INCIDENT-03: phụ huynh chỉ xem sự cố của con mình (child_guardians, D39 mục 10), không tạo, không
-    // đính ảnh (BR-INCIDENT-06). Route theo con như hóa đơn (FR-TUITION-05) và sức khỏe (FR-HEALTH-05); mẫu
-    // bắt đầu bằng "/" nên không ghép với tiền tố api/incidents của controller.
+    // đính ảnh (BR-INCIDENT-06). Route theo con như hóa đơn (FR-TUITION-05) và sức khỏe (FR-HEALTH-05).
     // Trẻ không tồn tại và trẻ không liên kết với mình cùng trả 404; con mình chưa có sự cố nào thì danh sách
     // rỗng. Mới nhất trước, không phân trang, không kèm URL ảnh
-    [HttpGet("/api/children/{childId:guid}/incidents")]
+    [HttpGet("children/{childId:guid}/incidents")]
     [Authorize(Roles = Roles.Parent)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<ChildIncidentSummaryResponse>>>> GetChildIncidents(
         Guid childId)
@@ -123,7 +125,7 @@ public class IncidentsController : ControllerBase
 
     // Ảnh trả kèm URL ký hạn 60 phút (D53), hết hạn thì gọi lại route này. Đổi id sự cố hay id trẻ trên URL
     // sang dữ liệu ngoài phạm vi đều 404 (AC-INCIDENT-08)
-    [HttpGet("/api/children/{childId:guid}/incidents/{incidentId:guid}")]
+    [HttpGet("children/{childId:guid}/incidents/{incidentId:guid}")]
     [Authorize(Roles = Roles.Parent)]
     public async Task<ActionResult<ApiResponse<ChildIncidentResponse>>> GetChildIncidentById(Guid childId,
         Guid incidentId)
