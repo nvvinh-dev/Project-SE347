@@ -12,13 +12,15 @@ public class IncidentService : IIncidentService
     private readonly IIncidentRepository _incidentRepository;
     private readonly INotificationService _notificationService;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IChildGuardianRepository _childGuardianRepository;
 
     public IncidentService(IIncidentRepository incidentRepository, INotificationService notificationService,
-        IFileStorageService fileStorageService)
+        IFileStorageService fileStorageService, IChildGuardianRepository childGuardianRepository)
     {
         _incidentRepository = incidentRepository;
         _notificationService = notificationService;
         _fileStorageService = fileStorageService;
+        _childGuardianRepository = childGuardianRepository;
     }
 
     // FR-INCIDENT-01. Trẻ không tồn tại, chưa xếp lớp hay thuộc lớp khác đều ngoài phạm vi → 404
@@ -109,6 +111,35 @@ public class IncidentService : IIncidentService
         }
     }
 
+    // FR-INCIDENT-03. Phạm vi là các trẻ có liên kết với tài khoản này trong child_guardians (BR-SCOPE-01,
+    // D39 mục 10), không phụ thuộc lớp. Kiểm riêng liên kết để phân biệt trẻ ngoài phạm vi (404) với con mình
+    // chưa có sự cố nào (danh sách rỗng). Chỉ đọc (BR-INCIDENT-06)
+    public async Task<IReadOnlyList<ChildIncidentSummaryResponse>?> GetChildIncidentsForGuardianAsync(
+        Guid childId, Guid parentUserId)
+    {
+        if (!await _childGuardianRepository.LinkExistsAsync(childId, parentUserId))
+            return null;
+
+        var incidents = await _incidentRepository.GetIncidentsOfChildForGuardianAsync(childId, parentUserId);
+        return incidents
+            .Select(i => new ChildIncidentSummaryResponse(i.Id, i.OccurredAt, i.Description, i.IncidentPhotos.Count))
+            .ToList();
+    }
+
+    // AC-INCIDENT-07, AC-INCIDENT-08: sự cố không tồn tại, của trẻ khác hay trẻ không liên kết với mình đều
+    // null, nên không lộ sự cố đó có tồn tại hay không. Repository đã lọc phạm vi nên ký URL sau bước này
+    public async Task<ChildIncidentResponse?> GetChildIncidentForGuardianAsync(Guid childId, Guid incidentId,
+        Guid parentUserId)
+    {
+        var incident = await _incidentRepository.FindIncidentOfChildForGuardianAsync(childId, incidentId,
+            parentUserId);
+        if (incident is null)
+            return null;
+
+        return new ChildIncidentResponse(incident.Id, incident.OccurredAt, incident.Description,
+            await SignPhotosAsync(incident.IncidentPhotos));
+    }
+
     // Thông báo là câu tiếng Việt hoàn chỉnh do backend soạn (D25): họ tên trẻ, giờ xảy ra theo giờ
     // Việt Nam (D23) và mô tả; không ghi lớp vì Y tế không xem phân lớp (D40 mục 3)
     private static string IncidentMessage(string childFullName, Incident incident)
@@ -120,16 +151,21 @@ public class IncidentService : IIncidentService
             $"Mô tả: {incident.Description}";
     }
 
-    // D53: mỗi ảnh một URL ký hạn 60 phút. Chỉ gọi sau khi đã kiểm phạm vi sự cố
     private async Task<IncidentResponse> ToResponseAsync(Incident incident, string childFullName,
         IEnumerable<IncidentPhoto> photos)
+    {
+        return new IncidentResponse(incident.Id, incident.ChildId, childFullName, incident.OccurredAt,
+            incident.Description, await SignPhotosAsync(photos));
+    }
+
+    // D53: mỗi ảnh một URL ký hạn 60 phút, giữ nguyên thứ tự truyền vào. Chỉ gọi sau khi đã kiểm phạm vi sự cố
+    private async Task<IReadOnlyList<IncidentPhotoResponse>> SignPhotosAsync(IEnumerable<IncidentPhoto> photos)
     {
         var photoResponses = new List<IncidentPhotoResponse>();
         foreach (var photo in photos)
             photoResponses.Add(new IncidentPhotoResponse(photo.Id,
                 await _fileStorageService.GetSignedUrlAsync(photo.FileReference)));
 
-        return new IncidentResponse(incident.Id, incident.ChildId, childFullName, incident.OccurredAt,
-            incident.Description, photoResponses);
+        return photoResponses;
     }
 }

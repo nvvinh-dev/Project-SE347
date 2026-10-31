@@ -16,4 +16,13 @@ public interface IIncidentRepository
     void AddIncidentPhotos(IEnumerable<IncidentPhoto> photos);
 
     Task SaveChangesAsync();
+
+    // FR-INCIDENT-03, phía phụ huynh: phạm vi là trẻ có liên kết với tài khoản này trong child_guardians
+    // (BR-SCOPE-01), không phụ thuộc lớp. Sự cố kèm IncidentPhotos, chỉ để đếm số ảnh; mới nhất trước. Rỗng
+    // khi trẻ chưa có sự cố hoặc không liên kết với tài khoản này
+    Task<IReadOnlyList<Incident>> GetIncidentsOfChildForGuardianAsync(Guid childId, Guid parentUserId);
+
+    // Sự cố kèm IncidentPhotos, cùng phạm vi như trên. null khi sự cố không tồn tại, không thuộc trẻ này hoặc
+    // trẻ không liên kết với tài khoản này
+    Task<Incident?> FindIncidentOfChildForGuardianAsync(Guid childId, Guid incidentId, Guid parentUserId);
 }

@@ -97,6 +97,39 @@ public class IncidentsController : ControllerBase
             ApiResponse<IncidentResponse>.Ok(result));
     }
 
+    // FR-INCIDENT-03: phụ huynh chỉ xem sự cố của con mình (child_guardians, D39 mục 10), không tạo, không
+    // đính ảnh (BR-INCIDENT-06). Route theo con như hóa đơn (FR-TUITION-05) và sức khỏe (FR-HEALTH-05); mẫu
+    // bắt đầu bằng "/" nên không ghép với tiền tố api/incidents của controller.
+    // Trẻ không tồn tại và trẻ không liên kết với mình cùng trả 404; con mình chưa có sự cố nào thì danh sách
+    // rỗng. Mới nhất trước, không phân trang, không kèm URL ảnh
+    [HttpGet("/api/children/{childId:guid}/incidents")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<ChildIncidentSummaryResponse>>>> GetChildIncidents(
+        Guid childId)
+    {
+        var result = await _incidentService.GetChildIncidentsForGuardianAsync(childId, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<IReadOnlyList<ChildIncidentSummaryResponse>>.Fail("Không tìm thấy trẻ."));
+
+        return Ok(ApiResponse<IReadOnlyList<ChildIncidentSummaryResponse>>.Ok(result));
+    }
+
+    // Ảnh trả kèm URL ký hạn 60 phút (D53), hết hạn thì gọi lại route này. Đổi id sự cố hay id trẻ trên URL
+    // sang dữ liệu ngoài phạm vi đều 404 (AC-INCIDENT-08)
+    [HttpGet("/api/children/{childId:guid}/incidents/{incidentId:guid}")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<ChildIncidentResponse>>> GetChildIncidentById(Guid childId,
+        Guid incidentId)
+    {
+        var result = await _incidentService.GetChildIncidentForGuardianAsync(childId, incidentId, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<ChildIncidentResponse>.Fail("Không tìm thấy sự cố."));
+
+        return Ok(ApiResponse<ChildIncidentResponse>.Ok(result));
+    }
+
     // ActiveUserMiddleware đã kiểm tra claim sub là Guid hợp lệ trước khi vào đây
     private Guid CurrentUserId() => Guid.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
 }
