@@ -10,17 +10,19 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useApiMutation } from "@/hooks/useApiQuery";
-import { toApiError, type ApiError } from "@/lib/axios";
+import { ApiError, toApiError } from "@/lib/axios";
 import { cn } from "@/lib/utils";
 import type { HomeroomChildResponse } from "@/types/attendance";
 import { RecordError, SavedNotice } from "./RecordFeedback";
 import {
   createQuickHealth,
   formatRecordTime,
+  formatTemperatureCelsius,
   getQuickHealth,
   isMood,
   isUncertainWrite,
   MOOD_OPTIONS,
+  MOOD_META,
   recordKeys,
   saveRecentRecord,
   UncertainWriteError,
@@ -37,13 +39,6 @@ interface Fields {
   notes: string;
 }
 
-const MOOD_META: Record<string, { label: string; icon: string }> = {
-  Happy: { label: "Vui vẻ", icon: "😊" },
-  Normal: { label: "Bình thường", icon: "🙂" },
-  Tired: { label: "Mệt mỏi", icon: "😴" },
-  Fussy: { label: "Quấy khóc", icon: "😢" },
-};
-
 const COMMON_TEMPERATURES = ["36.5", "37.0", "37.5", "38.2"];
 
 export default function QuickHealthForm({
@@ -59,6 +54,7 @@ export default function QuickHealthForm({
 }) {
   const client = useQueryClient();
   const [record, setRecord] = useState<QuickHealthRecord | null>(null);
+  const [dismissSavedNotice, setDismissSavedNotice] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [unresolved, setUnresolved] = useState(false);
   const [recoveryId, setRecoveryId] = useState<string | null>(null);
@@ -125,6 +121,7 @@ export default function QuickHealthForm({
 
   function handleRecordSuccess(saved: QuickHealthRecord) {
     setRecord(saved);
+    setDismissSavedNotice(false);
     saveRecentRecord(userId, {
       id: saved.id,
       childId: child.id,
@@ -132,7 +129,7 @@ export default function QuickHealthForm({
       type: "health",
       timeUtc: saved.recordedAtUtc,
       summary: `${MOOD_META[saved.mood]?.label ?? saved.mood}${
-        saved.temperatureCelsius !== null ? ` · ${saved.temperatureCelsius} °C` : ""
+        saved.temperatureCelsius !== null ? ` · ${formatTemperatureCelsius(saved.temperatureCelsius)}` : ""
       }`,
     });
     onRecordSaved?.(saved);
@@ -168,6 +165,7 @@ export default function QuickHealthForm({
     if (!recoveryId || !attemptedPayload.current || writeLock.current) return;
     writeLock.current = true;
     setChecking(true);
+    setError(null);
     try {
       const saved = await client.fetchQuery({
         queryKey: recordKeys.health(userId, recoveryId),
@@ -185,6 +183,12 @@ export default function QuickHealthForm({
         setUnresolved(false);
         setError(null);
         form.reset();
+      } else {
+        setError(new ApiError(
+          "Bản ghi trên hệ thống không khớp nội dung vừa gửi. Vui lòng đối chiếu trước khi ghi tiếp.",
+          null,
+          200
+        ));
       }
     } catch (failure) {
       setError(toApiError(failure));
@@ -197,6 +201,7 @@ export default function QuickHealthForm({
   function startNew() {
     setConfirmNew(false);
     setRecord(null);
+    setDismissSavedNotice(false);
     setUnresolved(false);
     setRecoveryId(null);
     setError(null);
@@ -214,7 +219,15 @@ export default function QuickHealthForm({
         >
           <div className="flex items-start gap-3">
             <svg className="h-5 w-5 shrink-0 text-warning mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={
+                "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 " +
+                "4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                }
+              />
             </svg>
             <div className="space-y-2">
               <p className="font-medium">Chưa xác định được kết quả ghi nhận từ máy chủ.</p>
@@ -250,14 +263,19 @@ export default function QuickHealthForm({
 
       {record ? (
         <div className="space-y-4">
-          <SavedNotice>
-            <h3 className="font-semibold text-sm text-success">
-              Đã ghi nhận sức khỏe thành công cho {record.childFullName}
-            </h3>
-            <p className="text-xs text-muted">
-              Lưu lúc {formatRecordTime(record.recordedAtUtc)} · Đã gửi thông báo tới phụ huynh
-            </p>
-          </SavedNotice>
+          {!dismissSavedNotice && (
+            <SavedNotice onDismiss={() => setDismissSavedNotice(true)}>
+              <h3 className="font-semibold text-sm text-success">
+                Đã ghi nhận sức khỏe thành công cho {record.childFullName}
+              </h3>
+              <p className="text-xs text-muted">
+                Lưu lúc {formatRecordTime(record.recordedAtUtc)}
+              </p>
+              <p className="text-xs text-muted">
+                Hệ thống gửi thông báo tới phụ huynh của trẻ.
+              </p>
+            </SavedNotice>
+          )}
 
           <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -271,7 +289,7 @@ export default function QuickHealthForm({
               <div className="rounded-lg bg-background/50 p-3 border border-border/80">
                 <span className="text-xs font-semibold text-foreground block mb-1">Thân nhiệt</span>
                 <span className="text-sm font-medium text-muted">
-                  {record.temperatureCelsius !== null ? `${record.temperatureCelsius} °C` : "Không đo thân nhiệt"}
+                  {formatTemperatureCelsius(record.temperatureCelsius)}
                 </span>
               </div>
             </div>
@@ -343,7 +361,10 @@ export default function QuickHealthForm({
                         aria-pressed={isSelected}
                         disabled={pending || unresolved}
                         className={cn(
-                          "flex items-center justify-center gap-1.5 rounded-lg border py-2 px-2.5 text-center transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30 text-xs",
+                          (
+                            "flex items-center justify-center gap-1.5 rounded-lg border py-2 px-2.5 text-center " +
+                            "transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30 text-xs"
+                          ),
                           isSelected
                             ? "border-brand bg-brand-subtle text-brand-text ring-1 ring-brand/20 font-semibold"
                             : "border-border bg-card hover:bg-background text-foreground hover:border-border-hover"
@@ -411,7 +432,7 @@ export default function QuickHealthForm({
                         })
                       }
                     >
-                      {temp} °C
+                      {formatTemperatureCelsius(Number(temp))}
                     </Button>
                   ))}
                   {Boolean(currentTemp) && (
@@ -485,7 +506,10 @@ export default function QuickHealthForm({
         }}
         description={
           pendingSubmit && (
-            <div className="max-h-[calc(100dvh-14rem)] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-1 text-xs leading-relaxed text-foreground wrap-anywhere">
+            <div className={
+              "max-h-[calc(100dvh-14rem)] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-1 text-xs " +
+              "leading-relaxed text-foreground wrap-anywhere"
+            }>
               <div className="rounded-lg bg-brand-subtle px-3 py-2 text-foreground">
                 <p className="text-sm">
                   <span className="font-semibold text-foreground">Trẻ: </span>
@@ -503,7 +527,9 @@ export default function QuickHealthForm({
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-foreground">Thân nhiệt:</span>
                   <span className="text-foreground">
-                    {pendingSubmit.temperature.trim() ? `${pendingSubmit.temperature} °C` : "Không đo thân nhiệt"}
+                    {formatTemperatureCelsius(
+                      pendingSubmit.temperature.trim() ? Number(pendingSubmit.temperature) : null
+                    )}
                   </span>
                 </div>
                 <div className="space-y-1">
@@ -527,7 +553,11 @@ export default function QuickHealthForm({
         title="Đã đối chiếu kết quả ghi nhận?"
         compactHeader={true}
         layout="stacked"
-        description="Chỉ kết thúc lượt này khi bạn đã kiểm tra với người phụ trách hoặc hệ thống để xác nhận bản ghi có được lưu hay chưa. Thao tác này không gửi lại bản ghi."
+        description={
+          "Chỉ kết thúc lượt này khi bạn đã kiểm tra với người phụ trách hoặc " +
+          "hệ thống để xác nhận bản ghi có được lưu hay chưa. Thao tác này không " +
+          "gửi lại bản ghi."
+        }
         confirmText="Đã đối chiếu"
         cancelText="Quay lại"
         onClose={() => {
