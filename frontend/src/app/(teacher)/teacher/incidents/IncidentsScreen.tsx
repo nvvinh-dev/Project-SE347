@@ -17,7 +17,6 @@ import QuickHealthForm from "./QuickHealthForm";
 import RecordDetailModal from "./RecordDetailModal";
 import {
   formatRecordTime,
-  clearLegacyRecentRecords,
   getRecentRecords,
   getServerRecentRecords,
   subscribeRecentRecords,
@@ -64,8 +63,6 @@ function HealthWorkspace({ userId }: { userId: string }) {
   const visibleRecords = children.isSuccess
     ? recentRecords.filter((item) => children.data.some((entry) => entry.id === item.childId))
     : [];
-
-  useEffect(() => { clearLegacyRecentRecords(userId); }, [userId]);
 
   const onActivity = useCallback((next: FormActivity) => {
     setActivity((current) =>
@@ -165,7 +162,10 @@ function HealthWorkspace({ userId }: { userId: string }) {
                 >
                   <span
                     aria-hidden="true"
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-warning-border bg-warning-bg text-[10px] font-bold text-warning"
+                    className={
+                      "inline-flex h-4 w-4 items-center justify-center rounded-full border border-warning-border " +
+                      "bg-warning-bg text-[10px] font-bold text-warning"
+                    }
                   >
                     !
                   </span>
@@ -262,14 +262,21 @@ function HealthWorkspace({ userId }: { userId: string }) {
                       type="button"
                       disabled={activity.locked}
                       onClick={() => requestSelection({ childId: item.id, mode })}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-2xs hover:border-brand-border hover:bg-brand-subtle hover:text-brand-text transition-colors cursor-pointer"
+                      className={
+                        "inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs " +
+                        "font-medium text-foreground shadow-2xs hover:border-brand-border hover:bg-brand-subtle " +
+                        "hover:text-brand-text transition-colors cursor-pointer"
+                      }
                     >
                       <span>{item.fullName}</span>
                       {item.healthNotes?.trim() && (
                         <span
                           title={`Lưu ý sức khỏe: ${item.healthNotes}`}
                           aria-label={`Lưu ý sức khỏe: ${item.fullName}`}
-                          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-warning-border bg-warning-bg text-[10px] font-bold text-warning"
+                          className={
+                            "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border " +
+                            "border-warning-border bg-warning-bg text-[10px] font-bold text-warning"
+                          }
                         >
                           !
                         </span>
@@ -285,11 +292,17 @@ function HealthWorkspace({ userId }: { userId: string }) {
               {child.healthNotes && (
                 <div
                   role="alert"
-                  className="flex items-start gap-2.5 rounded-xl border border-warning-border bg-warning-bg/70 px-4 py-3 text-xs leading-relaxed text-foreground"
+                  className={
+                    "flex items-start gap-2.5 rounded-xl border border-warning-border bg-warning-bg/70 px-4 py-3 " +
+                    "text-xs leading-relaxed text-foreground"
+                  }
                 >
                   <span
                     aria-hidden="true"
-                    className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-warning-border bg-warning-bg text-[10px] font-bold text-warning"
+                    className={
+                      "mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border " +
+                      "border-warning-border bg-warning-bg text-[10px] font-bold text-warning"
+                    }
                   >
                     !
                   </span>
@@ -348,7 +361,8 @@ function HealthWorkspace({ userId }: { userId: string }) {
 
         {!visibleRecords.length ? (
           <div className="rounded-xl border border-dashed border-border py-6 text-center text-xs text-muted">
-            Chưa có lượt ghi nhận nào cho trẻ trong danh sách hiện tại. Các lượt ghi nhận trong phiên sẽ xuất hiện tại đây để bạn tiện đối chiếu.
+            Chưa có lượt ghi nhận nào cho trẻ trong danh sách hiện tại.
+            Các lượt ghi nhận trong phiên sẽ xuất hiện tại đây để bạn tiện đối chiếu.
           </div>
         ) : (
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -411,7 +425,10 @@ function HealthWorkspace({ userId }: { userId: string }) {
         title="Bỏ nội dung chưa lưu?"
         compactHeader={true}
         layout="stacked"
-        description="Bạn đang có nội dung nhập liệu hoặc ảnh chưa được lưu. Nếu chuyển đổi bây giờ, các thay đổi chưa lưu sẽ bị hủy."
+        description={
+          "Bạn đang có nội dung nhập liệu hoặc ảnh chưa được lưu. Nếu chuyển " +
+          "đổi bây giờ, các thay đổi chưa lưu sẽ bị hủy."
+        }
         confirmText="Bỏ nội dung"
         cancelText="Tiếp tục chỉnh sửa"
         onClose={closeChange}

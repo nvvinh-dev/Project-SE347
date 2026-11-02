@@ -1,25 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import { useApiQuery } from "@/hooks/useApiQuery";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import IncidentPhotos from "./IncidentPhotos";
 import {
   formatRecordTime,
+  formatTemperatureCelsius,
   getIncident,
   getQuickHealth,
+  MOOD_META,
   type IncidentRecord,
   type QuickHealthRecord,
   type RecentRecordItem,
 } from "./_lib/health-incidents";
-
-const MOOD_META: Record<string, { label: string; icon: string }> = {
-  Happy: { label: "Vui vẻ", icon: "😊" },
-  Normal: { label: "Bình thường", icon: "🙂" },
-  Tired: { label: "Mệt mỏi", icon: "😴" },
-  Fussy: { label: "Quấy khóc", icon: "😢" },
-};
 
 export default function RecordDetailModal({
   item,
@@ -30,10 +26,12 @@ export default function RecordDetailModal({
   userId: string;
   onClose: () => void;
 }) {
-  const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const closeRef = useRef(onClose);
-  useEffect(() => { closeRef.current = onClose; });
+  const { containerRef: dialogRef } = useFocusTrap({
+    isOpen: Boolean(item),
+    onClose,
+    initialFocusRef: closeButtonRef,
+  });
   const detail = useApiQuery<QuickHealthRecord | IncidentRecord>({
     queryKey: ["teacher-record-detail", userId, item?.type, item?.id],
     queryFn: ({ signal }) => {
@@ -48,53 +46,6 @@ export default function RecordDetailModal({
     gcTime: 0,
     refetchOnWindowFocus: false,
   });
-
-  useEffect(() => {
-    if (!item) return;
-    const previousOverflow = document.body.style.overflow;
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    document.body.style.overflow = "hidden";
-    closeButtonRef.current?.focus({ preventScroll: true });
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const dialog = dialogRef.current;
-      if (!dialog) return;
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          "a[href], button, input, select, textarea, [tabindex]"
-        )
-      ).filter(
-        (el) =>
-          el.tabIndex >= 0 &&
-          !el.matches(":disabled") &&
-          window.getComputedStyle(el).display !== "none"
-      );
-      if (!focusable.length) {
-        event.preventDefault();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
-    };
-  }, [item]);
 
   if (!item) return null;
 
@@ -143,9 +94,12 @@ export default function RecordDetailModal({
             type="button"
             aria-label="Đóng cửa sổ chi tiết"
             onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-background hover:text-foreground cursor-pointer transition-colors"
+            className={
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-background " +
+              "hover:text-foreground cursor-pointer transition-colors"
+            }
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </Button>
@@ -175,9 +129,7 @@ export default function RecordDetailModal({
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">Thân nhiệt</label>
                   <div className="rounded-xl bg-background/50 p-3 border border-border font-medium text-muted min-h-[46px] flex items-center">
-                    {healthRecord.temperatureCelsius !== null
-                      ? `${healthRecord.temperatureCelsius} °C`
-                      : "Không đo thân nhiệt"}
+                    {formatTemperatureCelsius(healthRecord.temperatureCelsius)}
                   </div>
                 </div>
               </div>

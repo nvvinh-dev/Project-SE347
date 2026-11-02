@@ -237,14 +237,6 @@ function recentRecord(value: unknown): RecentRecordItem | null {
   };
 }
 
-export function clearLegacyRecentRecords(userId: string): void {
-  try {
-    sessionStorage.removeItem(`nhatre_recent_records_${userId}`);
-  } catch {
-    // Trình duyệt có thể chặn lưu trữ; luồng ghi nhận vẫn sử dụng phản hồi từ API.
-  }
-}
-
 export function getServerRecentRecords(): RecentRecordItem[] {
   return EMPTY_RECORDS;
 }
