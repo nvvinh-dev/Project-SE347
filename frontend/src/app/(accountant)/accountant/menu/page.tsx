@@ -52,9 +52,11 @@ export default function AccountantMenuPage() {
   const [busy, setBusy] = useState(false);
   const [pendingWeek, setPendingWeek] = useState<string | null>(null);
   const dateRef = useRef<HTMLInputElement | null>(null);
+  const editingDateByKeyboard = useRef(false);
   const { register, setValue } = useForm<{ date: string }>({ defaultValues: { date: week } });
 
   function applyWeek(value: string) {
+    editingDateByKeyboard.current = false;
     setWeek(value);
     setValue("date", value);
     setDirty(false);
@@ -63,8 +65,10 @@ export default function AccountantMenuPage() {
 
   function selectWeek(value: string) {
     const nextWeek = getWeekStart(value);
-    setValue("date", week);
-    if (!nextWeek || nextWeek === week || busy) return;
+    if (!nextWeek || nextWeek === week || busy) {
+      setValue("date", week);
+      return;
+    }
     if (dirty) setPendingWeek(nextWeek);
     else applyWeek(nextWeek);
   }
@@ -82,9 +86,29 @@ export default function AccountantMenuPage() {
                 onChange={(event) => {
                   const chosen = event.target.value;
                   void dateField.onChange(event);
-                  selectWeek(chosen);
+                  // Gõ từng phần của ngày chỉ sửa bản nháp; chọn bằng lịch áp dụng ngay.
+                  if (!editingDateByKeyboard.current) selectWeek(chosen);
                 }}
-                className="min-w-0" onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} />
+                onPointerDown={() => { editingDateByKeyboard.current = false; }}
+                onBlur={(event) => {
+                  void dateField.onBlur(event);
+                  if (editingDateByKeyboard.current) {
+                    editingDateByKeyboard.current = false;
+                    selectWeek(event.currentTarget.value);
+                  }
+                }}
+                className="min-w-0" onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    editingDateByKeyboard.current = false;
+                    selectWeek(event.currentTarget.value);
+                  } else if (event.key === "Escape") {
+                    editingDateByKeyboard.current = false;
+                    setValue("date", week);
+                  } else if (event.key !== "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                    editingDateByKeyboard.current = true;
+                  }
+                }} />
             </FormField>
           </div>
           <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -101,7 +125,7 @@ export default function AccountantMenuPage() {
       <WeekEditor key={week} week={week} onDirtyChange={setDirty} onBusyChange={setBusy} />
       <ConfirmDialog isOpen={pendingWeek !== null} title="Đổi tuần khi chưa lưu?" description="Tuần hiện tại có nội dung chưa lưu. Nếu đổi tuần, phần thay đổi này sẽ bị bỏ."
         confirmText="Đổi tuần" cancelText="Tiếp tục nhập"
-        onClose={() => { setPendingWeek(null); dateRef.current?.focus(); }}
+        onClose={() => { setPendingWeek(null); setValue("date", week); dateRef.current?.focus(); }}
         onConfirm={() => { if (pendingWeek) applyWeek(pendingWeek); dateRef.current?.focus(); }} />
     </div>
   );
