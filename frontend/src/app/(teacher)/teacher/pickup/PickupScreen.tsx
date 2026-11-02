@@ -140,7 +140,8 @@ function PickupWorkspace({ userId }: { userId: string }) {
     setUnresolved(null);
     setNotice(saved ? {
       kind: "success",
-      message: `Đã tìm thấy bản ghi đón về của ${saved.childFullName} — ${saved.pickerFullName}, lúc ${formatAttendanceTime(saved.pickupTimeUtc)}.`,
+      message: `Đã tìm thấy bản ghi đón về của ${saved.childFullName} — ` +
+        `${saved.pickerFullName}, lúc ${formatAttendanceTime(saved.pickupTimeUtc)}.`,
     } : {
       kind: "error",
       message: `Chưa có bản ghi đón về của ${attempt.childName} trong ngày ${formatAttendanceDate(attempt.date)}. ` +
@@ -464,7 +465,11 @@ function PickupWorkspace({ userId }: { userId: string }) {
         </form>
 
         <div className="space-y-4 p-4">
-          {!isToday && <p className="text-xs leading-relaxed text-muted">Chỉ xem dữ liệu trong ngày đã chọn. Chỉ ghi nhận đón về cho hôm nay.</p>}
+          {!isToday && (
+            <p className="text-xs leading-relaxed text-muted">
+              Chỉ xem dữ liệu trong ngày đã chọn. Chỉ ghi nhận đón về cho hôm nay.
+            </p>
+          )}
 
           {notice && (
             <div
@@ -549,7 +554,11 @@ function PickupWorkspace({ userId }: { userId: string }) {
               ) : undefined}
             />
           ) : !filtered.length ? (
-            <StatusMessage status="empty" title="Không có trẻ phù hợp bộ lọc" message="Hãy đổi tên tìm kiếm hoặc trạng thái đón về." />
+            <StatusMessage
+              status="empty"
+              title="Không có trẻ phù hợp bộ lọc"
+              message="Hãy đổi tên tìm kiếm hoặc trạng thái đón về."
+            />
           ) : (
             <>
               <div className="grid items-start gap-4 xl:grid-cols-2">
@@ -661,7 +670,10 @@ function PickupWorkspace({ userId }: { userId: string }) {
                 <p className="border-l-2 border-warning-border pl-2 text-xs font-medium text-foreground">Không ai xác nhận thì không giao trẻ.</p>
                 <details className="text-xs text-muted">
                   <summary className="cursor-pointer font-medium text-brand-text">Hướng dẫn xác minh</summary>
-                  <p className="mt-2">Tự gọi người đón chính trước; không nghe máy thì gọi dự phòng nếu có. Hệ thống không thực hiện cuộc gọi.</p>
+                  <p className="mt-2">
+                    Tự gọi người đón chính trước; không nghe máy thì gọi dự phòng nếu có.
+                    Hệ thống không thực hiện cuộc gọi.
+                  </p>
                 </details>
               </form>
             )}
