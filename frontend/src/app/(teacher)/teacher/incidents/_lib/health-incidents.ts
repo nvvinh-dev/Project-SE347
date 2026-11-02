@@ -114,11 +114,9 @@ export async function getIncident(id: string, childId: string, signal?: AbortSig
   if (record.id !== id || record.childId !== childId) throw new ApiError("Sự cố không khớp trẻ đã chọn.", null, 200);
   return record;
 }
-export function validatePhotos(files: readonly File[], savedCount = 0): true | string {
-  if (files.length + savedCount > 5) {
-    return savedCount > 0
-      ? `Sự cố đã có ${savedCount} ảnh. Bạn chỉ được chọn thêm tối đa ${Math.max(0, 5 - savedCount)} ảnh.`
-      : "Mỗi sự cố chỉ được chọn tối đa 5 ảnh. Vui lòng chọn lại ảnh.";
+export function validatePhotos(files: readonly File[]): true | string {
+  if (files.length > 5) {
+    return "Mỗi lần tải lên chỉ được chọn tối đa 5 ảnh. Vui lòng chọn lại ảnh.";
   }
   for (const [index, file] of files.entries()) {
     const number = index + 1;
@@ -139,7 +137,7 @@ export function validateSinglePhoto(file: File): { valid: boolean; error?: strin
   return { valid: true };
 }
 export async function attachIncidentPhotos(record: IncidentRecord, files: File[]): Promise<IncidentRecord> {
-  const validation = validatePhotos(files, record.photos.length);
+  const validation = validatePhotos(files);
   if (validation !== true) throw new ApiError(validation, null, 400);
   if (!files.length) throw new ApiError("Vui lòng chọn ít nhất 1 ảnh để đính kèm.", null, 400);
   const body = new FormData();

@@ -9,7 +9,8 @@ import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { useApiMutation } from "@/hooks/useApiQuery";
-import { toApiError, type ApiError } from "@/lib/axios";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { ApiError, toApiError } from "@/lib/axios";
 import { cn } from "@/lib/utils";
 import type { HomeroomChildResponse } from "@/types/attendance";
 import IncidentPhotos from "./IncidentPhotos";
@@ -67,6 +68,8 @@ export default function IncidentForm({
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState<Fields | null>(null);
   const [uploadedCount, setUploadedCount] = useState(0);
+  const [dismissSavedNotice, setDismissSavedNotice] = useState(false);
+  const [viewingIndex, setViewingIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const endTrigger = useRef<HTMLButtonElement | null>(null);
@@ -85,21 +88,26 @@ export default function IncidentForm({
   const photoField = useController({
     control: form.control,
     name: "photos",
-    rules: { validate: (batch) => validatePhotos(batch, record?.photos.length ?? 0) },
+    rules: { validate: (batch) => validatePhotos(batch) },
   });
 
   // Tạo URL xem trước cho các ảnh vừa chọn và dọn dẹp bộ nhớ khi danh sách thay đổi
   const previewItems = useMemo(() => {
-    return files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      validation: validateSinglePhoto(file),
-    }));
+    return files.map((file) => {
+      const validation = validateSinglePhoto(file);
+      return {
+        file,
+        url: validation.valid ? URL.createObjectURL(file) : null,
+        validation,
+      };
+    });
   }, [files]);
 
   useEffect(() => {
     return () => {
-      previewItems.forEach((item) => URL.revokeObjectURL(item.url));
+      previewItems.forEach((item) => {
+        if (item.url) URL.revokeObjectURL(item.url);
+      });
     };
   }, [previewItems]);
 
@@ -153,12 +161,24 @@ export default function IncidentForm({
   }
 
   function clearFiles() {
+    setViewingIndex(null);
     form.setValue("photos", [], { shouldDirty: true, shouldValidate: true });
     if (photoInput.current) photoInput.current.value = "";
     if (cameraInput.current) cameraInput.current.value = "";
   }
 
   function removeFileAt(index: number) {
+    if (viewingIndex !== null) {
+      if (viewingIndex === index) {
+        if (files.length <= 1) {
+          setViewingIndex(null);
+        } else {
+          setViewingIndex(Math.min(index, files.length - 2));
+        }
+      } else if (viewingIndex > index) {
+        setViewingIndex(viewingIndex - 1);
+      }
+    }
     const nextFiles = files.filter((_, i) => i !== index);
     form.setValue("photos", nextFiles, { shouldDirty: true, shouldValidate: true });
     if (photoInput.current) photoInput.current.value = "";
@@ -197,6 +217,7 @@ export default function IncidentForm({
   }
 
   function handleIncidentSuccess(saved: IncidentRecord) {
+    setDismissSavedNotice(false);
     saveRecentRecord(userId, {
       id: saved.id,
       childId: child.id,
@@ -209,7 +230,7 @@ export default function IncidentForm({
   }
 
   async function uploadBatch(before: IncidentRecord, photos: File[]) {
-    const validation = validatePhotos(photos, before.photos.length);
+    const validation = validatePhotos(photos);
     if (validation !== true) {
       setError(null);
       form.setError("photos", { message: validation });
@@ -283,6 +304,7 @@ export default function IncidentForm({
     if (!recoveryId || !attemptedPayload.current || writeLock.current) return;
     writeLock.current = true;
     setChecking(true);
+    setError(null);
     try {
       const saved = await fetchRecord(recoveryId);
       const payload = attemptedPayload.current;
@@ -294,6 +316,12 @@ export default function IncidentForm({
         setUnresolvedCreate(false);
         setError(null);
         handleIncidentSuccess(saved);
+      } else {
+        setError(new ApiError(
+          "Bản ghi trên hệ thống không khớp nội dung vừa gửi. Vui lòng đối chiếu trước khi ghi tiếp.",
+          null,
+          200
+        ));
       }
     } catch (failure) {
       setError(toApiError(failure));
@@ -307,6 +335,7 @@ export default function IncidentForm({
     if (!unresolvedUpload || writeLock.current) return;
     writeLock.current = true;
     setChecking(true);
+    setError(null);
     try {
       const updated = await fetchRecord(unresolvedUpload.before.id);
       if (hasAttachedBatch(unresolvedUpload.before, updated, unresolvedUpload.count)) {
@@ -316,6 +345,12 @@ export default function IncidentForm({
         setError(null);
         clearFiles();
         handleIncidentSuccess(updated);
+      } else {
+        setError(new ApiError(
+          "Ảnh trên hệ thống không khớp lượt vừa gửi. Vui lòng đối chiếu trước khi tải thêm.",
+          null,
+          200
+        ));
       }
     } catch (failure) {
       setError(toApiError(failure));
@@ -328,6 +363,7 @@ export default function IncidentForm({
   function startNew() {
     setConfirmEnd(false);
     setRecord(null);
+    setDismissSavedNotice(false);
     setError(null);
     setUnresolvedCreate(false);
     setRecoveryId(null);
@@ -349,14 +385,28 @@ export default function IncidentForm({
         >
           <div className="flex items-start gap-3">
             <svg className="h-5 w-5 shrink-0 text-warning mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={
+                "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 " +
+                "4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                }
+              />
             </svg>
             <div className="space-y-2">
               <p className="font-medium">Chưa xác định được kết quả ghi nhận từ máy chủ.</p>
               <p className="text-xs text-muted leading-relaxed">
                 {unresolvedCreate
-                  ? "Sự cố có thể đã được lưu. Hãy kiểm tra kết quả đối chiếu trước khi tạo mới để tránh trùng lặp sự cố."
-                  : "Sự cố đã được lưu, nhưng lượt đính ảnh chưa xác định kết quả. Hãy kiểm tra lại ảnh trước khi tải thêm."}
+                  ? (
+                    "Sự cố có thể đã được lưu. Hãy kiểm tra kết quả đối chiếu trước khi " +
+                    "tạo mới để tránh trùng lặp sự cố."
+                  )
+                  : (
+                    "Sự cố đã được lưu, nhưng lượt đính ảnh chưa xác định kết quả. Hãy " +
+                    "kiểm tra lại ảnh trước khi tải thêm."
+                  )}
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
                 {unresolvedCreate && recoveryId && (
@@ -401,35 +451,55 @@ export default function IncidentForm({
       {/* Hiển thị chi tiết bản ghi sự cố sau khi đã lưu */}
       {record ? (
         <div className="space-y-4">
-          <SavedNotice>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-semibold text-sm text-success">
-                Đã ghi nhận sự cố thành công cho {record.childFullName}
-              </h3>
-              <span className="text-xs text-muted">
-                {formatRecordTime(record.occurredAtUtc)}
-              </span>
-            </div>
-            <p className="text-xs text-muted flex items-center gap-1.5 mt-0.5">
-              <span>Hệ thống đã tự động gửi thông báo đến phụ huynh và nhân viên y tế.</span>
-            </p>
-          </SavedNotice>
+          {!dismissSavedNotice && (
+            <SavedNotice onDismiss={() => setDismissSavedNotice(true)}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-semibold text-sm text-success">
+                  Đã ghi nhận sự cố thành công cho {record.childFullName}
+                </h3>
+                <span className="text-xs text-muted">
+                  {formatRecordTime(record.occurredAtUtc)}
+                </span>
+              </div>
+              <p className="text-xs text-muted flex items-center gap-1.5 mt-0.5">
+                <span>Hệ thống gửi thông báo tới phụ huynh của trẻ và nhân viên y tế.</span>
+              </p>
+            </SavedNotice>
+          )}
 
           <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
-            <div className="rounded-lg bg-background p-3 border border-border/60">
-              <span className="text-xs text-muted block mb-1 font-medium">Mô tả sự cố</span>
-              <p className="text-sm text-foreground whitespace-pre-wrap wrap-anywhere leading-relaxed">
-                {record.description}
-              </p>
-            </div>
-
             {uploadedCount > 0 && (
-              <p role="status" className="text-xs font-medium text-success inline-flex items-center gap-1.5">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Vừa đính kèm thêm {uploadedCount} ảnh thành công vào sự cố này.
-              </p>
+              <div
+                role="status"
+                className={
+                  "flex items-center justify-between gap-2 rounded-lg border border-success-border/60 " +
+                  "bg-success-bg px-3 py-2 text-xs text-success"
+                }
+              >
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Vừa đính kèm {uploadedCount} ảnh thành công vào sự cố này.
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  aria-label="Đóng thông báo đính kèm ảnh"
+                  title="Đóng thông báo"
+                  onClick={() => setUploadedCount(0)}
+                  style={{ padding: 0 }}
+                  className={
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-success/80 " +
+                    "hover:bg-success/15 hover:text-success cursor-pointer transition-colors -mr-0.5"
+                  }
+                >
+                  <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Button>
+              </div>
             )}
 
             {/* Ảnh sự cố đã lưu */}
@@ -437,137 +507,182 @@ export default function IncidentForm({
               <IncidentPhotos record={record} userId={userId} hideEmpty={true} />
             )}
 
-            {/* Bổ sung ảnh minh chứng thu gọn (nếu còn slot < 5) */}
-            {record.photos.length < 5 && (
-              <div className="pt-1">
-                {files.length === 0 ? (
+            {/* Mỗi lượt bổ sung được chọn tối đa 5 ảnh, độc lập với ảnh đã lưu. */}
+            <div className="pt-1">
+              {files.length === 0 ? (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files?.length) {
+                      addFiles(e.dataTransfer.files);
+                    }
+                  }}
+                  className={
+                    "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed " +
+                    "border-border/80 bg-background/50 px-3 py-2 text-xs"
+                  }
+                >
                   <div
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "copy";
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (e.dataTransfer.files?.length) {
-                        addFiles(e.dataTransfer.files);
-                      }
-                    }}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border/80 bg-background/50 px-3 py-2 text-xs"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Thông tin đính kèm ảnh"
+                    className={
+                      "min-w-0 max-w-full overflow-x-auto focus-visible:outline-none " +
+                      "focus-visible:ring-2 focus-visible:ring-brand/30"
+                    }
                   >
-                    <span className="text-muted">
-                      Bổ sung thêm ảnh minh chứng? ({record.photos.length}/5 ảnh đã lưu)
+                    <p className="w-max whitespace-nowrap text-muted">
+                      Bổ sung thêm ảnh minh chứng?{" "}
+                      <span className="text-[11px]">(Mỗi lượt tối đa 5 ảnh)</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={pending || unresolved}
+                      onClick={() => photoInput.current?.click()}
+                      className="h-8 gap-1.5 px-2.5 text-xs"
+                    >
+                      <svg
+                        className="h-3.5 w-3.5 text-muted"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                        />
+                      </svg>
+                      <span>Chọn ảnh</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={pending || unresolved}
+                      onClick={() => cameraInput.current?.click()}
+                      className="h-8 gap-1.5 px-2.5 text-xs"
+                    >
+                      <svg
+                        className="h-3.5 w-3.5 text-muted"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d={
+                            "M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 " +
+                            "1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                          }
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                      <span>Chụp ảnh</span>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2.5 rounded-lg border border-brand-border/60 bg-brand-subtle/20 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-brand-text">
+                      Ảnh chuẩn bị đính thêm ({files.length} ảnh)
                     </span>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={pending || unresolved}
-                        onClick={() => photoInput.current?.click()}
-                        className="h-8 gap-1.5 px-2.5 text-xs"
-                      >
-                        <svg
-                          className="h-3.5 w-3.5 text-muted"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                          />
-                        </svg>
-                        <span>Chọn ảnh</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={pending || unresolved}
-                        onClick={() => cameraInput.current?.click()}
-                        className="h-8 gap-1.5 px-2.5 text-xs"
-                      >
-                        <svg
-                          className="h-3.5 w-3.5 text-muted"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                        </svg>
-                        <span>Chụp ảnh</span>
-                      </Button>
-                    </div>
+                    <Button variant="ghost" size="sm"
+                      type="button"
+                      disabled={pending || unresolved}
+                      onClick={clearFiles}
+                      className="text-xs text-muted hover:text-danger cursor-pointer transition-colors"
+                    >
+                      Bỏ chọn
+                    </Button>
                   </div>
-                ) : (
-                  <div className="space-y-2.5 rounded-lg border border-brand-border/60 bg-brand-subtle/20 p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-brand-text">
-                        Ảnh chuẩn bị đính thêm ({files.length} ảnh)
-                      </span>
-                      <Button variant="ghost" size="sm"
-                        type="button"
-                        disabled={pending || unresolved}
-                        onClick={clearFiles}
-                        className="text-xs text-muted hover:text-danger cursor-pointer transition-colors"
-                      >
-                        Bỏ chọn
-                      </Button>
-                    </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {previewItems.map((item, index) => (
-                        <div key={index} className="relative h-16 w-16 overflow-hidden rounded-lg border border-border bg-card">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={item.url} alt={`Ảnh mới ${index + 1}`} className="h-full w-full object-cover" />
-                          <Button variant="ghost" size="sm"
+                  <div className="flex flex-wrap gap-2">
+                    {previewItems.map((item, index) => (
+                      <div key={index} className="relative h-16 w-16 overflow-hidden rounded-lg border border-border bg-card">
+                        {item.url ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
-                            disabled={pending || unresolved}
-                            aria-label={`Bỏ ảnh mới ${index + 1}`}
-                            onClick={() => removeFileAt(index)}
-                            className="absolute top-0.5 right-0.5 rounded-full bg-foreground/70 hover:bg-danger text-card p-0.5"
+                            style={{ padding: 0 }}
+                            aria-label={`Xem ảnh lớn ${item.file.name}`}
+                            title="Bấm để xem ảnh phóng to"
+                            onClick={() => setViewingIndex(index)}
+                            className="h-full w-full cursor-zoom-in text-left focus:outline-none"
                           >
-                            <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={item.url} alt={`Ảnh mới ${index + 1}`} className="h-full w-full object-cover" />
                           </Button>
-                        </div>
-                      ))}
-                    </div>
-
-                    {photoField.fieldState.error && (
-                      <p role="alert" className="wrap-anywhere text-xs text-danger">{photoField.fieldState.error.message}</p>
-                    )}
-                    <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        isLoading={upload.isPending}
-                        disabled={pending || unresolved || validatePhotos(files, record.photos.length) !== true}
-                        onClick={() => void uploadBatch(record, files)}
-                        className="h-8 px-4 text-xs font-semibold"
-                      >
-                        Tải {files.length} ảnh lên sự cố
-                      </Button>
-                    </div>
+                        ) : (
+                          <InvalidPhotoPreview />
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          disabled={pending || unresolved}
+                          aria-label={`Bỏ ảnh mới ${index + 1}`}
+                          onClick={() => removeFileAt(index)}
+                          style={{ padding: 0 }}
+                          className={
+                            "absolute top-1 right-1 flex h-5 w-5 shrink-0 items-center justify-center " +
+                            "rounded-full bg-foreground/80 text-card shadow-xs transition-colors " +
+                            "hover:bg-danger hover:text-card cursor-pointer"
+                          }
+                        >
+                          <svg
+                            aria-hidden="true"
+                            className="h-3 w-3 shrink-0 text-card"
+                            style={{ color: "var(--color-card)" }}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2.5}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-            )}
+
+                  {photoField.fieldState.error && (
+                    <p role="alert" className="wrap-anywhere text-xs text-danger">{photoField.fieldState.error.message}</p>
+                  )}
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      isLoading={upload.isPending}
+                      disabled={pending || unresolved || validatePhotos(files) !== true}
+                      onClick={() => void uploadBatch(record, files)}
+                      className="h-8 px-4 text-xs font-semibold"
+                    >
+                      Tải ảnh
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Thao tác sau khi đã ghi nhận sự cố */}
@@ -644,7 +759,11 @@ export default function IncidentForm({
                 rows={3}
                 maxLength={1000}
                 className="resize-y"
-                placeholder="Mô tả cụ thể sự việc: thời gian, khu vực xảy ra, diễn biến sự cố, biểu hiện/vị trí tổn thương của trẻ (nếu có) và biện pháp sơ cứu/xử lý đã thực hiện..."
+                placeholder={
+                  "Mô tả cụ thể sự việc: thời gian, khu vực xảy ra, diễn biến sự cố, " +
+                  "biểu hiện/vị trí tổn thương của trẻ (nếu có) và biện pháp sơ cứu/xử " +
+                  "lý đã thực hiện..."
+                }
                 aria-invalid={Boolean(form.formState.errors.description)}
                 error={form.formState.errors.description?.message}
                 {...form.register("description", { validate: validateNotes })}
@@ -657,8 +776,8 @@ export default function IncidentForm({
               label="Ảnh minh chứng"
               hint={
                 files.length > 0
-                  ? `Đã chọn ${files.length}/5 ảnh`
-                  : "Tùy chọn (tối đa 5 ảnh · JPEG/PNG ≤ 5 MB)"
+                  ? undefined
+                  : "Tùy chọn (tối đa 5 ảnh/lần · JPEG/PNG ≤ 5 MB)"
               }
               error={photoField.fieldState.error?.message}
             >
@@ -689,7 +808,10 @@ export default function IncidentForm({
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        d={
+                          "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 " +
+                          "20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        }
                       />
                     </svg>
                   </div>
@@ -746,7 +868,10 @@ export default function IncidentForm({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                          d={
+                            "M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 " +
+                            "1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                          }
                         />
                         <path
                           strokeLinecap="round"
@@ -799,40 +924,69 @@ export default function IncidentForm({
                         <div
                           key={`${index}:${item.file.name}`}
                           className={cn(
-                            "group relative flex flex-col overflow-hidden rounded-lg border bg-card text-left transition-all",
+                            "group relative flex h-full flex-col overflow-hidden rounded-lg border bg-card text-left transition-all",
                             isInvalid
                               ? "border-danger bg-danger-bg/20 ring-1 ring-danger"
                               : "border-border shadow-2xs hover:border-brand-border"
                           )}
                         >
-                          <div className="relative aspect-square w-full overflow-hidden bg-background">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={item.url}
-                              alt={`Ảnh đã chọn ${index + 1}`}
-                              className="h-full w-full object-cover"
-                            />
-                            <span className="absolute top-1 left-1 rounded-full bg-foreground/70 px-1.5 py-0.2 text-[9px] font-semibold text-card">
+                          <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-background">
+                            {item.url ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                type="button"
+                                style={{ padding: 0 }}
+                                aria-label={`Xem ảnh lớn ${item.file.name}`}
+                                title="Bấm để xem ảnh phóng to"
+                                onClick={() => setViewingIndex(index)}
+                                className="h-full w-full cursor-zoom-in text-left focus:outline-none"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={item.url}
+                                  alt={`Ảnh đã chọn ${index + 1}`}
+                                  className="h-full w-full object-cover"
+                                />
+                              </Button>
+                            ) : (
+                              <InvalidPhotoPreview />
+                            )}
+                            <span className={
+                              "pointer-events-none absolute top-1 left-1 rounded-full " +
+                              "bg-foreground/70 px-1.5 py-0.2 text-[9px] font-semibold text-card"
+                            }>
                               {index + 1}
                             </span>
-                            <Button variant="ghost" size="sm"
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               type="button"
                               disabled={pending || unresolved}
                               aria-label={`Bỏ ảnh ${index + 1}`}
                               onClick={() => removeFileAt(index)}
-                              className="absolute top-1 right-1 rounded-full bg-foreground/70 hover:bg-danger text-card p-1 transition-colors cursor-pointer"
+                              style={{ padding: 0 }}
+                              className={
+                                "absolute top-1 right-1 flex h-5 w-5 shrink-0 items-center justify-center " +
+                                "rounded-full bg-foreground/80 text-card shadow-xs transition-colors " +
+                                "hover:bg-danger hover:text-card cursor-pointer"
+                              }
                             >
-                              <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                <path
-                                  fillRule="evenodd"
-                                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                  clipRule="evenodd"
-                                />
+                              <svg
+                                aria-hidden="true"
+                                className="h-3 w-3 shrink-0 text-card"
+                                style={{ color: "var(--color-card)" }}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                               </svg>
                             </Button>
                           </div>
 
-                          <div className="p-1 text-xs">
+                          <div className="flex flex-1 flex-col justify-between p-1 text-xs">
                             <p
                               className="truncate text-[10px] font-medium text-foreground"
                               title={item.file.name}
@@ -852,7 +1006,9 @@ export default function IncidentForm({
 
                     {/* Vị trí thêm ảnh nếu chưa đủ 5 ảnh */}
                     {previewItems.length < 5 && (
-                      <Button variant="ghost" size="sm"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         type="button"
                         disabled={pending || unresolved}
                         onClick={() => photoInput.current?.click()}
@@ -866,9 +1022,19 @@ export default function IncidentForm({
                             addFiles(e.dataTransfer.files);
                           }
                         }}
-                        className="group flex flex-col items-center justify-center aspect-square rounded-lg border border-dashed border-border/80 bg-background/30 hover:border-brand hover:bg-background/70 text-muted hover:text-brand transition-all cursor-pointer p-2 text-center"
+                        className={
+                          "group flex h-full min-h-[6rem] w-full flex-col items-center justify-center " +
+                          "rounded-lg border border-dashed border-border/80 bg-background/30 p-2 text-center " +
+                          "text-muted transition-all hover:border-brand hover:bg-background/70 hover:text-brand " +
+                          "cursor-pointer"
+                        }
                       >
-                        <div className="h-6 w-6 rounded-full bg-brand-subtle flex items-center justify-center text-brand mb-1 group-hover:scale-110 transition-transform">
+                        <div
+                          className={
+                            "mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-brand-subtle " +
+                            "text-brand transition-transform group-hover:scale-110"
+                          }
+                        >
                           <svg
                             className="h-3.5 w-3.5"
                             fill="none"
@@ -950,7 +1116,10 @@ export default function IncidentForm({
         }}
         description={
           pendingSubmit && (
-            <div className="max-h-[calc(100dvh-14rem)] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-1 text-xs leading-relaxed text-foreground wrap-anywhere">
+            <div className={
+              "max-h-[calc(100dvh-14rem)] min-w-0 space-y-3 overflow-y-auto overscroll-contain pr-1 text-xs " +
+              "leading-relaxed text-foreground wrap-anywhere"
+            }>
               <div className="rounded-lg bg-brand-subtle px-3 py-2 text-foreground">
                 <p className="text-sm">
                   <span className="font-semibold text-foreground">Trẻ: </span>
@@ -982,7 +1151,8 @@ export default function IncidentForm({
               </div>
 
               <p className="text-[11px] text-muted">
-                Lưu ý: Sau khi lưu, hệ thống sẽ tự động gửi thông báo tới phụ huynh và nhân viên y tế. Bản ghi không thể chỉnh sửa hoặc xóa.
+                Lưu ý: Sau khi lưu, hệ thống sẽ tự động gửi thông báo tới phụ huynh và nhân viên y tế.
+                Bản ghi không thể chỉnh sửa hoặc xóa.
               </p>
             </div>
           )
@@ -996,8 +1166,14 @@ export default function IncidentForm({
         layout="stacked"
         description={
           unresolved
-            ? "Chỉ kết thúc khi bạn đã đối chiếu kết quả với người phụ trách. Thao tác này không gửi lại sự cố hoặc ảnh."
-            : "Sự cố đã lưu được giữ nguyên trong hệ thống. Những ảnh đang chọn nhưng chưa đính kèm sẽ được bỏ khỏi biểu mẫu."
+            ? (
+              "Chỉ kết thúc khi bạn đã đối chiếu kết quả với người phụ trách. Thao " +
+              "tác này không gửi lại sự cố hoặc ảnh."
+            )
+            : (
+              "Sự cố đã lưu được giữ nguyên trong hệ thống. Những ảnh đang chọn " +
+              "nhưng chưa đính kèm sẽ được bỏ khỏi biểu mẫu."
+            )
         }
         confirmText={unresolved ? "Đã đối chiếu" : "Kết thúc lượt ghi"}
         cancelText="Quay lại"
@@ -1007,6 +1183,217 @@ export default function IncidentForm({
         }}
         onConfirm={startNew}
       />
+
+      {viewingIndex !== null && previewItems[viewingIndex]?.url && (
+        <SelectedPhotoModal
+          items={previewItems}
+          currentIndex={viewingIndex}
+          onClose={() => setViewingIndex(null)}
+          onSelectIndex={(nextIndex) => setViewingIndex(nextIndex)}
+          onRemoveIndex={(targetIndex) => removeFileAt(targetIndex)}
+          disabled={pending || unresolved}
+        />
+      )}
+    </div>
+  );
+}
+
+interface SelectedPhotoModalProps {
+  items: Array<{
+    file: File;
+    url: string | null;
+    validation: { valid: boolean; reason?: string };
+  }>;
+  currentIndex: number;
+  onClose: () => void;
+  onSelectIndex: (index: number) => void;
+  onRemoveIndex: (index: number) => void;
+  disabled?: boolean;
+}
+
+function SelectedPhotoModal({
+  items,
+  currentIndex,
+  onClose,
+  onSelectIndex,
+  onRemoveIndex,
+  disabled = false,
+}: SelectedPhotoModalProps) {
+  const { containerRef } = useFocusTrap({ isOpen: true, onClose });
+  const current = items[currentIndex];
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "ArrowLeft" && currentIndex > 0) {
+        e.preventDefault();
+        onSelectIndex(currentIndex - 1);
+      } else if (e.key === "ArrowRight" && currentIndex < items.length - 1) {
+        e.preventDefault();
+        onSelectIndex(currentIndex + 1);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentIndex, items.length, onSelectIndex]);
+
+  if (!current || !current.url) return null;
+
+  const mbSize = (current.file.size / (1024 * 1024)).toLocaleString("vi-VN", {
+    maximumFractionDigits: 1,
+  });
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Xem ảnh phóng to"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 p-3 sm:p-5 backdrop-blur-xs"
+    >
+      <div
+        ref={containerRef}
+        className={
+          "relative flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden " +
+          "rounded-2xl border border-border bg-card shadow-2xl"
+        }
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 rounded-full bg-brand-subtle px-2 py-0.5 text-xs font-semibold text-brand-text">
+              Ảnh {currentIndex + 1}/{items.length}
+            </span>
+            <span className="truncate text-xs text-muted" title={current.file.name}>
+              {current.file.name} ({mbSize} MB)
+            </span>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            {!disabled && (
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => onRemoveIndex(currentIndex)}
+                className="h-8 px-2 text-xs text-danger hover:bg-danger-bg cursor-pointer"
+              >
+                Bỏ ảnh
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={onClose}
+              aria-label="Đóng xem ảnh"
+              className={
+                "flex h-8 w-8 items-center justify-center rounded-full p-0 " +
+                "text-muted hover:text-foreground cursor-pointer"
+              }
+            >
+              <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Button>
+          </div>
+        </div>
+
+        <div className="relative flex min-h-[16rem] max-h-[62dvh] flex-1 items-center justify-center overflow-hidden bg-background p-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={current.url}
+            alt={current.file.name}
+            className="max-h-[58dvh] w-auto max-w-full rounded-lg object-contain select-none"
+          />
+
+          {currentIndex > 0 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              onClick={() => onSelectIndex(currentIndex - 1)}
+              aria-label="Ảnh trước"
+              className={
+                "absolute left-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center " +
+                "justify-center rounded-full p-0 shadow-md cursor-pointer"
+              }
+            >
+              <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </Button>
+          )}
+
+          {currentIndex < items.length - 1 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              onClick={() => onSelectIndex(currentIndex + 1)}
+              aria-label="Ảnh sau"
+              className={
+                "absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center " +
+                "justify-center rounded-full p-0 shadow-md cursor-pointer"
+              }
+            >
+              <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Button>
+          )}
+        </div>
+
+        {items.length > 1 && (
+          <div className="flex items-center justify-center gap-2 border-t border-border bg-card px-4 py-2.5">
+            {items.map((item, idx) => (
+              <Button
+                variant="ghost"
+                size="sm"
+                key={idx}
+                type="button"
+                onClick={() => onSelectIndex(idx)}
+                aria-label={`Chuyển sang ảnh ${idx + 1}`}
+                className={cn(
+                  "relative h-12 w-12 overflow-hidden rounded-md border p-0 transition-all cursor-pointer",
+                  idx === currentIndex
+                    ? "border-brand ring-2 ring-brand/30 shadow-xs opacity-100"
+                    : "border-border opacity-70 hover:opacity-100 hover:border-brand-border"
+                )}
+              >
+                {item.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <InvalidPhotoPreview />
+                )}
+                <span className="absolute bottom-0.5 right-0.5 rounded bg-foreground/75 px-1 text-[8px] font-semibold text-card">
+                  {idx + 1}
+                </span>
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InvalidPhotoPreview() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-danger-bg text-danger">
+      <svg
+        role="img"
+        aria-label="Tệp ảnh không hợp lệ"
+        className="h-6 w-6"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M9 12l6 6m0-6l-6 6"
+        />
+      </svg>
     </div>
   );
 }

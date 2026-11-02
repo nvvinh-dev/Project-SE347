@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { SignedImage } from "@/components/ui/SignedImage";
+import { cn } from "@/lib/utils";
 import { getIncident, recordKeys, type IncidentRecord } from "./_lib/health-incidents";
 
 export default function IncidentPhotos({
@@ -42,7 +43,7 @@ export default function IncidentPhotos({
         <label className="text-xs font-semibold text-foreground">
           Ảnh minh chứng đã lưu
           <span className="ml-1.5 font-normal text-muted">
-            ({record.photos.length}/5 ảnh)
+            ({record.photos.length} ảnh)
           </span>
         </label>
         {record.photos.length > 0 && (
@@ -63,7 +64,10 @@ export default function IncidentPhotos({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                d={
+                  "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 " +
+                  "20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                }
               />
             </svg>
           </div>
@@ -80,11 +84,13 @@ export default function IncidentPhotos({
                 aria-label={`Xem ảnh sự cố ${index + 1}`}
                 aria-expanded={isViewing}
                 aria-controls={`incident-photo-preview-${record.id}`}
-                className={`group relative h-20 w-20 overflow-hidden rounded-lg border bg-card p-0 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30 ${
+                className={cn(
+                  "group relative h-20 w-20 overflow-hidden rounded-lg border bg-card p-0 text-left " +
+                  "transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30",
                   isViewing
                     ? "border-brand ring-2 ring-brand/20 shadow-xs"
                     : "border-border hover:border-brand-border hover:shadow-2xs"
-                }`}
+                )}
                 onClick={(event) => {
                   opener.current = event.currentTarget;
                   setExpanded(isViewing ? null : item.id);
@@ -127,7 +133,10 @@ export default function IncidentPhotos({
               Thu gọn
             </Button>
           </div>
-          <div className="relative flex min-h-40 max-h-[50dvh] w-full items-center justify-center overflow-hidden rounded-lg bg-background border border-border/80 p-1">
+          <div className={
+            "relative flex min-h-40 max-h-[50dvh] w-full items-center justify-center overflow-hidden " +
+            "rounded-lg bg-background border border-border/80 p-1"
+          }>
             <SignedImage
               key={photo.id}
               src={photo.url}
