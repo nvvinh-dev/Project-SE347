@@ -46,9 +46,11 @@ export function WeeklyMenuForm({ week, menu, isBusy, onDirtyChange, onSave }: We
   const days = useWatch({ control, name: "days" });
   const [success, setSuccess] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [activeDay, setActiveDay] = useState((menu?.entries[0]?.dayOfWeek ?? 1) - 1);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => { onDirtyChange(isDirty); }, [isDirty, onDirtyChange]);
   useEffect(() => {
@@ -64,6 +66,8 @@ export function WeeklyMenuForm({ week, menu, isBusy, onDirtyChange, onSave }: We
 
   const selectedCount = days.filter((day) => day.enabled).length;
   const remoteChanged = isDirty && JSON.stringify(defaultValues?.days) !== JSON.stringify(valuesFor(menu).days);
+  const removedDays = MENU_DAYS.filter((day, index) => !days[index]?.enabled
+    && menu?.entries.some((entry) => entry.dayOfWeek === day.value));
   const fieldMessages = MENU_DAYS.map((_, index) => errors.days?.[index]?.breakfast?.message).filter(Boolean).join(" ");
 
   function focusDay(index: number) {
@@ -76,7 +80,7 @@ export function WeeklyMenuForm({ week, menu, isBusy, onDirtyChange, onSave }: We
     if (index >= 0) focusDay(index);
   }
 
-  async function submit(values: MenuFormValues) {
+  async function submit(values: MenuFormValues, overwriteConfirmed = false) {
     if (isBusy) return;
     clearErrors();
     setSuccess("");
@@ -86,11 +90,16 @@ export function WeeklyMenuForm({ week, menu, isBusy, onDirtyChange, onSave }: We
       setFocus("days.0.enabled");
       return;
     }
+    // PUT thay toàn bộ tuần: giữ bản nháp không đồng nghĩa với đồng ý ghi đè bản mới.
+    if (remoteChanged && !overwriteConfirmed) {
+      setConfirmOverwrite(true);
+      return;
+    }
     try {
       const saved = await onSave(entries);
       reset(valuesFor(saved));
       setSuccess(`Đã lưu thực đơn tuần ${formatMenuDate(week)} – ${formatMenuDate(shiftMenuDate(week, 6))}.`);
-      headingRef.current?.focus();
+      requestAnimationFrame(() => headingRef.current?.focus());
     } catch (error) {
       const apiError = toApiError(error);
       const otherMessages: string[] = [];
@@ -105,14 +114,16 @@ export function WeeklyMenuForm({ week, menu, isBusy, onDirtyChange, onSave }: We
       }
       const firstInvalid = messagesByDay.keys().next().value;
       if (firstInvalid !== undefined) focusDay(firstInvalid);
-      else headingRef.current?.focus();
+      else requestAnimationFrame(() => headingRef.current?.focus());
       if (otherMessages.length) setError("root.server", { message: otherMessages.join(" ") });
+    } finally {
+      setConfirmOverwrite(false);
     }
   }
 
   return (
     <>
-      <form noValidate onSubmit={(event) => { void handleSubmit(submit, showInvalidDay)(event); }} onChange={() => setSuccess("")} className="min-w-0 space-y-5">
+      <form noValidate onSubmit={(event) => { void handleSubmit((values) => submit(values), showInvalidDay)(event); }} onChange={() => setSuccess("")} className="min-w-0 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">{menu ? "Chỉnh sửa thực đơn" : "Tạo thực đơn tuần"}</h2>
@@ -241,11 +252,23 @@ export function WeeklyMenuForm({ week, menu, isBusy, onDirtyChange, onSave }: We
             <span className="text-sm text-muted">{isDirty ? "Có thay đổi chưa lưu" : ""}</span>
             <div className="flex w-full justify-end gap-3 sm:w-auto">
               <Button ref={resetButtonRef} variant="secondary" disabled={isBusy || !isDirty} onClick={() => setConfirmReset(true)}>Bỏ thay đổi</Button>
-              <Button type="submit" isLoading={isBusy} disabled={!!menu && !isDirty}>Lưu thực đơn</Button>
+              <Button ref={saveButtonRef} type="submit" isLoading={isBusy} disabled={!!menu && !isDirty}>Lưu thực đơn</Button>
             </div>
           </div>
         </div>
       </form>
+      <ConfirmDialog isOpen={confirmOverwrite} title="Thay toàn bộ thực đơn tuần?" variant="destructive"
+        description={<div className="space-y-2">
+          <p>Thực đơn trên hệ thống đã thay đổi. Lưu bản nháp sẽ thay toàn bộ thực đơn của tuần này, kể cả nội dung người khác vừa nhập. Các ngày không được chọn trong bản nháp sẽ bị gỡ.</p>
+          {removedDays.length > 0 && <p className="font-medium text-foreground">Ngày sẽ bị gỡ: {removedDays.map((day) => day.label).join(", ")}.</p>}
+          <p>Chọn “Quay lại” rồi “Bỏ thay đổi” nếu muốn nạp bản trên hệ thống.</p>
+        </div>}
+        confirmText="Thay toàn bộ" cancelText="Quay lại" isLoading={isBusy}
+        onClose={() => { setConfirmOverwrite(false); saveButtonRef.current?.focus(); }}
+        onConfirm={() => { void handleSubmit((values) => submit(values, true), (invalid) => {
+          setConfirmOverwrite(false);
+          showInvalidDay(invalid);
+        })(); }} />
       <ConfirmDialog isOpen={confirmReset} title="Bỏ thay đổi chưa lưu?" description="Nội dung đang nhập sẽ được thay bằng thực đơn mới nhất đã tải cho tuần này."
         confirmText="Bỏ thay đổi" cancelText="Tiếp tục nhập"
         onClose={() => { setConfirmReset(false); resetButtonRef.current?.focus(); }}
