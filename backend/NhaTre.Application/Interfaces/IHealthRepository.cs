@@ -19,6 +19,12 @@ public interface IHealthRepository
     // Y tế làm việc với trẻ toàn trường, không lọc theo lớp (D43 mục 2)
     Task<bool> ChildExistsAsync(Guid childId);
 
+    // Cùng phạm vi toàn trường như trên, không kèm Class; null khi trẻ không tồn tại
+    Task<Child?> FindChildAsync(Guid childId);
+
+    // Như trên nhưng có theo dõi thay đổi, để Service sửa lưu ý sức khỏe rồi SaveChangesAsync (FR-HEALTH-06)
+    Task<Child?> FindChildForUpdateAsync(Guid childId);
+
     // Mọi trẻ trong trường, kể cả trẻ chưa xếp lớp, sắp theo họ tên
     Task<IReadOnlyList<Child>> GetAllChildrenAsync();
 
@@ -28,6 +34,23 @@ public interface IHealthRepository
     Task<GrowthMeasurement?> FindGrowthMeasurementAsync(Guid id);
 
     void AddGrowthMeasurement(GrowthMeasurement growthMeasurement);
+
+    // Hai nguồn còn lại của lịch sử gộp (D39 mục 9), chưa sắp thứ tự: Service gộp với số đo rồi mới
+    // sắp. Trẻ chưa có bản ghi nào thì rỗng. Sự cố kèm IncidentPhotos để đếm số ảnh
+    Task<IReadOnlyList<Incident>> GetIncidentsOfChildAsync(Guid childId);
+
+    Task<IReadOnlyList<QuickHealthStatus>> GetQuickHealthStatusesOfChildAsync(Guid childId);
+
+    // Phụ huynh (FR-HEALTH-05): trẻ chỉ khi có liên kết với tài khoản này trong child_guardians
+    // (BR-SCOPE-01); null khi trẻ không tồn tại hoặc không liên kết
+    Task<Child?> FindChildOfGuardianAsync(Guid childId, Guid parentUserId);
+
+    // Cùng phạm vi child_guardians như trên, mới nhất trước; con chưa có bản ghi nào thì rỗng
+    Task<IReadOnlyList<QuickHealthStatus>> GetQuickHealthStatusesOfChildForGuardianAsync(
+        Guid childId, Guid parentUserId);
+
+    Task<IReadOnlyList<GrowthMeasurement>> GetGrowthMeasurementsOfChildForGuardianAsync(
+        Guid childId, Guid parentUserId);
 
     Task SaveChangesAsync();
 }

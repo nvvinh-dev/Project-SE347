@@ -140,7 +140,8 @@ function PickupWorkspace({ userId }: { userId: string }) {
     setUnresolved(null);
     setNotice(saved ? {
       kind: "success",
-      message: `Đã tìm thấy bản ghi đón về của ${saved.childFullName} — ${saved.pickerFullName}, lúc ${formatAttendanceTime(saved.pickupTimeUtc)}.`,
+      message: `Đã tìm thấy bản ghi đón về của ${saved.childFullName} — ` +
+        `${saved.pickerFullName}, lúc ${formatAttendanceTime(saved.pickupTimeUtc)}.`,
     } : {
       kind: "error",
       message: `Chưa có bản ghi đón về của ${attempt.childName} trong ngày ${formatAttendanceDate(attempt.date)}. ` +
@@ -214,6 +215,7 @@ function PickupWorkspace({ userId }: { userId: string }) {
       if (!chosen || !previous || !samePerson(previous, chosen)) {
         throw new ApiError("Thông tin người đón đã thay đổi. Vui lòng đối chiếu lại trước khi giao trẻ.", null, 409);
       }
+      // TanStack truyền cùng object submission tới onError để phân biệt lỗi trước/sau POST, kể cả response 201 thiếu trường.
       submission.postStarted = true;
       const record = await createPickup(payload, selection.date);
       if (record.attendanceId !== selection.child.id) {
@@ -463,7 +465,11 @@ function PickupWorkspace({ userId }: { userId: string }) {
         </form>
 
         <div className="space-y-4 p-4">
-          {!isToday && <p className="text-xs leading-relaxed text-muted">Chỉ xem dữ liệu trong ngày đã chọn. Chỉ ghi nhận đón về cho hôm nay.</p>}
+          {!isToday && (
+            <p className="text-xs leading-relaxed text-muted">
+              Chỉ xem dữ liệu trong ngày đã chọn. Chỉ ghi nhận đón về cho hôm nay.
+            </p>
+          )}
 
           {notice && (
             <div
@@ -548,7 +554,11 @@ function PickupWorkspace({ userId }: { userId: string }) {
               ) : undefined}
             />
           ) : !filtered.length ? (
-            <StatusMessage status="empty" title="Không có trẻ phù hợp bộ lọc" message="Hãy đổi tên tìm kiếm hoặc trạng thái đón về." />
+            <StatusMessage
+              status="empty"
+              title="Không có trẻ phù hợp bộ lọc"
+              message="Hãy đổi tên tìm kiếm hoặc trạng thái đón về."
+            />
           ) : (
             <>
               <div className="grid items-start gap-4 xl:grid-cols-2">
@@ -577,6 +587,8 @@ function PickupWorkspace({ userId }: { userId: string }) {
       <ConfirmDialog
         isOpen={!!pending}
         title={pending?.person ? "Xác nhận giao trẻ" : "Người khác đến đón"}
+        compactHeader={!pending?.person}
+        layout={pending?.person ? "inline" : "stacked"}
         confirmText="Xác nhận giao trẻ"
         cancelText="Hủy"
         isLoading={mutation.isPending}
@@ -590,9 +602,7 @@ function PickupWorkspace({ userId }: { userId: string }) {
         description={pending && (
           <div
             className={`max-h-[calc(100dvh-17rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 wrap-anywhere ${
-              pending.person
-                ? "w-[min(21rem,calc(100vw-9rem))]"
-                : "-ml-15 w-[min(24.75rem,calc(100vw-5.125rem))] pt-5"
+              pending.person ? "w-[min(21rem,calc(100vw-9rem))]" : ""
             }`}
           >
             <div className="rounded-lg bg-brand-subtle px-3 py-2">
@@ -660,7 +670,10 @@ function PickupWorkspace({ userId }: { userId: string }) {
                 <p className="border-l-2 border-warning-border pl-2 text-xs font-medium text-foreground">Không ai xác nhận thì không giao trẻ.</p>
                 <details className="text-xs text-muted">
                   <summary className="cursor-pointer font-medium text-brand-text">Hướng dẫn xác minh</summary>
-                  <p className="mt-2">Tự gọi người đón chính trước; không nghe máy thì gọi dự phòng nếu có. Hệ thống không thực hiện cuộc gọi.</p>
+                  <p className="mt-2">
+                    Tự gọi người đón chính trước; không nghe máy thì gọi dự phòng nếu có.
+                    Hệ thống không thực hiện cuộc gọi.
+                  </p>
                 </details>
               </form>
             )}

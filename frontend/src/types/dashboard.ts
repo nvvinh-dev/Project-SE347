@@ -18,3 +18,22 @@ export interface ChildrenStatisticsResponse {
   totalClasses: number;
   classes: ClassChildrenCountDto[];
 }
+
+export interface ClassAttendanceDto {
+  classId: string;
+  className: string;
+  totalRecords: number;
+  presentRecords: number;
+  attendanceRate: number;
+  minAgeMonths: number | null;
+  maxAgeMonths: number | null;
+}
+
+export interface AttendanceStatisticsResponse {
+  year: number;
+  month: number;
+  totalRecords: number;
+  presentRecords: number;
+  overallAttendanceRate: number;
+  classes: ClassAttendanceDto[];
+}

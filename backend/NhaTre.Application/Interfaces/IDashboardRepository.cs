@@ -7,4 +7,5 @@ public interface IDashboardRepository
     Task<int> GetTotalStudentsCountAsync();
     Task<int> GetUnassignedStudentsCountAsync();
     Task<IReadOnlyList<ClassChildrenCountDto>> GetChildrenCountByClassesAsync();
+    Task<IReadOnlyList<ClassAttendanceCountDto>> GetClassAttendanceCountsAsync(DateOnly startDate, DateOnly endDate);
 }

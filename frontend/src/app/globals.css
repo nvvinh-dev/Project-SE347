@@ -30,6 +30,12 @@
   --color-danger: #E5484D;
   --color-danger-bg: #FEF2F2;
   --color-danger-border: #FECACA;
+
+  /* Baby Blue / Info - Thống kê điểm danh */
+  --color-info: #0284C7;
+  --color-info-bg: #F0F9FF;
+  --color-info-border: #BAE6FD;
+  --color-info-text: #0369A1;
 }
 
 :root {

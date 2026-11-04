@@ -19,7 +19,12 @@ interface Props {
   userId: string;
   today: boolean;
   canWrite: boolean;
-  onChoose: (child: AttendanceResponse, persons: PickupPerson[], person: PickupPerson | null, trigger: HTMLButtonElement) => void;
+  onChoose: (
+    child: AttendanceResponse,
+    persons: PickupPerson[],
+    person: PickupPerson | null,
+    trigger: HTMLButtonElement,
+  ) => void;
 }
 
 export default function PickupChildCard({ child, record, userId, today, canWrite, onChoose }: Props) {
@@ -55,9 +60,16 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
   }
 
   return (
-    <article aria-label={`Đón về: ${child.childFullName}`} className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-xs sm:p-5">
+    <article
+      aria-label={`Đón về: ${child.childFullName}`}
+      className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-xs sm:p-5"
+    >
       <div className="mb-5 flex flex-wrap items-start gap-3">
-        <div aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand-border bg-brand-subtle text-lg font-bold text-brand-text">
+        <div
+          aria-hidden="true"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand-border
+            bg-brand-subtle text-lg font-bold text-brand-text"
+        >
           {child.childFullName.trim().split(/\s+/).at(-1)?.charAt(0).toLocaleUpperCase("vi-VN")}
         </div>
         <div className="min-w-0 flex-1 basis-28">
@@ -78,11 +90,20 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
       ) : !today ? (
         <p className="rounded-lg bg-background p-4 text-sm text-muted">Chưa có bản ghi đón về trong ngày đã chọn.</p>
       ) : persons.isError && (persons.data === undefined || !registered.length) ? (
-        <StatusMessage status="error" title="Không thể tải người đón" message={persons.error.message} onRetry={() => void persons.refetch()} />
+        <StatusMessage
+          status="error"
+          title="Không thể tải người đón"
+          message={persons.error.message}
+          onRetry={() => void persons.refetch()}
+        />
       ) : persons.isPending ? (
         <StatusMessage status="loading" title="Đang tải thông tin người đón..." />
       ) : !registered.length ? (
-        <StatusMessage status="empty" title="Chưa đăng ký người đón" message="Liên hệ phụ huynh đăng ký người đón chính, sau đó tải lại dữ liệu để xác minh và ghi nhận đón về." />
+        <StatusMessage
+          status="empty"
+          title="Chưa đăng ký người đón"
+          message="Liên hệ phụ huynh đăng ký người đón chính, sau đó tải lại dữ liệu để xác minh và ghi nhận đón về."
+        />
       ) : (
         <>
           {persons.isError && (
@@ -97,15 +118,37 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
           <div className="space-y-4">
             {registered.map((person) => (
               <div key={person.id} className="space-y-3 rounded-lg border border-border p-3">
-                <div className="grid grid-cols-[3rem_minmax(0,1fr)] grid-rows-[auto_auto_auto_auto] items-start gap-x-2 gap-y-1 min-[375px]:grid-cols-[4rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-x-3">
+                <div
+                  className="grid grid-cols-[3rem_minmax(0,1fr)] grid-rows-[auto_auto_auto_auto] items-start gap-x-2 gap-y-1
+                    min-[375px]:grid-cols-[4rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-x-3"
+                >
                   <div className="col-start-2 row-start-1 flex min-w-0 items-start justify-between gap-2">
-                    <h3 className="min-w-0 flex-1 text-xs font-semibold text-foreground wrap-anywhere min-[375px]:text-sm">{person.fullName} <span className="font-normal text-muted">({person.relationship})</span></h3>
-                    <span title={person.priority === 1 ? "Người đón chính" : "Người dự phòng"} className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium ${person.priority === 1 ? "bg-brand-subtle text-brand-text" : "bg-background text-muted"}`}>
-                      <span className="min-[480px]:hidden" aria-hidden="true">{person.priority === 1 ? "Chính" : "Dự phòng"}</span>
-                      <span className="sr-only min-[480px]:not-sr-only">{person.priority === 1 ? "Người đón chính" : "Người dự phòng"}</span>
+                    <h3 className="min-w-0 flex-1 text-xs font-semibold text-foreground wrap-anywhere min-[375px]:text-sm">
+                      {person.fullName} <span className="font-normal text-muted">({person.relationship})</span>
+                    </h3>
+                    <span
+                      title={person.priority === 1 ? "Người đón chính" : "Người dự phòng"}
+                      className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium ${
+                        person.priority === 1 ? "bg-brand-subtle text-brand-text" : "bg-background text-muted"
+                      }`}
+                    >
+                      <span className="min-[480px]:hidden" aria-hidden="true">
+                        {person.priority === 1 ? "Chính" : "Dự phòng"}
+                      </span>
+                      <span className="sr-only min-[480px]:not-sr-only">
+                        {person.priority === 1 ? "Người đón chính" : "Người dự phòng"}
+                      </span>
                     </span>
                   </div>
-                  <Button variant="ghost" aria-label={`Xem ảnh lớn của ${person.fullName}`} aria-haspopup="dialog" title="Bấm để xem ảnh lớn" onClick={() => setPreviewPerson(person)} className="relative col-start-1 row-span-4 row-start-1 h-full min-h-24 w-full cursor-zoom-in overflow-hidden rounded-lg p-0!">
+                  <Button
+                    variant="ghost"
+                    aria-label={`Xem ảnh lớn của ${person.fullName}`}
+                    aria-haspopup="dialog"
+                    title="Bấm để xem ảnh lớn"
+                    onClick={() => setPreviewPerson(person)}
+                    className="relative col-start-1 row-span-4 row-start-1 h-full min-h-24 w-full cursor-zoom-in
+                      overflow-hidden rounded-lg p-0!"
+                  >
                     <SignedImage
                       key={`${person.id}:${person.facePhotoUrl}`}
                       src={person.facePhotoUrl}
@@ -116,12 +159,22 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
                       referrerPolicy="no-referrer"
                     />
                     <span aria-hidden="true" className="absolute right-1 bottom-1 rounded bg-card/90 p-0.5 text-muted">
-                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><circle cx="10" cy="10" r="6" /><path strokeLinecap="round" d="m15 15 5 5M7 10h6m-3-3v6" /></svg>
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <circle cx="10" cy="10" r="6" />
+                        <path strokeLinecap="round" d="m15 15 5 5M7 10h6m-3-3v6" />
+                      </svg>
                     </span>
                   </Button>
                   <p className="col-start-2 row-start-2 min-w-0 text-xs text-muted tabular-nums wrap-anywhere">SĐT: {person.phoneNumber}</p>
                   <p className="col-start-2 row-start-3 min-w-0 text-xs text-muted tabular-nums wrap-anywhere">CCCD: {person.citizenIdNumber}</p>
-                  <Button variant="outline" size="sm" disabled={!ready} className="col-start-2 row-start-4 min-h-8 max-w-full justify-self-end whitespace-normal px-2.5 py-1 text-center" onClick={(event) => onChoose(child, registered, person, event.currentTarget)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!ready}
+                    className="col-start-2 row-start-4 min-h-8 max-w-full justify-self-end whitespace-normal
+                      px-2.5 py-1 text-center"
+                    onClick={(event) => onChoose(child, registered, person, event.currentTarget)}
+                  >
                     Giao cho người này
                   </Button>
                 </div>
@@ -129,12 +182,24 @@ export default function PickupChildCard({ child, record, userId, today, canWrite
             ))}
           </div>
           {!hasPrimary && <p role="alert" className="mt-3 text-sm text-danger">Chưa có người đón chính. Chưa thể ghi nhận đón về.</p>}
-          <Button variant="secondary" disabled={!ready} className="mt-4 min-h-11 w-full whitespace-normal text-center" onClick={(event) => onChoose(child, registered, null, event.currentTarget)}>
+          <Button
+            variant="secondary"
+            disabled={!ready}
+            className="mt-4 min-h-11 w-full whitespace-normal text-center"
+            onClick={(event) => onChoose(child, registered, null, event.currentTarget)}
+          >
             Người khác đến đón — đã gọi xác nhận
           </Button>
         </>
       )}
-      {previewPerson && !record && today && <PickupPhotoPreview person={previewPerson} childName={child.childFullName} getUrl={() => refreshPhoto(previewPerson)} onClose={() => setPreviewPerson(null)} />}
+      {previewPerson && !record && today && (
+        <PickupPhotoPreview
+          person={previewPerson}
+          childName={child.childFullName}
+          getUrl={() => refreshPhoto(previewPerson)}
+          onClose={() => setPreviewPerson(null)}
+        />
+      )}
     </article>
   );
 }

@@ -125,6 +125,69 @@ public class HealthService : IHealthService
         return growthMeasurement is null ? null : ToGrowthMeasurement(growthMeasurement);
     }
 
+    // FR-HEALTH-04. Y tế xem lịch sử của trẻ toàn trường (BR-HEALTH-04), nên chỉ trẻ không tồn tại mới
+    // là 404. Gộp cả 3 nguồn, mới nhất trước (D39 mục 9); trùng thời điểm thì sắp tiếp theo id để thứ tự
+    // không đổi giữa các lần gọi. Không phân trang, như các lịch sử khác (api-conventions §2.1)
+    public async Task<HealthHistoryResponse?> GetHealthHistoryAsync(Guid childId)
+    {
+        var child = await _healthRepository.FindChildAsync(childId);
+        if (child is null)
+            return null;
+
+        var incidents = await _healthRepository.GetIncidentsOfChildAsync(childId);
+        var quickHealthStatuses = await _healthRepository.GetQuickHealthStatusesOfChildAsync(childId);
+        var growthMeasurements = await _healthRepository.GetGrowthMeasurementsOfChildAsync(childId);
+
+        IEnumerable<HealthHistoryItemResponse> items = incidents.Select(ToIncidentHistoryItem);
+        var history = items
+            .Concat(quickHealthStatuses.Select(ToQuickHealthStatusHistoryItem))
+            .Concat(growthMeasurements.Select(ToGrowthMeasurementHistoryItem))
+            .OrderByDescending(item => item.OccurredAtUtc)
+            .ThenBy(item => item.Id)
+            .ToList();
+
+        return new HealthHistoryResponse(ToSchoolChild(child), history);
+    }
+
+    // FR-HEALTH-06. Y tế ghi lưu ý cho trẻ toàn trường (D43 mục 2), nên chỉ trẻ không tồn tại mới là 404.
+    // Đây là chỗ chuẩn hóa duy nhất của lưu ý (D39 mục 14): bỏ khoảng trắng hai đầu, còn rỗng thì lưu
+    // null. Chỉ sửa health_notes, không lưu lịch sử các lần sửa (UC-HEALTH-05). Không sinh thông báo
+    // (D39 mục 6), không ghi security_events (D50)
+    public async Task<SchoolChildResponse?> UpdateHealthNotesAsync(Guid childId, UpdateHealthNotesRequest request)
+    {
+        var child = await _healthRepository.FindChildForUpdateAsync(childId);
+        if (child is null)
+            return null;
+
+        child.HealthNotes = string.IsNullOrWhiteSpace(request.HealthNotes) ? null : request.HealthNotes.Trim();
+        await _healthRepository.SaveChangesAsync();
+
+        // Trả luôn trẻ vừa sửa để màn hình Y tế cập nhật mà không phải tải lại danh sách
+        return ToSchoolChild(child);
+    }
+
+    // FR-HEALTH-05. Phạm vi là các trẻ có liên kết với tài khoản này trong child_guardians (BR-SCOPE-01,
+    // D39 mục 10), không phụ thuộc lớp. Trẻ không tồn tại và trẻ không liên kết cùng trả null để
+    // Controller trả 404 mà không lộ trẻ đó có tồn tại hay không (AC-HEALTH-11). Chỉ đọc (BR-HEALTH-06)
+    public async Task<ChildHealthResponse?> GetChildHealthForGuardianAsync(Guid childId, Guid parentUserId)
+    {
+        // Tìm trẻ trong phạm vi trước để phân biệt trẻ ngoài phạm vi (404) với con mình chưa có bản ghi nào
+        // (danh sách rỗng); lưu ý sức khỏe cũng lấy từ đây
+        var child = await _healthRepository.FindChildOfGuardianAsync(childId, parentUserId);
+        if (child is null)
+            return null;
+
+        var quickHealthStatuses =
+            await _healthRepository.GetQuickHealthStatusesOfChildForGuardianAsync(childId, parentUserId);
+        var growthMeasurements =
+            await _healthRepository.GetGrowthMeasurementsOfChildForGuardianAsync(childId, parentUserId);
+
+        return new ChildHealthResponse(
+            HealthNotesOrNull(child),
+            quickHealthStatuses.Select(ToChildQuickHealthStatus).ToList(),
+            growthMeasurements.Select(ToChildGrowthMeasurement).ToList());
+    }
+
     private static string QuickHealthStatusMessage(string childFullName, QuickHealthStatus quickHealthStatus)
     {
         var temperature = quickHealthStatus.TemperatureCelsius is null
@@ -155,11 +218,33 @@ public class HealthService : IHealthService
     private static SchoolChildResponse ToSchoolChild(Child child)
         => new(child.Id, child.FullName, child.DateOfBirth, HealthNotesOrNull(child));
 
-    // Lưu ý chỉ có khoảng trắng coi như không có, để giao diện chỉ phải xét null khi đánh dấu trẻ (AC-HEALTH-16)
+    // Lưu ý chỉ có khoảng trắng coi như không có, để giao diện chỉ phải xét null khi đánh dấu trẻ (AC-HEALTH-16).
+    // Ghi qua UpdateHealthNotesAsync đã chuẩn hóa sẵn; đây chỉ là chốt chặn phía đọc
     private static string? HealthNotesOrNull(Child child)
         => string.IsNullOrWhiteSpace(child.HealthNotes) ? null : child.HealthNotes;
 
     private static GrowthMeasurementResponse ToGrowthMeasurement(GrowthMeasurement growthMeasurement)
         => new(growthMeasurement.Id, growthMeasurement.ChildId, growthMeasurement.MeasuredAt,
             growthMeasurement.HeightCm, growthMeasurement.WeightKg);
+
+    private static IncidentHistoryItemResponse ToIncidentHistoryItem(Incident incident)
+        => new(incident.Id, incident.OccurredAt, incident.Description, incident.IncidentPhotos.Count);
+
+    private static QuickHealthStatusHistoryItemResponse ToQuickHealthStatusHistoryItem(
+        QuickHealthStatus quickHealthStatus)
+        => new(quickHealthStatus.Id, quickHealthStatus.RecordedAt, quickHealthStatus.Mood,
+            quickHealthStatus.TemperatureCelsius, quickHealthStatus.Notes);
+
+    private static GrowthMeasurementHistoryItemResponse ToGrowthMeasurementHistoryItem(
+        GrowthMeasurement growthMeasurement)
+        => new(growthMeasurement.Id, growthMeasurement.MeasuredAt, growthMeasurement.HeightCm,
+            growthMeasurement.WeightKg);
+
+    private static ChildQuickHealthStatusResponse ToChildQuickHealthStatus(QuickHealthStatus quickHealthStatus)
+        => new(quickHealthStatus.Id, quickHealthStatus.RecordedAt, quickHealthStatus.Mood,
+            quickHealthStatus.TemperatureCelsius, quickHealthStatus.Notes);
+
+    private static ChildGrowthMeasurementResponse ToChildGrowthMeasurement(GrowthMeasurement growthMeasurement)
+        => new(growthMeasurement.Id, growthMeasurement.MeasuredAt, growthMeasurement.HeightCm,
+            growthMeasurement.WeightKg);
 }
