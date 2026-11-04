@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FocusEvent, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -14,6 +15,7 @@ import Link from "next/link";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import { useAuth } from "@/context/AuthContext";
 import { useApiMutation, useApiQuery } from "@/hooks/useApiQuery";
+import type { ApiError } from "@/lib/axios";
 import { checkInStudent, formatAttendanceTime, getAttendanceForDate, getHomeroomChildren, getVietnamDate } from "@/lib/attendance";
 import {
   ATTENDANCE_STATUS_LABELS,
@@ -53,6 +55,28 @@ function useVietnamDate() {
   return date;
 }
 
+function parseAndValidateRoster(raw: unknown): AttendanceChild[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const roster: AttendanceChild[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return undefined;
+    const { id, fullName, healthNotes } = item;
+    if (typeof id !== "string" || !id.trim() ||
+        typeof fullName !== "string" || !fullName.trim() ||
+        (healthNotes !== null && typeof healthNotes !== "string")) return undefined;
+    roster.push({ childId: id, fullName, healthNotes });
+  }
+  return roster;
+}
+
+function loadErrorMessage(error: ApiError | null, fallback = "Không thể tải danh sách lớp. Vui lòng thử lại."): string | undefined {
+  if (!error) return undefined;
+  if (error.status === 401) return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+  if (error.status === 403) return "Bạn không có quyền xem dữ liệu này.";
+  if (error.status === 404) return "Không tìm thấy dữ liệu được yêu cầu. Vui lòng thử lại.";
+  return /[À-ỹ]/u.test(error.message) ? error.message : fallback;
+}
+
 export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly AttendanceChild[] }) {
   const { user } = useAuth();
   const date = useVietnamDate();
@@ -60,7 +84,8 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
   const [pending, setPending] = useState<PendingCheckIn | null>(null);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string; errors?: string[] | null } | null>(null);
   const [showHealth, setShowHealth] = useState(true);
-  const [expandedHealthId, setExpandedHealthId] = useState<string | null>(null);
+  const [healthFocus, setHealthFocus] = useState<{ childId: string } | null>(null);
+  const [healthTooltip, setHealthTooltip] = useState<{ childId: string; top: number; left: number } | null>(null);
   const [needsRecheck, setNeedsRecheck] = useState(false);
   // Chặn hai lần xác nhận liên tiếp trước khi trạng thái đang gửi được render.
   const submitLock = useRef(false);
@@ -69,6 +94,13 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
   const screenRef = useRef<HTMLDivElement>(null);
   // Đợi danh sách cập nhật để trả focus về nút cũ hoặc trẻ kế tiếp còn chưa điểm danh.
   const focusRestore = useRef<{ next: boolean; index: number } | null>(null);
+  const [rosterSnapshot, setRosterSnapshot] = useState<{
+    userId: string | undefined;
+    rawData?: unknown;
+    roster?: AttendanceChild[];
+    authBlocked: boolean;
+    invalid: boolean;
+  }>({ userId: user?.userId, authBlocked: false, invalid: false });
 
   const { register, control, reset } = useForm<Filters>({
     defaultValues: { search: "", status: "All" },
@@ -84,9 +116,40 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
     refetchOnWindowFocus: "always",
     refetchInterval: 60_000,
   });
-  const roster = providedRoster ?? rosterQuery.data?.map((child) => ({
-    childId: child.id, fullName: child.fullName, healthNotes: child.healthNotes,
-  }));
+
+  const isRosterAuthError = providedRoster === undefined && rosterQuery.isError &&
+    (rosterQuery.error.status === 401 || rosterQuery.error.status === 403);
+  const sameUser = rosterSnapshot.userId === user?.userId;
+
+  // Chỉ response hợp lệ mới giải tỏa lỗi; một lần retry thất bại không khôi phục quyền.
+  if (!sameUser) {
+    setRosterSnapshot({ userId: user?.userId, authBlocked: false, invalid: false });
+    setPending(null);
+    setHealthFocus(null);
+    setHealthTooltip(null);
+  } else if (providedRoster === undefined) {
+    if (isRosterAuthError && !rosterSnapshot.authBlocked) {
+      setRosterSnapshot({ userId: user?.userId, authBlocked: true, invalid: false });
+    } else if (!isRosterAuthError && rosterQuery.isSuccess && rosterQuery.data !== undefined) {
+      const parsed = parseAndValidateRoster(rosterQuery.data);
+      if (parsed !== undefined) {
+        if (rosterSnapshot.rawData !== rosterQuery.data || rosterSnapshot.authBlocked || rosterSnapshot.invalid) {
+          setRosterSnapshot({ userId: user?.userId, rawData: rosterQuery.data, roster: parsed, authBlocked: false, invalid: false });
+        }
+      } else if (rosterSnapshot.rawData !== rosterQuery.data || !rosterSnapshot.invalid) {
+        setRosterSnapshot({ ...rosterSnapshot, rawData: rosterQuery.data, invalid: true });
+      }
+    }
+  }
+  const isAuthBlocked = isRosterAuthError || (sameUser && rosterSnapshot.authBlocked);
+  const rosterContractError = sameUser && rosterSnapshot.invalid;
+  const roster = providedRoster ?? (sameUser && !isAuthBlocked ? rosterSnapshot.roster : undefined);
+  const tooltipChild = roster?.find((child) => child.childId === healthTooltip?.childId);
+  const rosterMessage = rosterContractError
+    ? "Dữ liệu danh sách lớp không hợp lệ. Vui lòng thử lại."
+    : isAuthBlocked ? "Bạn không có quyền xem danh sách lớp."
+    : loadErrorMessage(rosterQuery.error);
+  const isRosterFailure = providedRoster === undefined && (rosterQuery.isError || rosterContractError || isAuthBlocked);
 
   const query = useApiQuery<AttendanceResponse[]>({
     queryKey: todayKey(user?.userId, date),
@@ -98,6 +161,9 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
     refetchInterval: 60_000,
   });
 
+  const hasAttendanceData = query.data !== undefined;
+  const isAttendanceError = query.isError && !hasAttendanceData;
+
   const records = query.data ?? [];
   const recordByChild = new Map(records.map((record) => [record.childId, record]));
 
@@ -106,15 +172,16 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
       ? []
       : roster.map((child) => ({
           ...child,
-          attendance: recordByChild.get(child.childId) ?? null,
+          attendance: hasAttendanceData ? recordByChild.get(child.childId) ?? null : null,
         }));
 
+  const activeStatusFilter = hasAttendanceData ? status : "All";
   const filtered = students.filter((child) => {
     if (!child.fullName.toLocaleLowerCase("vi-VN").includes(search.trim().toLocaleLowerCase("vi-VN"))) {
       return false;
     }
-    if (status === "Unchecked") return child.attendance === null;
-    return status === "All" || child.attendance?.status === status;
+    if (activeStatusFilter === "Unchecked") return child.attendance === null;
+    return activeStatusFilter === "All" || child.attendance?.status === activeStatusFilter;
   });
 
   const closeDialog = (isSuccess = false) => {
@@ -182,10 +249,13 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
     },
   });
 
-  // Lỗi tải lại ngầm vẫn giữ dữ liệu đã có; backend kiểm tra lại quyền và bản ghi trùng khi gửi.
+  // Điều kiện cho phép ghi: danh sách lớp hợp lệ, không có lỗi quyền, không có lỗi cấu trúc, dữ liệu điểm danh đã tải, không trong quá trình gửi hoặc chờ xác minh lại.
   const canWrite =
+    !isRosterAuthError &&
+    !isAuthBlocked &&
     roster !== undefined &&
     query.data !== undefined &&
+    !rosterContractError &&
     !mutation.isPending &&
     !needsRecheck;
 
@@ -205,13 +275,24 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
     ) {
       return;
     }
+
+    if (!canWrite || recordByChild.has(pending.child.childId) ||
+        !roster?.some((child) => child.childId === pending.child.childId)) {
+      closeDialog();
+      setFeedback({ kind: "error", text: "Thông tin điểm danh đã thay đổi hoặc chưa sẵn sàng. Vui lòng tải lại trước khi ghi nhận." });
+      return;
+    }
+
     if (pending.date !== getVietnamDate()) {
-      setFeedback({ kind: "error", text: "Đã sang ngày mới. Vui lòng tải lại và chọn trạng thái điểm danh cho hôm nay." });
+      setFeedback({
+        kind: "error",
+        text: "Đã sang ngày mới. Vui lòng tải lại và chọn trạng thái điểm danh cho hôm nay.",
+      });
       closeDialog();
       void recheck();
       return;
     }
-    // Dữ liệu có thể đổi khi hộp thoại đang mở; để backend quyết định kết quả và trả thông báo.
+
     submitLock.current = true;
     mutation.mutate(pending);
   };
@@ -223,7 +304,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
     students.filter((child) => child.attendance?.status === value).length;
   const unchecked = students.filter((child) => !child.attendance).length;
   const percentage = (value: number | null) =>
-    hasRoster && hasCurrentData && roster.length > 0 && value !== null
+    roster !== undefined && hasCurrentData && roster.length > 0 && value !== null
       ? new Intl.NumberFormat("vi-VN", {
           style: "percent",
           maximumFractionDigits: 1,
@@ -231,7 +312,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
       : "—";
 
   const healthStudents = students.filter((child) => child.healthNotes?.trim());
-  const healthAvailable = hasRoster && roster.every((child) => child.healthNotes !== undefined);
+  const healthAvailable = roster !== undefined && roster.every((child) => child.healthNotes !== undefined);
 
   const dateLabel = new Intl.DateTimeFormat("vi-VN", {
     weekday: "long",
@@ -331,6 +412,36 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
       );
     }
 
+    if (!hasAttendanceData) {
+      if (view === "card") {
+        return (
+          <div
+            className={`flex min-h-11 w-full items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-medium ${
+              isAttendanceError
+                ? "border-danger-border/60 bg-danger-bg/40 text-danger"
+                : "border-border bg-card text-muted"
+            }`}
+          >
+            {isAttendanceError ? "Chưa tải được trạng thái điểm danh" : "Đang tải trạng thái điểm danh..."}
+          </div>
+        );
+      }
+
+      return (
+        <div className="w-full min-w-0">
+          <div
+            className={`flex h-8 w-full items-center justify-center rounded-md border px-3 text-xs font-medium whitespace-nowrap ${
+              isAttendanceError
+                ? "border-danger-border/60 bg-danger-bg/40 text-danger"
+                : "border-border bg-card text-muted"
+            }`}
+          >
+            {isAttendanceError ? "Chưa tải được trạng thái" : "Đang tải trạng thái..."}
+          </div>
+        </div>
+      );
+    }
+
     if (view === "card") {
       return (
         <div
@@ -408,44 +519,66 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
     );
   };
 
-  const renderStudentName = (student: StudentAttendanceItem, view: "table" | "card") => (
-    <div className="space-y-1">
-      <div className="flex items-start justify-between gap-1.5 sm:justify-start sm:gap-2">
-        <span className="min-w-0 break-words text-sm font-medium text-foreground">{student.fullName}</span>
-        {student.healthNotes?.trim() && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            title={`Lưu ý sức khỏe: ${student.healthNotes}`}
-            aria-label={`Lưu ý sức khỏe: ${student.fullName}`}
-            aria-expanded={expandedHealthId === student.childId}
-            aria-controls={`health-detail-${view}-${student.childId}`}
-            onClick={() =>
-              setExpandedHealthId(expandedHealthId === student.childId ? null : student.childId)
-            }
-            className={`h-9 w-9 sm:h-10 sm:w-10 shrink-0 p-0 text-warning hover:bg-warning-bg ${view === "card" ? "-my-1.5" : ""}`}
-          >
-            <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-warning-border bg-warning-bg text-[10px] font-bold">!</span>
-          </Button>
-        )}
-      </div>
+  useEffect(() => {
+    if (!healthFocus) return;
+    const target = document.getElementById(`health-note-${healthFocus.childId}`);
+    if (!target) return;
+    target.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+    target.focus({ preventScroll: true });
+    const timer = window.setTimeout(() => setHealthFocus(null), 2000);
+    return () => window.clearTimeout(timer);
+  }, [healthFocus]);
+
+  useEffect(() => {
+    const hide = () => setHealthTooltip(null);
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    return () => {
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
+    };
+  }, []);
+
+  const previewHealth = (event: MouseEvent<HTMLButtonElement> | FocusEvent<HTMLButtonElement>, child: AttendanceChild) => {
+    if (!window.matchMedia("(min-width: 1024px)").matches) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const top = rect.bottom + 8 + 240 > window.innerHeight ? Math.max(8, rect.top - 248) : rect.bottom + 8;
+    setHealthTooltip({ childId: child.childId, top, left: Math.max(16, Math.min(rect.left, window.innerWidth - 304)) });
+  };
+
+  const renderStudentName = (student: StudentAttendanceItem) => (
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      <span className="min-w-0 break-words text-sm font-medium text-foreground">{student.fullName}</span>
       {student.healthNotes?.trim() && (
-        <div
-          id={`health-detail-${view}-${student.childId}`}
-          hidden={expandedHealthId !== student.childId}
-          className="mt-2 rounded-lg border border-warning-border/60 border-l-3 border-l-warning bg-warning-bg/40 p-2.5 text-xs leading-relaxed text-foreground shadow-2xs whitespace-pre-wrap break-words"
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-label={`Xem lưu ý sức khỏe: ${student.fullName}`}
+          aria-controls={`health-note-${student.childId}`}
+          aria-describedby={healthTooltip?.childId === student.childId ? "attendance-health-tooltip" : undefined}
+          onMouseEnter={(event) => previewHealth(event, student)}
+          onMouseLeave={() => setHealthTooltip(null)}
+          onFocus={(event) => previewHealth(event, student)}
+          onBlur={() => setHealthTooltip(null)}
+          onKeyDown={(event) => { if (event.key === "Escape") setHealthTooltip(null); }}
+          onClick={() => {
+            setHealthTooltip(null);
+            setShowHealth(true);
+            setHealthFocus({ childId: student.childId });
+          }}
+          className="h-6 w-6 shrink-0 rounded-full border-0 bg-transparent p-0 text-warning hover:bg-warning-bg active:bg-warning-bg"
+          style={{ padding: 0 }}
         >
-          <span className="font-semibold text-warning">Lưu ý sức khỏe: </span>
-          {student.healthNotes}
-        </div>
+          <span aria-hidden="true" className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-warning-border bg-warning-bg text-[10px] font-bold leading-none">!</span>
+        </Button>
       )}
     </div>
   );
 
   const columns: Column<StudentAttendanceItem>[] = [
     { key: "index", header: "STT", className: "w-14 text-center", render: (_, index) => index + 1 },
-    { key: "name", header: "Họ và tên học sinh", className: "whitespace-normal min-w-40", render: (student) => renderStudentName(student, "table") },
+    { key: "name", header: "Họ và tên học sinh", className: "whitespace-normal min-w-40", render: (student) => renderStudentName(student) },
     { key: "attendance", header: "Trạng thái & Điểm danh", className: "w-[372px] text-center", render: (student, index) => renderAttendanceAction(student, "table", index) },
   ];
 
@@ -458,7 +591,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
         <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-subtle px-3 text-xs font-medium text-brand-text">
           Lớp chủ nhiệm:
           <span className="font-bold tabular-nums">
-            {hasRoster ? roster.length : "—"}
+            {roster !== undefined ? roster.length : "—"}
           </span>
           <span>học sinh</span>
         </span>
@@ -542,12 +675,13 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
               <FormField id="attendance-filter" label="Lọc trạng thái điểm danh" className="min-w-0 flex-1 sm:w-48 sm:flex-none">
                 <Select
                   id="attendance-filter"
-                  title={filters.find((filter) => filter.value === status)?.label}
+                  title={!hasAttendanceData ? "Trạng thái điểm danh đang tải hoặc chưa sẵn sàng" : filters.find((filter) => filter.value === status)?.label}
+                  disabled={!hasAttendanceData}
                   options={filters.map((filter) => ({
                     value: filter.value,
                     label: `${filter.label} (${filter.total ?? "—"})`,
                   }))}
-                  className="min-h-11 pl-2 text-[11px] sm:pl-3.5 sm:text-xs"
+                  className="min-h-11 pl-2 text-[11px] sm:pl-3.5 sm:text-xs disabled:opacity-60"
                   {...register("status")}
                 />
               </FormField>
@@ -582,38 +716,29 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
               Chưa xác định được kết quả ghi nhận. Hãy tải lại thành công trước khi ghi tiếp.
             </div>
           )}
-          {providedRoster === undefined && rosterQuery.isError && rosterQuery.data !== undefined && (
-            <div role="alert" className="border-b border-danger-border bg-danger-bg p-3 text-sm text-danger">
-              <p>{[rosterQuery.error.message, ...(rosterQuery.error.errors ?? [])].join(" ")}</p>
-              <p className="mt-1">Danh sách lớp và lưu ý sức khỏe đang hiển thị là dữ liệu tải thành công gần nhất.</p>
-              <Button variant="secondary" size="sm" className="mt-2" disabled={rosterQuery.isFetching} onClick={() => { void recheck(); }}>Thử lại</Button>
+          {isRosterFailure && roster !== undefined && (
+            <div role="alert" className="border-b border-warning-border bg-warning-bg p-3 text-sm text-foreground">
+              <p>{rosterMessage}</p>
+              <p className="mt-1">Đang hiển thị danh sách lớp và lưu ý sức khỏe tải thành công gần nhất.{rosterContractError ? " Thao tác điểm danh tạm thời bị khóa." : ""}</p>
+              <Button variant="secondary" size="sm" className="mt-2" disabled={isRefreshing} onClick={() => { void recheck(); }}>Thử lại</Button>
             </div>
           )}
-          {query.isError && query.data !== undefined && (
-            <div role="alert" className="border-b border-danger-border bg-danger-bg p-3 text-sm text-danger">
-              <p>{[query.error.message, ...(query.error.errors ?? [])].join(" ")}</p>
-              <p className="mt-1">Danh sách bên dưới là dữ liệu tải thành công gần nhất.</p>
-              <Button variant="secondary" size="sm" className="mt-2" disabled={query.isFetching} onClick={() => { void recheck(); }}>Thử lại</Button>
+          {query.isError && roster !== undefined && (
+            <div role="alert" className="border-b border-warning-border bg-warning-bg p-3 text-sm text-foreground">
+              <p>{loadErrorMessage(query.error, "Không thể tải trạng thái điểm danh. Vui lòng thử lại.")}</p>
+              <p className="mt-1">{hasAttendanceData
+                ? "Đang hiển thị dữ liệu điểm danh tải thành công gần nhất."
+                : "Trạng thái điểm danh chưa sẵn sàng. Bạn vẫn có thể xem lưu ý sức khỏe; thao tác điểm danh tạm thời bị khóa."}</p>
+              <Button variant="secondary" size="sm" className="mt-2" disabled={isRefreshing} onClick={() => { void recheck(); }}>Thử lại</Button>
             </div>
           )}
           {roster === undefined ? (
-            <StatusMessage
-              status={rosterQuery.isError ? "error" : "loading"}
-              title={rosterQuery.isError ? "Không thể tải danh sách lớp" : "Đang tải danh sách lớp..."}
-              message={rosterQuery.error ? [rosterQuery.error.message, ...(rosterQuery.error.errors ?? [])].join(" ") : undefined}
-              onRetry={rosterQuery.isError ? () => { void recheck(); } : undefined}
-            />
-          ) : query.data === undefined && !query.isError ? (
-            <StatusMessage status="loading" title="Đang tải điểm danh hôm nay..." />
-          ) : query.isError && query.data === undefined ? (
-            <div role="alert">
+            <div role={isRosterFailure ? "alert" : "status"} className="p-4">
               <StatusMessage
-                status="error"
-                title="Không thể tải điểm danh"
-                message={[query.error.message, ...(query.error.errors ?? [])].join(" ")}
-                onRetry={() => {
-                  void recheck();
-                }}
+                status={isRosterFailure ? "error" : "loading"}
+                title={isRosterFailure ? "Không thể tải danh sách lớp" : "Đang tải danh sách lớp..."}
+                message={rosterMessage}
+                onRetry={isRosterFailure ? () => { void recheck(); } : undefined}
               />
             </div>
           ) : students.length === 0 ? (
@@ -656,7 +781,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
               <ul className="divide-y divide-border/60 lg:hidden">
                 {filtered.map((student, index) => (
                   <li key={student.childId} className="space-y-3 p-3.5 sm:p-4">
-                    {renderStudentName(student, "card")}
+                    {renderStudentName(student)}
                     <div className="w-full min-w-0">{renderAttendanceAction(student, "card", index)}</div>
                   </li>
                 ))}
@@ -666,11 +791,13 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
                 <span>
                   Hiển thị {filtered.length} / {students.length} học sinh
                   {hasRoster ? " trong lớp" : " đã điểm danh hôm nay"}
-                  {status !== "All"
+                  {!hasAttendanceData
+                    ? " · Trạng thái điểm danh chưa sẵn sàng"
+                    : status !== "All"
                     ? ` · ${filters.find((filter) => filter.value === status)?.label}`
                     : ""}
                 </span>
-                {(search || status !== "All") && (
+                {(search || (hasAttendanceData && status !== "All")) && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -689,7 +816,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
 
         {hasRoster && <aside
           aria-label="Lưu ý sức khỏe của học sinh"
-          className="hidden min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs xl:block"
+          className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs"
         >
           <div
             className={`flex items-center justify-between border-b border-border transition-colors ${
@@ -745,11 +872,13 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
               </div>
             ) : (
               <div className="p-3 pb-1">
-                <ul className="max-h-[34rem] space-y-2.5 overflow-y-auto pr-0.5">
+                <ul className="space-y-2.5 pr-0.5 xl:max-h-[34rem] xl:overflow-y-auto">
                   {healthStudents.map((student) => (
                     <li
                       key={student.childId}
-                      className="rounded-lg border border-border/80 bg-card p-3 shadow-2xs transition-all hover:border-border-hover"
+                      id={`health-note-${student.childId}`}
+                      tabIndex={-1}
+                      className={`scroll-mt-6 rounded-lg border p-3 shadow-2xs transition-colors focus-visible:outline-2 focus-visible:outline-warning motion-reduce:transition-none ${healthFocus?.childId === student.childId ? "border-warning-border bg-warning-bg ring-2 ring-warning" : "border-border/80 bg-card hover:border-border-hover"}`}
                     >
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <p className="min-w-0 break-words text-sm font-semibold text-foreground leading-snug">
@@ -763,13 +892,21 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
                           >
                             {ATTENDANCE_STATUS_LABELS[student.attendance.status]}
                           </span>
-                        ) : (
+                        ) : hasAttendanceData ? (
                           <span className="shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted">
                             Chưa điểm danh
                           </span>
+                        ) : isAttendanceError ? (
+                          <span className="shrink-0 rounded border border-danger-border/60 bg-danger-bg/40 px-1.5 py-0.5 text-[10px] font-medium text-danger">
+                            Chưa tải được
+                          </span>
+                        ) : (
+                          <span className="shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted">
+                            Đang tải...
+                          </span>
                         )}
                       </div>
-                      <div className="whitespace-pre-wrap break-words rounded-md border border-warning-border/60 border-l-3 border-l-warning bg-warning-bg/40 px-2.5 py-2 text-xs leading-relaxed text-foreground shadow-2xs">
+                      <div className="whitespace-pre-wrap wrap-anywhere rounded-md border border-warning-border/60 bg-warning-bg/40 px-2.5 py-2 text-xs leading-relaxed text-foreground shadow-2xs">
                         {student.healthNotes}
                       </div>
                     </li>
@@ -777,18 +914,17 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
                 </ul>
               </div>
             )}
-
-            <div className="p-3 pt-1 text-right">
-              <Link
-                href="/teacher/class-children"
-                className="text-xs font-medium text-brand-text hover:underline focus-visible:outline-2 focus-visible:outline-brand"
-              >
-                Xem tất cả lưu ý của lớp →
-              </Link>
-            </div>
           </div>
         </aside>}
       </div>
+
+      {healthTooltip && tooltipChild?.healthNotes?.trim() && createPortal(
+        <div id="attendance-health-tooltip" role="tooltip" className="pointer-events-none fixed z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-warning-border bg-card p-3 text-xs leading-relaxed text-foreground shadow-lg" style={{ top: healthTooltip.top, left: healthTooltip.left }}>
+          <p className="font-semibold text-warning">{tooltipChild.fullName}</p>
+          <p className="mt-1 line-clamp-6 whitespace-pre-wrap wrap-anywhere">{tooltipChild.healthNotes}</p>
+          <p className="mt-2 text-muted">Bấm để xem tại mục lưu ý sức khỏe.</p>
+        </div>, document.body,
+      )}
 
       <ConfirmDialog
         isOpen={pending !== null}
