@@ -92,10 +92,8 @@ export default function AccountantMenuPage() {
                 onPointerDown={() => { editingDateByKeyboard.current = false; }}
                 onBlur={(event) => {
                   void dateField.onBlur(event);
-                  if (editingDateByKeyboard.current) {
-                    editingDateByKeyboard.current = false;
-                    selectWeek(event.currentTarget.value);
-                  }
+                  editingDateByKeyboard.current = false;
+                  selectWeek(event.currentTarget.value);
                 }}
                 className="min-w-0" onKeyDown={(event) => {
                   if (event.key === "Enter") {
