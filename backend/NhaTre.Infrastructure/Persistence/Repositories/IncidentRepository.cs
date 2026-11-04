@@ -64,4 +64,32 @@ public class IncidentRepository : IIncidentRepository
     {
         await _dbContext.SaveChangesAsync();
     }
+
+    // Vẫn lọc liên kết dù Service đã kiểm liên kết trước, để liên kết bị gỡ giữa hai lần đọc thì không trả dữ
+    // liệu. Trùng thời điểm thì sắp tiếp theo id để thứ tự không đổi giữa các lần gọi. Ảnh nạp kèm chỉ để
+    // đếm; danh sách không ký URL (D39 mục 9)
+    public async Task<IReadOnlyList<Incident>> GetIncidentsOfChildForGuardianAsync(Guid childId, Guid parentUserId)
+    {
+        return await _dbContext.Incidents
+            .AsNoTracking()
+            .Include(i => i.IncidentPhotos)
+            .Where(i => i.ChildId == childId
+                && i.Child.ChildGuardians.Any(cg => cg.GuardianUserId == parentUserId))
+            .OrderByDescending(i => i.OccurredAt)
+            .ThenBy(i => i.Id)
+            .ToListAsync();
+    }
+
+    // Phạm vi nằm ngay trong câu truy vấn: đổi id sự cố hay id trẻ trên URL sang dữ liệu ngoài phạm vi đều
+    // không khớp. Ảnh xếp theo id như phía giáo viên
+    public async Task<Incident?> FindIncidentOfChildForGuardianAsync(Guid childId, Guid incidentId,
+        Guid parentUserId)
+    {
+        return await _dbContext.Incidents
+            .AsNoTracking()
+            .Include(i => i.IncidentPhotos.OrderBy(p => p.Id))
+            .FirstOrDefaultAsync(i => i.Id == incidentId
+                && i.ChildId == childId
+                && i.Child.ChildGuardians.Any(cg => cg.GuardianUserId == parentUserId));
+    }
 }
