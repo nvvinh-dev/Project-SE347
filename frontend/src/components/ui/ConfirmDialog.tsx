@@ -12,6 +12,9 @@ export interface ConfirmDialogProps {
   cancelText?: string;
   variant?: "primary" | "destructive";
   isLoading?: boolean;
+  compactHeader?: boolean;
+  /** Tách nội dung dưới tiêu đề để form dùng trọn chiều rộng hộp thoại. */
+  layout?: "inline" | "stacked";
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -24,6 +27,8 @@ export function ConfirmDialog({
   cancelText = "Hủy bỏ",
   variant = "primary",
   isLoading = false,
+  compactHeader = false,
+  layout = "inline",
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
@@ -128,17 +133,18 @@ export function ConfirmDialog({
       />
 
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl transition-all">
-        <div className="flex items-start gap-4">
+        <div className={cn("flex gap-4", layout === "stacked" ? "items-center" : "items-start")}>
           <div
             className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
+              "flex shrink-0 items-center justify-center rounded-full",
+              compactHeader ? "h-8 w-8" : "h-11 w-11",
               variant === "destructive"
                 ? "bg-danger/10 text-danger"
                 : "bg-brand-subtle text-brand"
             )}
           >
             {variant === "destructive" ? (
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={compactHeader ? "h-5 w-5" : "h-6 w-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -147,7 +153,7 @@ export function ConfirmDialog({
                 />
               </svg>
             ) : (
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={compactHeader ? "h-5 w-5" : "h-6 w-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -158,13 +164,20 @@ export function ConfirmDialog({
             )}
           </div>
 
-          <div className="flex-1">
-            <h3 id={titleId} className="text-base font-semibold text-foreground">
+          <div className={cn("flex-1", layout === "stacked" && "min-w-0")}>
+            <h3
+              id={titleId}
+              className={cn(
+                "text-base font-semibold text-foreground",
+                compactHeader && "flex min-h-8 items-center"
+              )}
+            >
               {title}
             </h3>
-            <div className="mt-2 text-sm text-muted">{description}</div>
+            {layout === "inline" && <div className="mt-2 text-sm text-muted">{description}</div>}
           </div>
         </div>
+        {layout === "stacked" && <div className="mt-4 text-sm text-muted">{description}</div>}
 
         <div className="mt-6 flex items-center justify-end gap-3">
           <Button
