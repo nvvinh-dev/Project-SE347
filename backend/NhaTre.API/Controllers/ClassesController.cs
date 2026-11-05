@@ -10,7 +10,7 @@ namespace NhaTre.API.Controllers;
 
 // Module Lớp gồm hai tài nguyên classes và class-placements (trẻ cần xếp lớp), nên route gốc của
 // Controller là api/ và mỗi action tự ghi tên tài nguyên.
-// Chỉ Admin xếp trẻ vào lớp và gán giáo viên chủ nhiệm (FR-CLASS-01). 3 lớp cố định (D39 mục 3):
+// Chỉ Admin xếp trẻ vào lớp, gán giáo viên chủ nhiệm (FR-CLASS-01) và giáo viên phụ (FR-CLASS-02). 3 lớp cố định (D39 mục 3):
 // không có tạo, sửa hay xóa lớp
 [ApiController]
 [Route("api")]
@@ -20,15 +20,18 @@ public class ClassesController : ControllerBase
     private readonly IClassService _classService;
     private readonly IValidator<AssignClassRequest> _assignClassValidator;
     private readonly IValidator<AssignHomeroomTeacherRequest> _assignHomeroomTeacherValidator;
+    private readonly IValidator<AssignAssistantTeachersRequest> _assignAssistantTeachersValidator;
 
     public ClassesController(
         IClassService classService,
         IValidator<AssignClassRequest> assignClassValidator,
-        IValidator<AssignHomeroomTeacherRequest> assignHomeroomTeacherValidator)
+        IValidator<AssignHomeroomTeacherRequest> assignHomeroomTeacherValidator,
+        IValidator<AssignAssistantTeachersRequest> assignAssistantTeachersValidator)
     {
         _classService = classService;
         _assignClassValidator = assignClassValidator;
         _assignHomeroomTeacherValidator = assignHomeroomTeacherValidator;
+        _assignAssistantTeachersValidator = assignAssistantTeachersValidator;
     }
 
     [HttpGet("classes")]
@@ -66,7 +69,35 @@ public class ClassesController : ControllerBase
                 "Giáo viên này đã là giáo viên chủ nhiệm của lớp.")),
             ClassOutcome.NoHomeroomTeacher => Conflict(ApiResponse<ClassResponse>.Fail(
                 "Lớp này chưa có giáo viên chủ nhiệm.")),
+            ClassOutcome.HomeroomIsAssistant => Conflict(ApiResponse<ClassResponse>.Fail(
+                "Giáo viên này đang là giáo viên phụ của lớp. Hãy gỡ khỏi danh sách giáo viên phụ trước.")),
             _ => throw new InvalidOperationException($"Kết quả gán giáo viên chủ nhiệm không xử lý: {result.Outcome}")
+        };
+    }
+
+    // FR-CLASS-02: gửi toàn bộ danh sách giáo viên phụ, rỗng là gỡ hết; không có DELETE
+    [HttpPut("classes/{id:guid}/assistant-teachers")]
+    public async Task<ActionResult<ApiResponse<ClassResponse>>> AssignAssistantTeachers(
+        Guid id, [FromBody] AssignAssistantTeachersRequest request)
+    {
+        var validationResult = await _assignAssistantTeachersValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<ClassResponse>.Fail(errors));
+        }
+
+        var result = await _classService.AssignAssistantTeachersAsync(id, request);
+
+        return result.Outcome switch
+        {
+            ClassOutcome.Success => Ok(ApiResponse<ClassResponse>.Ok(result.Class!)),
+            ClassOutcome.ClassNotFound => NotFound(ApiResponse<ClassResponse>.Fail("Không tìm thấy lớp học.")),
+            ClassOutcome.InvalidAssistantTeacher => Conflict(ApiResponse<ClassResponse>.Fail(
+                "Có tài khoản trong danh sách không phải giáo viên đang hoạt động có hồ sơ giáo viên.")),
+            ClassOutcome.AssistantIsHomeroom => Conflict(ApiResponse<ClassResponse>.Fail(
+                "Giáo viên chủ nhiệm của lớp không thể đồng thời là giáo viên phụ của lớp đó.")),
+            _ => throw new InvalidOperationException($"Kết quả gán giáo viên phụ không xử lý: {result.Outcome}")
         };
     }
 

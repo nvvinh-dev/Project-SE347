@@ -6,7 +6,8 @@ using NhaTre.Domain.Entities;
 namespace NhaTre.Application.Services;
 
 // FR-CLASS-01: Admin xếp trẻ vào một trong 3 lớp cố định và gán giáo viên chủ nhiệm (D39 mục 3).
-// Xếp lớp và gán giáo viên chủ nhiệm không thuộc 8 sự kiện của security_events (D50)
+// FR-CLASS-02: Admin phân công giáo viên phụ cho lớp.
+// Xếp lớp, gán giáo viên chủ nhiệm và giáo viên phụ không thuộc 8 sự kiện của security_events (D50)
 public class ClassService : IClassService
 {
     // Tuổi tính tới ngày hôm nay theo giờ Việt Nam, không theo múi giờ của máy chủ
@@ -73,8 +74,7 @@ public class ClassService : IClassService
             if (targetClass.HomeroomTeacherId is null)
                 return new ClassResult(ClassOutcome.NoHomeroomTeacher);
 
-            await _classRepository.SetHomeroomTeacherAsync(targetClass.Id, null);
-            return new ClassResult(ClassOutcome.Success, ToResponse(targetClass, null));
+            return await SetHomeroomTeacherAsync(targetClass.Id, null);
         }
 
         var user = await _classRepository.FindUserWithTeacherProfileAsync(request.TeacherUserId.Value);
@@ -99,10 +99,29 @@ public class ClassService : IClassService
 
         // Một giáo viên chủ nhiệm được nhiều lớp. Vai trò hay trạng thái tài khoản đổi sau lúc này cũng
         // không mở thêm quyền: mọi chức năng của giáo viên xét vai trò trước rồi mới xét lớp chủ nhiệm
-        await _classRepository.SetHomeroomTeacherAsync(targetClass.Id, user.Teacher.Id);
+        // BR-CLASS-04: người đang là giáo viên phụ của lớp thì repository trả HomeroomIsAssistant
+        return await SetHomeroomTeacherAsync(targetClass.Id, user.Teacher.Id);
+    }
 
-        return new ClassResult(ClassOutcome.Success,
-            ToResponse(targetClass, new HomeroomTeacherResponse(user.Id, user.FullName)));
+    public async Task<ClassResult> AssignAssistantTeachersAsync(Guid classId, AssignAssistantTeachersRequest request)
+    {
+        if (await _classRepository.FindByIdAsync(classId) is null)
+            return new ClassResult(ClassOutcome.ClassNotFound);
+
+        // Validator đã chặn id trùng, nên mỗi tài khoản đạt điều kiện ứng với đúng một hồ sơ: thiếu hồ sơ
+        // nào là có tài khoản không tồn tại, không phải Giáo viên, bị vô hiệu hóa hoặc chưa có hồ sơ
+        var teacherIds = request.TeacherUserIds.Count == 0
+            ? []
+            : await _classRepository.FindActiveTeacherProfileIdsAsync(request.TeacherUserIds);
+
+        if (teacherIds.Count != request.TeacherUserIds.Count)
+            return new ClassResult(ClassOutcome.InvalidAssistantTeacher);
+
+        var outcome = await _classRepository.ReplaceAssistantTeachersAsync(classId, teacherIds);
+
+        return outcome == ClassOutcome.Success
+            ? await LoadClassResultAsync(classId)
+            : new ClassResult(outcome);
     }
 
     // Trẻ nghỉ học thì gỡ khỏi lớp (D39 mục 2); gỡ không cần xét tuổi
@@ -121,6 +140,23 @@ public class ClassService : IClassService
     private static DateOnly TodayInVietnam()
         => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VietnamTimeZone));
 
-    private static ClassResponse ToResponse(Class classEntity, HomeroomTeacherResponse? homeroomTeacher)
-        => new(classEntity.Id, classEntity.Name, classEntity.MinAgeMonths, classEntity.MaxAgeMonths, homeroomTeacher);
+    private async Task<ClassResult> SetHomeroomTeacherAsync(Guid classId, Guid? teacherId)
+    {
+        var outcome = await _classRepository.SetHomeroomTeacherAsync(classId, teacherId);
+
+        return outcome == ClassOutcome.Success
+            ? await LoadClassResultAsync(classId)
+            : new ClassResult(outcome);
+    }
+
+    // Đọc lại sau khi ghi để response có đủ giáo viên chủ nhiệm và giáo viên phụ hiện tại.
+    // 3 lớp cố định không bị xóa, nên lớp vừa ghi xong luôn đọc lại được
+    private async Task<ClassResult> LoadClassResultAsync(Guid classId)
+    {
+        var response = await _classRepository.GetResponseByIdAsync(classId);
+
+        return response is null
+            ? new ClassResult(ClassOutcome.ClassNotFound)
+            : new ClassResult(ClassOutcome.Success, response);
+    }
 }

@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Child> Children => Set<Child>();
     public DbSet<ChildGuardian> ChildGuardians => Set<ChildGuardian>();
     public DbSet<Class> Classes => Set<Class>();
+    public DbSet<ClassTeacher> ClassTeachers => Set<ClassTeacher>();
     public DbSet<Attendance> Attendances => Set<Attendance>();
     public DbSet<Pickup> Pickups => Set<Pickup>();
     public DbSet<RegisteredPickupPerson> RegisteredPickupPersons => Set<RegisteredPickupPerson>();

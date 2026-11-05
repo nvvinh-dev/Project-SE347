@@ -9,6 +9,7 @@ public class Class
     public int? MaxAgeMonths { get; set; }
 
     public Teacher? HomeroomTeacher { get; set; }
+    public ICollection<ClassTeacher> AssistantTeachers { get; set; } = new List<ClassTeacher>();
     public ICollection<Child> Children { get; set; } = new List<Child>();
     public ICollection<ActivityPhoto> ActivityPhotos { get; set; } = new List<ActivityPhoto>();
 }
