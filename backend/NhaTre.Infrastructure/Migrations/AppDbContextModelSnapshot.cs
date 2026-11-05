@@ -222,6 +222,25 @@ namespace NhaTre.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.ClassTeacher", b =>
+                {
+                    b.Property<Guid>("ClassId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("class_id");
+
+                    b.Property<Guid>("TeacherId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("teacher_id");
+
+                    b.HasKey("ClassId", "TeacherId")
+                        .HasName("pk_class_teachers");
+
+                    b.HasIndex("TeacherId")
+                        .HasDatabaseName("ix_class_teachers_teacher_id");
+
+                    b.ToTable("class_teachers", (string)null);
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.GrowthMeasurement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -984,6 +1003,27 @@ namespace NhaTre.Infrastructure.Migrations
                     b.Navigation("HomeroomTeacher");
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.ClassTeacher", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Class", "Class")
+                        .WithMany("AssistantTeachers")
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_class_teachers_classes_class_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.Teacher", "Teacher")
+                        .WithMany("AssistantClasses")
+                        .HasForeignKey("TeacherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_class_teachers_teachers_teacher_id");
+
+                    b.Navigation("Class");
+
+                    b.Navigation("Teacher");
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.GrowthMeasurement", b =>
                 {
                     b.HasOne("NhaTre.Domain.Entities.Child", "Child")
@@ -1226,6 +1266,8 @@ namespace NhaTre.Infrastructure.Migrations
                 {
                     b.Navigation("ActivityPhotos");
 
+                    b.Navigation("AssistantTeachers");
+
                     b.Navigation("Children");
                 });
 
@@ -1247,6 +1289,8 @@ namespace NhaTre.Infrastructure.Migrations
             modelBuilder.Entity("NhaTre.Domain.Entities.Teacher", b =>
                 {
                     b.Navigation("ActivityPhotos");
+
+                    b.Navigation("AssistantClasses");
 
                     b.Navigation("Attendances");
 

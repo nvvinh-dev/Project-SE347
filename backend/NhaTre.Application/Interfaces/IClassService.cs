@@ -8,4 +8,5 @@ public interface IClassService
     Task<IReadOnlyList<ClassPlacementResponse>> GetPlacementsAsync();
     Task<ClassPlacementResult> AssignClassAsync(Guid childId, AssignClassRequest request);
     Task<ClassResult> AssignHomeroomTeacherAsync(Guid classId, AssignHomeroomTeacherRequest request);
+    Task<ClassResult> AssignAssistantTeachersAsync(Guid classId, AssignAssistantTeachersRequest request);
 }

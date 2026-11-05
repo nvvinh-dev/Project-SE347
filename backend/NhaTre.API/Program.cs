@@ -177,6 +177,7 @@ builder.Services.AddScoped<IClassRepository, ClassRepository>();
 builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.AddScoped<IValidator<AssignClassRequest>, AssignClassRequestValidator>();
 builder.Services.AddScoped<IValidator<AssignHomeroomTeacherRequest>, AssignHomeroomTeacherRequestValidator>();
+builder.Services.AddScoped<IValidator<AssignAssistantTeachersRequest>, AssignAssistantTeachersRequestValidator>();
 builder.Services.AddScoped<ITeacherRepository, TeacherRepository>();
 builder.Services.AddScoped<ITeacherService, TeacherService>();
 builder.Services.AddScoped<IValidator<CreateTeacherRequest>, CreateTeacherRequestValidator>();

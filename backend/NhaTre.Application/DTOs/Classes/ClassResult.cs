@@ -1,7 +1,7 @@
 namespace NhaTre.Application.DTOs.Classes;
 
-// Xếp lớp và gán giáo viên chủ nhiệm có nhiều kiểu thất bại (400 sai tuổi, 404, 409 vì nhiều lý do),
-// nên Service trả kết quả kèm lý do để Controller chọn status code và message
+// Xếp lớp, gán giáo viên chủ nhiệm và giáo viên phụ có nhiều kiểu thất bại (400 sai tuổi, 404,
+// 409 vì nhiều lý do), nên Service trả kết quả kèm lý do để Controller chọn status code và message
 public enum ClassOutcome
 {
     Success,
@@ -16,7 +16,10 @@ public enum ClassOutcome
     TeacherInactive,
     NoTeacherProfile,
     AlreadyHomeroom,
-    NoHomeroomTeacher
+    NoHomeroomTeacher,
+    HomeroomIsAssistant,
+    InvalidAssistantTeacher,
+    AssistantIsHomeroom
 }
 
 public record ClassPlacementResult(ClassOutcome Outcome, ClassPlacementResponse? Placement = null);

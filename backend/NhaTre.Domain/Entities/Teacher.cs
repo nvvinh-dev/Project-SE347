@@ -8,6 +8,7 @@ public class Teacher
 
     public User User { get; set; } = null!;
     public ICollection<Class> HomeroomClasses { get; set; } = new List<Class>();
+    public ICollection<ClassTeacher> AssistantClasses { get; set; } = new List<ClassTeacher>();
     public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
     public ICollection<Pickup> Pickups { get; set; } = new List<Pickup>();
     public ICollection<QuickHealthStatus> QuickHealthStatuses { get; set; } = new List<QuickHealthStatus>();
