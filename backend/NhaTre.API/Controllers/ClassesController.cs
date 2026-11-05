@@ -10,8 +10,8 @@ namespace NhaTre.API.Controllers;
 
 // Module Lớp gồm hai tài nguyên classes và class-placements (trẻ cần xếp lớp), nên route gốc của
 // Controller là api/ và mỗi action tự ghi tên tài nguyên.
-// Chỉ Admin xếp trẻ vào lớp, gán giáo viên chủ nhiệm (FR-CLASS-01) và giáo viên phụ (FR-CLASS-02). 3 lớp cố định (D39 mục 3):
-// không có tạo, sửa hay xóa lớp
+// Chỉ Admin xếp trẻ vào lớp, gán giáo viên chủ nhiệm (FR-CLASS-01) và giáo viên phụ (FR-CLASS-02).
+// 3 lớp cố định (D39 mục 3): không có tạo, sửa hay xóa lớp
 [ApiController]
 [Route("api")]
 [Authorize(Roles = Roles.Admin)]
