@@ -13,8 +13,11 @@ public interface INotificationService
     Task NotifyParentsOfClassAsync(Guid classId, string message);
     // Chỉ sự cố mới (FR-INCIDENT-01, FR-NOTI-02); sức khỏe nhanh không gửi Y tế
     Task NotifyActiveMedicalUsersAsync(string message);
-    // Kế toán phát thông báo nghỉ học (FR-NOTI-03)
-    Task NotifyActiveParentsAsync(string message);
+    // Thông báo nghỉ học (FR-NOTI-03); trả số phụ huynh đã nhận
+    Task<int> NotifyActiveParentsAsync(string message);
+
+    // FR-NOTI-03: Kế toán phát thông báo nghỉ học tới mọi tài khoản Phụ huynh đang hoạt động
+    Task<SchoolClosureResponse> BroadcastSchoolClosureAsync(SchoolClosureRequest request);
 
     // FR-NOTI-01, FR-NOTI-02: Phụ huynh và Y tế xem thông báo gửi cho chính mình (BR-NOTIFICATION-02)
     Task<NotificationPageResponse> GetMyNotificationsAsync(Guid recipientUserId, NotificationListQuery query);

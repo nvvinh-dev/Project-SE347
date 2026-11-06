@@ -160,6 +160,7 @@ builder.Services.AddScoped<IValidator<LinkGuardianRequest>, LinkGuardianRequestV
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IValidator<NotificationListQuery>, NotificationListQueryValidator>();
+builder.Services.AddScoped<IValidator<SchoolClosureRequest>, SchoolClosureRequestValidator>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
 builder.Services.AddScoped<ISecurityEventRepository, SecurityEventRepository>();

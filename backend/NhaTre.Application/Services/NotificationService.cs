@@ -6,6 +6,9 @@ namespace NhaTre.Application.Services;
 
 public class NotificationService : INotificationService
 {
+    // D25: tiền tố cố định do backend ghép, phần nội dung do Kế toán nhập
+    private const string SchoolClosurePrefix = "Nhà trường thông báo nghỉ học: ";
+
     private readonly INotificationRepository _notificationRepository;
 
     public NotificationService(INotificationRepository notificationRepository)
@@ -34,11 +37,18 @@ public class NotificationService : INotificationService
         await SaveAsync(recipientIds, message);
     }
 
-    public async Task NotifyActiveParentsAsync(string message)
+    public async Task<int> NotifyActiveParentsAsync(string message)
     {
         EnsureMessage(message);
         var recipientIds = await _notificationRepository.GetActiveParentIdsAsync();
         await SaveAsync(recipientIds, message);
+        return recipientIds.Count;
+    }
+
+    public async Task<SchoolClosureResponse> BroadcastSchoolClosureAsync(SchoolClosureRequest request)
+    {
+        var recipientCount = await NotifyActiveParentsAsync(SchoolClosurePrefix + request.Content.Trim());
+        return new SchoolClosureResponse(recipientCount);
     }
 
     public async Task<NotificationPageResponse> GetMyNotificationsAsync(Guid recipientUserId, NotificationListQuery query)
