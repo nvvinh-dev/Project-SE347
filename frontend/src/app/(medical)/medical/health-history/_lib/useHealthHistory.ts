@@ -16,23 +16,32 @@ function validateHealthHistoryItem(item: unknown): item is HealthHistoryItem {
   const candidate = item as Record<string, unknown>;
 
   if (typeof candidate.id !== "string" || !candidate.id) return false;
-  if (typeof candidate.occurredAtUtc !== "string") return false;
+  if (
+    typeof candidate.occurredAtUtc !== "string" ||
+    Number.isNaN(Date.parse(candidate.occurredAtUtc))
+  ) {
+    return false;
+  }
 
   if (candidate.type === "Incident") {
     return (
       typeof candidate.description === "string" &&
       typeof candidate.photoCount === "number" &&
+      Number.isInteger(candidate.photoCount) &&
       candidate.photoCount >= 0
     );
   }
 
   if (candidate.type === "QuickHealthStatus") {
+    const validMood =
+      typeof candidate.mood === "string" &&
+      ["Happy", "Normal", "Tired", "Fussy"].includes(candidate.mood);
     const validTemp =
       candidate.temperatureCelsius === null ||
       (typeof candidate.temperatureCelsius === "number" &&
         Number.isFinite(candidate.temperatureCelsius));
     return (
-      typeof candidate.mood === "string" &&
+      validMood &&
       typeof candidate.notes === "string" &&
       validTemp
     );

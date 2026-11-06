@@ -214,6 +214,7 @@ export function HealthHistoryScreen() {
 
           {!isHistoryLoading && !isHistoryError && historyData && (
             <HealthHistoryTimeline
+              key={selectedChildId}
               childId={selectedChildId}
               childFullName={activeChild.fullName}
               items={historyData.items}

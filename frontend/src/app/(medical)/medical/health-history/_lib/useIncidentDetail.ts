@@ -27,6 +27,9 @@ function validateIncidentDetail(
   if (typeof item.description !== "string" || typeof item.occurredAtUtc !== "string") {
     return false;
   }
+  if (Number.isNaN(Date.parse(item.occurredAtUtc))) {
+    return false;
+  }
   if (!Array.isArray(item.photos)) return false;
 
   return item.photos.every(
@@ -34,7 +37,9 @@ function validateIncidentDetail(
       photo &&
       typeof photo === "object" &&
       typeof photo.id === "string" &&
-      typeof photo.url === "string"
+      Boolean(photo.id.trim()) &&
+      typeof photo.url === "string" &&
+      Boolean(photo.url.trim())
   );
 }
 

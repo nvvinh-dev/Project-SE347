@@ -25,7 +25,7 @@ export interface QuickHealthStatusHistoryItem {
   type: "QuickHealthStatus";
   id: string;
   occurredAtUtc: string;
-  mood: string;
+  mood: HealthMood;
   temperatureCelsius: number | null;
   notes: string;
 }
