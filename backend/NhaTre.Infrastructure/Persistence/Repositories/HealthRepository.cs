@@ -14,23 +14,27 @@ public class HealthRepository : IHealthRepository
     }
 
     // Phạm vi nằm ngay trong câu truy vấn: trẻ chưa xếp lớp (class_id null) hay lớp chưa có
-    // giáo viên chủ nhiệm đều không khớp. Chỉ đọc, không theo dõi: ghi sức khỏe không sửa hồ sơ trẻ
+    // giáo viên phụ trách đều không khớp. Chỉ đọc, không theo dõi: ghi sức khỏe không sửa hồ sơ trẻ
     public async Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Children
             .AsNoTracking()
             .Include(c => c.Class)
             .FirstOrDefaultAsync(c => c.Id == childId
-                && c.Class!.HomeroomTeacher!.UserId == teacherUserId);
+                && scope.Contains(c.ClassId));
     }
 
-    // Cùng phạm vi lớp chủ nhiệm như trên. Trùng họ tên thì sắp tiếp theo id để thứ tự không đổi
+    // Cùng phạm vi lớp phụ trách như trên. Trùng họ tên thì sắp tiếp theo id để thứ tự không đổi
     // giữa các lần gọi
     public async Task<IReadOnlyList<Child>> GetChildrenInHomeroomClassesAsync(Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Children
             .AsNoTracking()
-            .Where(c => c.Class!.HomeroomTeacher!.UserId == teacherUserId)
+            .Where(c => scope.Contains(c.ClassId))
             .OrderBy(c => c.FullName)
             .ThenBy(c => c.Id)
             .ToListAsync();
@@ -39,11 +43,13 @@ public class HealthRepository : IHealthRepository
     // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với lúc tạo
     public async Task<QuickHealthStatus?> FindQuickHealthStatusInHomeroomClassAsync(Guid id, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.QuickHealthStatuses
             .AsNoTracking()
             .Include(q => q.Child)
             .FirstOrDefaultAsync(q => q.Id == id
-                && q.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
+                && scope.Contains(q.Child.ClassId));
     }
 
     public void AddQuickHealthStatus(QuickHealthStatus quickHealthStatus)
@@ -72,7 +78,7 @@ public class HealthRepository : IHealthRepository
     }
 
     // Không lọc theo lớp nên không cần Include(Class). Trùng họ tên thì sắp tiếp theo id như danh sách
-    // lớp chủ nhiệm
+    // lớp phụ trách
     public async Task<IReadOnlyList<Child>> GetAllChildrenAsync()
     {
         return await _dbContext.Children
@@ -107,7 +113,7 @@ public class HealthRepository : IHealthRepository
     }
 
     // Lịch sử gộp đọc thẳng bảng incidents thay vì đi qua IncidentRepository: repository viết theo
-    // từng tính năng (D35), và tính năng này của Y tế không lọc theo lớp chủ nhiệm như phía giáo viên.
+    // từng tính năng (D35), và tính năng này của Y tế không lọc theo lớp phụ trách như phía giáo viên.
     // Ảnh nạp kèm chỉ để đếm; lịch sử không ký URL (D39 mục 9)
     public async Task<IReadOnlyList<Incident>> GetIncidentsOfChildAsync(Guid childId)
     {
@@ -126,7 +132,7 @@ public class HealthRepository : IHealthRepository
             .ToListAsync();
     }
 
-    // Liên kết phụ huynh–trẻ nằm ngay trong câu truy vấn, như phạm vi lớp chủ nhiệm ở phía giáo viên.
+    // Liên kết phụ huynh–trẻ nằm ngay trong câu truy vấn, như phạm vi lớp phụ trách ở phía giáo viên.
     // Không kèm Class: phụ huynh xem con mình không phụ thuộc lớp (D39 mục 10)
     public async Task<Child?> FindChildOfGuardianAsync(Guid childId, Guid parentUserId)
     {
@@ -167,4 +173,7 @@ public class HealthRepository : IHealthRepository
     {
         await _dbContext.SaveChangesAsync();
     }
+
+    public async Task<Guid?> FindTeacherIdAsync(Guid teacherUserId)
+        => await _dbContext.FindTeacherIdAsync(teacherUserId);
 }

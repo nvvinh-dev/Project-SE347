@@ -53,6 +53,12 @@ public class PickupService : IPickupService
         if (child is null)
             return new PickupResult(PickupOutcome.ChildNotFound);
 
+        // Người ghi nhận là chính giáo viên đang thao tác, kể cả khi là giáo viên phụ (D44 mục 2). Qua được
+        // bước lọc phạm vi thì tài khoản đã có hồ sơ teachers; không còn hồ sơ thì coi như ngoài phạm vi
+        var teacherId = await _pickupRepository.FindTeacherIdAsync(teacherUserId);
+        if (teacherId is null)
+            return new PickupResult(PickupOutcome.ChildNotFound);
+
         var now = DateTime.UtcNow;
         var attendance = await _pickupRepository.FindAttendanceAsync(child.Id, VietnamTime.DateOf(now));
         if (attendance is null)
@@ -87,8 +93,7 @@ public class PickupService : IPickupService
         var pickup = new Pickup
         {
             AttendanceId = attendance.Id,
-            // Repository đã lọc lớp chủ nhiệm theo tài khoản đang đăng nhập, nên đây là hồ sơ teachers của chính người gọi
-            RecordedByTeacherId = child.Class!.HomeroomTeacherId!.Value,
+            RecordedByTeacherId = teacherId.Value,
             PickupTime = now,
             PickupMethod = request.PickupMethod,
             // Primary/Backup: chép họ tên người đón đã đăng ký, bỏ qua giá trị client gửi (AC-PICKUP-01).

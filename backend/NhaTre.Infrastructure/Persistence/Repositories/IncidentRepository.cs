@@ -14,15 +14,17 @@ public class IncidentRepository : IIncidentRepository
     }
 
     // Phạm vi nằm ngay trong câu truy vấn, cùng cách với sức khỏe nhanh: trẻ chưa xếp lớp (class_id
-    // null) hay lớp chưa có giáo viên chủ nhiệm đều không khớp. Chỉ đọc, không theo dõi: ghi sự cố không
+    // null) hay lớp không do mình phụ trách đều không khớp. Chỉ đọc, không theo dõi: ghi sự cố không
     // sửa hồ sơ trẻ
     public async Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Children
             .AsNoTracking()
             .Include(c => c.Class)
             .FirstOrDefaultAsync(c => c.Id == childId
-                && c.Class!.HomeroomTeacher!.UserId == teacherUserId);
+                && scope.Contains(c.ClassId));
     }
 
     // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với lúc tạo. Ảnh xếp theo id để mỗi lần
@@ -30,12 +32,14 @@ public class IncidentRepository : IIncidentRepository
     // giây (các ảnh của một lần upload) không tăng dần
     public async Task<Incident?> FindIncidentInHomeroomClassAsync(Guid id, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Incidents
             .AsNoTracking()
             .Include(i => i.Child)
             .Include(i => i.IncidentPhotos.OrderBy(p => p.Id))
             .FirstOrDefaultAsync(i => i.Id == id
-                && i.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
+                && scope.Contains(i.Child.ClassId));
     }
 
     // Phía Y tế: không lọc lớp, kể cả trẻ chưa xếp lớp. Ảnh xếp theo id như phía giáo viên
@@ -92,4 +96,7 @@ public class IncidentRepository : IIncidentRepository
                 && i.ChildId == childId
                 && i.Child.ChildGuardians.Any(cg => cg.GuardianUserId == parentUserId));
     }
+
+    public async Task<Guid?> FindTeacherIdAsync(Guid teacherUserId)
+        => await _dbContext.FindTeacherIdAsync(teacherUserId);
 }
