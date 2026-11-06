@@ -9,11 +9,13 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace NhaTre.API.Controllers;
 
-// Module Ảnh hoạt động. Ảnh là tài nguyên con của lớp (classes/{classId}/activity-photos), nên route gốc của
-// Controller là api/ và mỗi action tự ghi tên tài nguyên. [Authorize] ở mức class để action nào quên gắn
-// Roles vẫn bắt đăng nhập: Program.cs không có fallback policy.
+// Module Ảnh hoạt động gồm hai tài nguyên: ảnh của lớp (classes/{classId}/activity-photos, giáo viên chia sẻ)
+// và ảnh theo con của phụ huynh (children/{childId}/activity-photos), nên route gốc của Controller là api/ và
+// mỗi action tự ghi tên tài nguyên. Hai vai trò dùng chung nên Roles gắn theo từng action; [Authorize] ở mức
+// class để action nào quên gắn Roles vẫn bắt đăng nhập: Program.cs không có fallback policy.
 // FR-MEDIA-01: chỉ Giáo viên chia sẻ ảnh (BR-MEDIA-01), và chỉ cho lớp mình chủ nhiệm (BR-MEDIA-03, D40 mục 2).
 // Ảnh đã chia sẻ không sửa, không xóa.
+// FR-MEDIA-02: Phụ huynh chỉ xem ảnh của lớp con mình đang học (child_guardians, BR-MEDIA-02, D39 mục 10).
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -26,17 +28,21 @@ public class MediaController : ControllerBase
 
     private readonly IMediaService _mediaService;
     private readonly IValidator<ShareActivityPhotosRequest> _shareActivityPhotosValidator;
+    private readonly IValidator<ActivityPhotoListQuery> _activityPhotoListQueryValidator;
 
     public MediaController(IMediaService mediaService,
-        IValidator<ShareActivityPhotosRequest> shareActivityPhotosValidator)
+        IValidator<ShareActivityPhotosRequest> shareActivityPhotosValidator,
+        IValidator<ActivityPhotoListQuery> activityPhotoListQueryValidator)
     {
         _mediaService = mediaService;
         _shareActivityPhotosValidator = shareActivityPhotosValidator;
+        _activityPhotoListQueryValidator = activityPhotoListQueryValidator;
     }
 
     // Multipart: 1–5 ảnh ở trường photos (D39 mục 5). Trả các ảnh vừa chia sẻ kèm URL ký hạn 60 phút (D53).
     // Lớp không tồn tại và lớp giáo viên khác chủ nhiệm cùng trả 404, không ảnh nào được lưu (AC-MEDIA-03).
-    // Chưa có route xem ảnh hoạt động để làm Location nên 201 không kèm Location
+    // Route xem ảnh duy nhất là của phụ huynh theo con, giáo viên không gọi được, nên 201 không kèm Location
+    // (api-conventions §4)
     [HttpPost("classes/{classId:guid}/activity-photos")]
     [Authorize(Roles = Roles.Teacher)]
     [Consumes("multipart/form-data")]
@@ -61,6 +67,30 @@ public class MediaController : ControllerBase
             return NotFound(ApiResponse<IReadOnlyList<ActivityPhotoResponse>>.Fail("Không tìm thấy lớp học."));
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse<IReadOnlyList<ActivityPhotoResponse>>.Ok(result));
+    }
+
+    // Route theo con như sự cố (FR-INCIDENT-03) và sức khỏe (FR-HEALTH-05): phụ huynh lấy childId từ
+    // children/mine, không cần biết id lớp. Trẻ không tồn tại và trẻ không liên kết với mình cùng trả 404
+    // (AC-MEDIA-04); con mình chưa xếp lớp hay lớp chưa có ảnh thì trang rỗng. Phân trang ?page=&pageSize=
+    // (api-conventions §2.1), mới nhất trước. URL ký hạn 60 phút (D53), hết hạn thì gọi lại trang đó
+    [HttpGet("children/{childId:guid}/activity-photos")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<ActivityPhotoPageResponse>>> GetChildActivityPhotos(Guid childId,
+        [FromQuery] ActivityPhotoListQuery query)
+    {
+        var validationResult = await _activityPhotoListQueryValidator.ValidateAsync(query);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<ActivityPhotoPageResponse>.Fail(errors));
+        }
+
+        var result = await _mediaService.GetChildActivityPhotosForGuardianAsync(childId, query, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<ActivityPhotoPageResponse>.Fail("Không tìm thấy trẻ."));
+
+        return Ok(ApiResponse<ActivityPhotoPageResponse>.Ok(result));
     }
 
     // ActiveUserMiddleware đã kiểm tra claim sub là Guid hợp lệ trước khi vào đây
