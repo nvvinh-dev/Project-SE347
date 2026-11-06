@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -12,21 +12,20 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import { useAuth } from "@/context/AuthContext";
-import { useApiMutation, useApiQuery } from "@/hooks/useApiQuery";
+import { useApiMutation } from "@/hooks/useApiQuery";
+import { growthMeasurementsKey, useGrowthMeasurements } from "@/hooks/useGrowthMeasurements";
+import { useSchoolChildren } from "@/hooks/useSchoolChildren";
 import {
   createGrowthMeasurement,
   formatDateOfBirth,
   formatMeasurementDateTime,
   formatMeasurementNumber,
-  getGrowthMeasurements,
-  getSchoolChildren,
   parseMeasurementInput,
-} from "./_lib/growth-measurements";
+} from "@/lib/growth-measurements";
 import type {
   GrowthMeasurement,
   GrowthMeasurementFormValues,
-  SchoolChild,
-} from "./_types/growth-measurements";
+} from "@/types/health";
 
 interface FormStateValues extends GrowthMeasurementFormValues {
   childId: string;
@@ -58,6 +57,9 @@ export function GrowthMeasurementsScreen() {
   const saveButton = useRef<HTMLButtonElement>(null);
   const openFormButton = useRef<HTMLButtonElement>(null);
   const closeFormButton = useRef<HTMLButtonElement>(null);
+  const recheckButton = useRef<HTMLButtonElement>(null);
+  const feedbackPanel = useRef<HTMLDivElement>(null);
+  const restoreSaveFocus = useRef(false);
 
   const [pendingSave, setPendingSave] = useState<PendingSaveData | null>(null);
 
@@ -84,21 +86,7 @@ export function GrowthMeasurementsScreen() {
 
   const selectedChildId = useWatch({ control, name: "childId" });
 
-  // Tách cache theo tài khoản để không dùng lại lịch sử của người dùng khác.
-  const measurementsKey = (cId: string) => [
-    "medical-growth-measurements",
-    user?.userId,
-    cId,
-  ];
-
-  const childrenQuery = useApiQuery<SchoolChild[]>({
-    queryKey: ["medical-school-children", user?.userId],
-    queryFn: ({ signal }) => getSchoolChildren(signal),
-    enabled: Boolean(user?.userId),
-    networkMode: "always",
-    retry: false,
-    staleTime: 60_000,
-  });
+  const childrenQuery = useSchoolChildren();
 
   const schoolChildren = useMemo(
     () => childrenQuery.data ?? [],
@@ -110,20 +98,16 @@ export function GrowthMeasurementsScreen() {
     [schoolChildren, selectedChildId]
   );
 
-  const measurementsQuery = useApiQuery<GrowthMeasurement[]>({
-    queryKey: measurementsKey(selectedChildId),
-    queryFn: ({ signal }) => getGrowthMeasurements(selectedChildId, signal),
-    enabled: Boolean(user?.userId && selectedChild),
-    networkMode: "always",
-    retry: false,
-    staleTime: 0,
-  });
+  const measurementsQuery = useGrowthMeasurements(selectedChildId, Boolean(selectedChild));
 
   const measurements = measurementsQuery.data ?? [];
 
   const reloadHistory = async () => {
     const result = await measurementsQuery.refetch();
-    if (unresolvedSave) setHistoryRechecked(result.isSuccess);
+    if (unresolvedSave) {
+      setHistoryRechecked(result.isSuccess);
+      requestAnimationFrame(() => recheckButton.current?.focus());
+    }
   };
 
   const closeConfirmation = () => {
@@ -142,7 +126,7 @@ export function GrowthMeasurementsScreen() {
     // Báo lỗi mất mạng ngay, không xếp hàng thao tác ghi để tự gửi khi có mạng trở lại.
     networkMode: "always",
     onSuccess: async (record, variables) => {
-      const queryKey = measurementsKey(variables.childId);
+      const queryKey = growthMeasurementsKey(user?.userId, variables.childId);
       // Hủy GET cũ trước khi thêm bản ghi mới, tránh phản hồi cũ ghi đè cache.
       await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData<GrowthMeasurement[]>(
@@ -168,48 +152,51 @@ export function GrowthMeasurementsScreen() {
         )}.`,
       });
 
-      closeConfirmation();
+      setPendingSave(null);
       setValue("heightCm", "");
       setValue("weightKg", "");
 
       await queryClient.invalidateQueries({ queryKey });
     },
     onError: (error) => {
-      closeConfirmation();
-      if (error.status === 400) {
+      setPendingSave(null);
+      if (error.status !== null && error.status >= 400 && error.status < 500) {
         setFeedback({
           kind: "error",
-          text: error.message || "Dữ liệu nhập không hợp lệ.",
+          text: error.message,
           errors: error.errors,
         });
-      } else if (error.status === 404) {
-        setFeedback({
-          kind: "error",
-          text: error.message || "Không tìm thấy hồ sơ học sinh trên hệ thống.",
-        });
-        void childrenQuery.refetch();
-      } else if (error.status === 403) {
-        setFeedback({
-          kind: "error",
-          text: error.message || "Bạn không có quyền thực hiện chức năng này.",
-        });
+        if (error.status === 404) void childrenQuery.refetch();
       } else {
         // Khi mất kết nối hoặc lỗi máy chủ, bản ghi bất biến có thể đã được lưu nên không tự gửi lại
         setUnresolvedSave(true);
         setHistoryRechecked(false);
         setFeedback({
           kind: "uncertain",
-          text: "Chưa xác định được kết quả ghi nhận từ máy chủ. Hãy tải lại và đối chiếu lịch sử trước khi nhập lần đo tiếp theo.",
-          warning: error.message,
+          text: "Chưa xác định được kết quả ghi nhận từ máy chủ. Hãy tải lại và đối chiếu lịch sử trước khi tiếp tục nhập số đo.",
+          warning: error.status === null ? undefined : error.message,
           errors: error.errors,
         });
       }
     },
     onSettled: () => {
       submitLock.current = false;
-      requestAnimationFrame(() => saveButton.current?.focus());
+      restoreSaveFocus.current = true;
     },
   });
+
+  // Chờ hộp thoại đóng và nút được mở khóa trước khi khôi phục focus.
+  useEffect(() => {
+    if (mutation.isPending || pendingSave !== null || !restoreSaveFocus.current) return;
+    restoreSaveFocus.current = false;
+    if (unresolvedSave) {
+      const target = recheckButton.current?.disabled ? feedbackPanel.current : recheckButton.current;
+      target?.focus({ preventScroll: true });
+      feedbackPanel.current?.scrollIntoView({ block: "start" });
+    } else {
+      saveButton.current?.focus();
+    }
+  }, [mutation.isPending, pendingSave, unresolvedSave]);
 
   // Không mang số đo đang nhập sang hồ sơ của trẻ khác.
   const handleSelectChild = () => {
@@ -232,22 +219,21 @@ export function GrowthMeasurementsScreen() {
     }
 
     const heightParsed = parseMeasurementInput(values.heightCm, "height");
+    const weightParsed = parseMeasurementInput(values.weightKg, "weight");
     if (!heightParsed.isValid) {
       setError("heightCm", {
         type: "manual",
         message: heightParsed.errorMessage,
       });
-      setFocus("heightCm");
-      return;
     }
-
-    const weightParsed = parseMeasurementInput(values.weightKg, "weight");
     if (!weightParsed.isValid) {
       setError("weightKg", {
         type: "manual",
         message: weightParsed.errorMessage,
       });
-      setFocus("weightKg");
+    }
+    if (!heightParsed.isValid || !weightParsed.isValid) {
+      setFocus(!heightParsed.isValid ? "heightCm" : "weightKg");
       return;
     }
 
@@ -313,7 +299,7 @@ export function GrowthMeasurementsScreen() {
   const isFormLocked = mutation.isPending || unresolvedSave || !selectedChild;
 
   const toggleMeasurementForm = () => {
-    if (mutation.isPending || pendingSave !== null) return;
+    if (mutation.isPending || pendingSave !== null || unresolvedSave) return;
     const nextIsOpen = !isMeasurementFormOpen;
     setIsMeasurementFormOpen(nextIsOpen);
     requestAnimationFrame(() => {
@@ -338,8 +324,10 @@ export function GrowthMeasurementsScreen() {
 
       {feedback && (
         <div
+          ref={feedbackPanel}
+          tabIndex={-1}
           role={feedback.kind === "success" ? "status" : "alert"}
-          className={`rounded-xl border p-4 text-sm leading-relaxed ${
+          className={`scroll-mt-20 rounded-xl border p-4 text-sm leading-relaxed lg:scroll-mt-4 ${
             feedback.kind === "success"
               ? "border-success-border bg-success-bg text-success"
               : feedback.kind === "uncertain"
@@ -364,7 +352,7 @@ export function GrowthMeasurementsScreen() {
                 Dữ liệu nhập được giữ nguyên. Hệ thống không tự gửi lại và không thể tự xác định lần gửi vừa rồi đã được lưu hay chưa.
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" size="md" className="min-h-11 max-w-full whitespace-normal" disabled={measurementsQuery.isFetching}
+                <Button ref={recheckButton} variant="secondary" size="md" className="min-h-11 max-w-full whitespace-normal" disabled={measurementsQuery.isFetching}
                   onClick={() => { void reloadHistory(); }}>
                   Kiểm tra lại lịch sử
                 </Button>
@@ -373,12 +361,11 @@ export function GrowthMeasurementsScreen() {
                     onClick={() => {
                       setUnresolvedSave(false);
                       setHistoryRechecked(false);
-                      setValue("heightCm", "");
-                      setValue("weightKg", "");
                       clearErrors();
                       setFeedback(null);
+                      requestAnimationFrame(() => setFocus("heightCm"));
                     }}>
-                    Đã đối chiếu, nhập lần đo tiếp theo
+                    Đã đối chiếu, tiếp tục nhập số đo
                   </Button>
                 )}
               </div>
@@ -497,7 +484,7 @@ export function GrowthMeasurementsScreen() {
               size="md"
               aria-label="Đóng khung ghi nhận số đo"
               title="Đóng khung ghi nhận số đo"
-              disabled={mutation.isPending || pendingSave !== null}
+              disabled={mutation.isPending || pendingSave !== null || unresolvedSave}
               onClick={toggleMeasurementForm}
               className="h-11 w-11 shrink-0 p-0!"
             >
@@ -605,23 +592,21 @@ export function GrowthMeasurementsScreen() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {!isMeasurementFormOpen && (
-                <Button
-                  ref={openFormButton}
-                  variant="secondary"
-                  size="md"
-                  aria-expanded={isMeasurementFormOpen}
-                  aria-controls={`${formId}-measurement-panel`}
-                  disabled={mutation.isPending || pendingSave !== null}
-                  onClick={toggleMeasurementForm}
-                  className="min-h-11"
-                >
-                  <svg aria-hidden="true" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 5v14M5 12h14" />
-                  </svg>
-                  Ghi nhận số đo
-                </Button>
-              )}
+              <Button
+                ref={openFormButton}
+                variant="secondary"
+                size="md"
+                aria-expanded={isMeasurementFormOpen}
+                aria-controls={`${formId}-measurement-panel`}
+                disabled={mutation.isPending || pendingSave !== null || unresolvedSave}
+                onClick={toggleMeasurementForm}
+                className="min-h-11"
+              >
+                <svg aria-hidden="true" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 5v14M5 12h14" />
+                </svg>
+                {isMeasurementFormOpen ? "Ẩn khung ghi số đo" : "Ghi nhận số đo"}
+              </Button>
               {selectedChild && (
                 <Button
                   variant="secondary"

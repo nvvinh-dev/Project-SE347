@@ -3,8 +3,7 @@ import type { ApiResponse } from "@/types/auth";
 import type {
   GrowthMeasurement,
   GrowthMeasurementPayload,
-  SchoolChild,
-} from "../_types/growth-measurements";
+} from "@/types/health";
 
 const requestTimeoutMs = 20_000;
 
@@ -20,9 +19,21 @@ function invalidResponse(status: number): never {
   throw new ApiError("Dữ liệu phản hồi từ máy chủ không hợp lệ. Vui lòng tải lại dữ liệu.", null, status);
 }
 
-function isMeasurement(value: unknown): value is GrowthMeasurement {
+function isMeasurementShape(value: unknown): value is GrowthMeasurement {
   if (!value || typeof value !== "object") return false;
   const record = value as GrowthMeasurement;
+  const isNumberOrNull = (number: unknown) => number === null || (
+    typeof number === "number" && Number.isFinite(number)
+  );
+  return typeof record.id === "string" && Boolean(record.id) &&
+    typeof record.childId === "string" && Boolean(record.childId) &&
+    typeof record.measuredAtUtc === "string" &&
+    isNumberOrNull(record.heightCm) && isNumberOrNull(record.weightKg);
+}
+
+function isCreatedMeasurement(value: unknown): value is GrowthMeasurement {
+  if (!isMeasurementShape(value)) return false;
+  const record = value;
   const validNumber = (number: unknown, maximum: number) => number === null || (
     typeof number === "number" && Number.isFinite(number) && number > 0 &&
     number <= maximum && Number(number.toFixed(2)) === number
@@ -47,21 +58,6 @@ function readData<T>(response: ApiResponse<T>, status: number): T {
   return response.data;
 }
 
-export async function getSchoolChildren(signal?: AbortSignal): Promise<SchoolChild[]> {
-  const response = await apiClient.get<ApiResponse<SchoolChild[]>>(
-    "/api/school-children",
-    { signal, timeout: requestTimeoutMs }
-  );
-  const children = readData(response.data, response.status);
-  if (!Array.isArray(children) || !children.every((child) => child &&
-    typeof child.id === "string" && Boolean(child.id) && typeof child.fullName === "string" &&
-    typeof child.dateOfBirth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(child.dateOfBirth) &&
-    (child.healthNotes === null || typeof child.healthNotes === "string"))) {
-    invalidResponse(response.status);
-  }
-  return children;
-}
-
 export async function getGrowthMeasurements(
   childId: string,
   signal?: AbortSignal
@@ -71,7 +67,7 @@ export async function getGrowthMeasurements(
     { signal, timeout: requestTimeoutMs }
   );
   const records = readData(response.data, response.status);
-  if (!Array.isArray(records) || !records.every((record) => isMeasurement(record) && record.childId === childId)) {
+  if (!Array.isArray(records) || !records.every((record) => isMeasurementShape(record) && record.childId === childId)) {
     invalidResponse(response.status);
   }
   return records;
@@ -87,7 +83,7 @@ export async function createGrowthMeasurement(
     { timeout: requestTimeoutMs }
   );
   const record = readData(response.data, response.status);
-  if (response.status !== 201 || !isMeasurement(record) || record.childId !== childId) {
+  if (response.status !== 201 || !isCreatedMeasurement(record) || record.childId !== childId) {
     invalidResponse(response.status);
   }
   return record;
