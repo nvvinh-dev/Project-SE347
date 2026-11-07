@@ -6,10 +6,12 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ClassCard } from "@/components/admin/classes/ClassCard";
 import { ClassPlacementTable } from "@/components/admin/classes/ClassPlacementTable";
 import { AssignHomeroomTeacherModal } from "@/components/admin/classes/AssignHomeroomTeacherModal";
+import { AssignAssistantTeachersModal } from "@/components/admin/classes/AssignAssistantTeachersModal";
 import { AssignClassModal } from "@/components/admin/classes/AssignClassModal";
 import { useClasses, useClassPlacements, useAssignHomeroomTeacher } from "@/hooks/useClasses";
+import { useUsers } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
-import type { ClassResponse, ClassPlacementResponse } from "@/types/class";
+import type { ClassPlacementResponse } from "@/types/class";
 
 export default function AdminClassesPage() {
   const {
@@ -28,17 +30,53 @@ export default function AdminClassesPage() {
     refetch: refetchPlacements,
   } = useClassPlacements();
 
+  const { data: users = [] } = useUsers();
+
+  // Bản đồ tài khoản người dùng không hợp lệ (vô hiệu hóa hoặc không còn vai trò Giáo viên)
+  // để hiển thị cảnh báo đồng bộ trên thẻ lớp (review PR #72 lượt 2)
+  const invalidTeacherMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of users) {
+      if (!u.isActive) {
+        map.set(u.id, "Đã vô hiệu hóa");
+      } else if (u.role !== "Teacher") {
+        map.set(u.id, "Không còn là giáo viên");
+      }
+    }
+    return map;
+  }, [users]);
+
+  // Giữ lại inactiveTeacherIds để tương thích
+  const inactiveTeacherIds = useMemo(() => {
+    return new Set(users.filter((u) => !u.isActive).map((u) => u.id));
+  }, [users]);
+
   const removeTeacherMutation = useAssignHomeroomTeacher();
 
   // State bộ lọc lớp đang chọn ở bảng và trang hiện tại
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Quản lý trạng thái các hộp thoại
-  const [assigningTeacherClass, setAssigningTeacherClass] = useState<ClassResponse | null>(null);
-  const [removingTeacherClass, setRemovingTeacherClass] = useState<ClassResponse | null>(null);
+  // Quản lý trạng thái các hộp thoại bằng classId (theo review PR #72 để luôn lấy dữ liệu mới nhất khi refetch)
+  const [assigningTeacherClassId, setAssigningTeacherClassId] = useState<string | null>(null);
+  const [assigningAssistantClassId, setAssigningAssistantClassId] = useState<string | null>(null);
+  const [removingTeacherClassId, setRemovingTeacherClassId] = useState<string | null>(null);
   const [removeTeacherError, setRemoveTeacherError] = useState<string | null>(null);
   const [assigningChild, setAssigningChild] = useState<ClassPlacementResponse | null>(null);
+
+  // Lấy dữ liệu lớp mới nhất tương ứng với ID đang mở modal
+  const assigningTeacherClass = useMemo(
+    () => classes.find((c) => c.id === assigningTeacherClassId) ?? null,
+    [classes, assigningTeacherClassId]
+  );
+  const assigningAssistantClass = useMemo(
+    () => classes.find((c) => c.id === assigningAssistantClassId) ?? null,
+    [classes, assigningAssistantClassId]
+  );
+  const removingTeacherClass = useMemo(
+    () => classes.find((c) => c.id === removingTeacherClassId) ?? null,
+    [classes, removingTeacherClassId]
+  );
 
   // State thông báo thành công (Toast notification)
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -89,7 +127,7 @@ export default function AdminClassesPage() {
       });
 
       showToast(`Đã gỡ giáo viên chủ nhiệm của ${removingTeacherClass.name} thành công.`);
-      setRemovingTeacherClass(null);
+      setRemovingTeacherClassId(null);
       setRemoveTeacherError(null);
     } catch (err) {
       const apiErr = toApiError(err);
@@ -232,15 +270,18 @@ export default function AdminClassesPage() {
                 classInfo={cls}
                 studentCount={studentCount}
                 isSelected={isSelected}
+                inactiveTeacherIds={inactiveTeacherIds}
+                invalidTeacherMap={invalidTeacherMap}
                 onSelect={() => {
                   setSelectedClassFilter(cls.id);
                   setCurrentPage(1);
                 }}
-                onAssignTeacher={() => setAssigningTeacherClass(cls)}
+                onAssignTeacher={() => setAssigningTeacherClassId(cls.id)}
                 onRemoveTeacher={() => {
                   setRemoveTeacherError(null);
-                  setRemovingTeacherClass(cls);
+                  setRemovingTeacherClassId(cls.id);
                 }}
+                onAssignAssistantTeachers={() => setAssigningAssistantClassId(cls.id)}
               />
             );
           })
@@ -271,12 +312,23 @@ export default function AdminClassesPage() {
           key={assigningTeacherClass.id}
           classInfo={assigningTeacherClass}
           isOpen={assigningTeacherClass !== null}
-          onClose={() => setAssigningTeacherClass(null)}
+          onClose={() => setAssigningTeacherClassId(null)}
           onSuccess={showToast}
         />
       )}
 
-      {/* 5. Modal Xếp trẻ vào lớp / Chuyển lớp */}
+      {/* 5. Modal Phân công Giáo viên Phụ (FR-CLASS-02) */}
+      {assigningAssistantClass && (
+        <AssignAssistantTeachersModal
+          key={assigningAssistantClass.id}
+          classInfo={assigningAssistantClass}
+          isOpen={assigningAssistantClass !== null}
+          onClose={() => setAssigningAssistantClassId(null)}
+          onSuccess={showToast}
+        />
+      )}
+
+      {/* 6. Modal Xếp trẻ vào lớp / Chuyển lớp */}
       {assigningChild && (
         <AssignClassModal
           key={assigningChild.childId}
@@ -288,7 +340,7 @@ export default function AdminClassesPage() {
         />
       )}
 
-      {/* 6. Hộp thoại xác nhận Gỡ Giáo viên Chủ nhiệm */}
+      {/* 7. Hộp thoại xác nhận Gỡ Giáo viên Chủ nhiệm */}
       <ConfirmDialog
         isOpen={removingTeacherClass !== null}
         title="Gỡ giáo viên chủ nhiệm"
@@ -298,7 +350,7 @@ export default function AdminClassesPage() {
         isLoading={removeTeacherMutation.isPending}
         onClose={() => {
           if (!removeTeacherMutation.isPending) {
-            setRemovingTeacherClass(null);
+            setRemovingTeacherClassId(null);
             setRemoveTeacherError(null);
           }
         }}
