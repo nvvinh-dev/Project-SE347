@@ -14,7 +14,7 @@ interface MenuWeekPickerProps {
 
 export function MenuWeekPicker({ week, onWeekChange }: MenuWeekPickerProps) {
   const editingByKeyboard = useRef(false);
-  const { register, setValue, handleSubmit } = useForm<{ date: string }>({ defaultValues: { date: week } });
+  const { register, setValue } = useForm<{ date: string }>({ defaultValues: { date: week } });
   const dateField = register("date");
 
   function selectWeek(date: string) {
@@ -26,7 +26,7 @@ export function MenuWeekPicker({ week, onWeekChange }: MenuWeekPickerProps) {
 
   return (
     <section aria-label="Chọn tuần thực đơn" className="rounded-2xl border border-brand-border bg-card p-4 shadow-xs sm:p-5">
-      <form onSubmit={(event) => { void handleSubmit(({ date }) => selectWeek(date))(event); }} className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="min-w-0 sm:w-56">
           <FormField id="parent-menu-week" label="Chọn ngày trong tuần">
             <Input {...dateField} id="parent-menu-week" type="date" className="min-w-0"
@@ -63,9 +63,9 @@ export function MenuWeekPicker({ week, onWeekChange }: MenuWeekPickerProps) {
             <span className="hidden sm:inline">Tuần sau</span><span aria-hidden="true">→</span>
           </Button>
         </div>
-      </form>
+      </div>
       <div className="mt-5 rounded-xl border border-brand-border bg-brand-subtle px-3 py-4 sm:px-5">
-        <div aria-label="Khoảng ngày của tuần đang xem" className="mx-auto grid max-w-lg grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-center sm:gap-6">
+        <div role="group" aria-label="Khoảng ngày của tuần đang xem" className="mx-auto grid max-w-lg grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-center sm:gap-6">
           <div className="min-w-0">
             <p className="mb-1 text-xs font-medium text-brand-text">Thứ Hai</p>
             <time dateTime={week} className="text-base font-semibold tracking-tight tabular-nums text-brand-text sm:text-xl">{formatMenuDate(week)}</time>
