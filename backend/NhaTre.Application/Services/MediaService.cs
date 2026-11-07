@@ -10,13 +10,15 @@ public class MediaService : IMediaService
     private readonly IMediaRepository _mediaRepository;
     private readonly IFileStorageService _fileStorageService;
     private readonly INotificationService _notificationService;
+    private readonly IChildGuardianRepository _childGuardianRepository;
 
     public MediaService(IMediaRepository mediaRepository, IFileStorageService fileStorageService,
-        INotificationService notificationService)
+        INotificationService notificationService, IChildGuardianRepository childGuardianRepository)
     {
         _mediaRepository = mediaRepository;
         _fileStorageService = fileStorageService;
         _notificationService = notificationService;
+        _childGuardianRepository = childGuardianRepository;
     }
 
     // FR-MEDIA-01, AC-MEDIA-01. Validator đã kiểm số lượng, định dạng và dung lượng ảnh. Lớp không tồn tại hay
@@ -77,6 +79,30 @@ public class MediaService : IMediaService
             $"Giáo viên vừa chia sẻ {newPhotos.Count} ảnh hoạt động mới của {homeroomClass.Name}.");
 
         return response;
+    }
+
+    // FR-MEDIA-02, AC-MEDIA-02. Kiểm liên kết trước như hóa đơn (FR-TUITION-05) và sự cố (FR-INCIDENT-03) để
+    // tách trẻ ngoài phạm vi (404, AC-MEDIA-04) với con mình chưa có ảnh nào (trang rỗng). Phụ huynh không
+    // chọn lớp: ảnh luôn là của lớp con đang học (BR-MEDIA-02)
+    public async Task<ActivityPhotoPageResponse?> GetChildActivityPhotosForGuardianAsync(Guid childId,
+        ActivityPhotoListQuery query, Guid parentUserId)
+    {
+        if (!await _childGuardianRepository.LinkExistsAsync(childId, parentUserId))
+            return null;
+
+        var totalCount = await _mediaRepository.CountActivityPhotosOfChildForGuardianAsync(childId, parentUserId);
+
+        // Tính bằng long vì page rất lớn nhân pageSize vượt int, như GetMyNotificationsAsync. Trang nằm sau trang
+        // cuối thì không truy vấn; còn lại skip nhỏ hơn totalCount nên ép về int an toàn
+        var skip = (long)(query.Page - 1) * query.PageSize;
+        IReadOnlyList<ActivityPhoto> photos = [];
+        if (skip < totalCount)
+            photos = await _mediaRepository.GetActivityPhotosOfChildForGuardianAsync(childId, parentUserId,
+                (int)skip, query.PageSize);
+
+        // AC-SEC-12: chỉ ký URL sau khi đã kiểm phạm vi, và chỉ cho các ảnh của trang này
+        return new ActivityPhotoPageResponse(await SignPhotosAsync(photos), query.Page, query.PageSize,
+            totalCount);
     }
 
     // D53: mỗi ảnh một URL ký hạn 60 phút, giữ nguyên thứ tự truyền vào. Chỉ gọi sau khi đã kiểm phạm vi lớp
