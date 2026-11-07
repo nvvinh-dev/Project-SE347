@@ -21,11 +21,11 @@ export default function RootHomePage() {
     } else if (user.role === "Parent") {
       router.replace("/parent");
     } else if (user.role === "Admin") {
-      router.replace("/admin/dashboard");
+      router.replace("/admin");
     } else if (user.role === "Teacher") {
-      router.replace("/teacher/attendance");
+      router.replace("/teacher");
     } else if (user.role === "Medical") {
-      router.replace("/medical/health");
+      router.replace("/medical");
     }
   }, [user, token, isLoading, router]);
 

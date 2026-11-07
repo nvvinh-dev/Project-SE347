@@ -7,6 +7,7 @@ interface ClassCardProps {
   classInfo: ClassResponse;
   studentCount?: number;
   isSelected: boolean;
+  inactiveTeacherIds?: Set<string>;
   onSelect: () => void;
   onAssignTeacher: () => void;
   onRemoveTeacher: () => void;
@@ -17,6 +18,7 @@ export function ClassCard({
   classInfo,
   studentCount,
   isSelected,
+  inactiveTeacherIds,
   onSelect,
   onAssignTeacher,
   onRemoveTeacher,
@@ -173,7 +175,7 @@ export function ClassCard({
                   <button
                     type="button"
                     onClick={onAssignTeacher}
-                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-brand hover:bg-brand-subtle border border-transparent hover:border-brand-subtle transition-all cursor-pointer"
+                    className="px-3 py-1.5 min-h-[36px] rounded-full text-xs font-semibold text-brand hover:bg-brand-subtle border border-transparent hover:border-brand-subtle transition-all cursor-pointer flex items-center justify-center"
                     title="Đổi giáo viên chủ nhiệm"
                   >
                     Đổi
@@ -181,7 +183,7 @@ export function ClassCard({
                   <button
                     type="button"
                     onClick={onRemoveTeacher}
-                    className="p-1 rounded-full text-muted hover:text-danger hover:bg-danger-bg transition-all cursor-pointer"
+                    className="p-2 min-h-[36px] min-w-[36px] rounded-full text-muted hover:text-danger hover:bg-danger-bg transition-all cursor-pointer flex items-center justify-center"
                     title="Gỡ giáo viên chủ nhiệm"
                     aria-label={`Gỡ giáo viên chủ nhiệm của ${classInfo.name}`}
                   >
@@ -199,7 +201,7 @@ export function ClassCard({
                 <button
                   type="button"
                   onClick={onAssignTeacher}
-                  className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-[#E8916E] hover:bg-[#D96B43] text-white shadow-xs transition-all cursor-pointer flex items-center gap-1"
+                  className="px-3.5 py-2 min-h-[36px] rounded-full text-xs font-bold bg-[#E8916E] hover:bg-[#D96B43] text-white shadow-xs transition-all cursor-pointer flex items-center gap-1"
                 >
                   <span>Phân công</span>
                 </button>
@@ -222,7 +224,7 @@ export function ClassCard({
                       Giáo viên phụ
                     </span>
                     {assistantTeachers.length > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#EAF7FC] text-[#17627D] border border-[#D5E3F2]">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EAF7FC] text-[#17627D] border border-[#D5E3F2]">
                         {assistantTeachers.length}
                       </span>
                     )}
@@ -240,8 +242,8 @@ export function ClassCard({
                 onClick={onAssignAssistantTeachers}
                 className={
                   assistantTeachers.length > 0
-                    ? "px-2.5 py-1 rounded-full text-[11px] font-semibold text-brand hover:bg-brand-subtle border border-transparent hover:border-brand-subtle transition-all cursor-pointer shrink-0 ml-2"
-                    : "px-3 py-1.5 rounded-full text-[11px] font-bold bg-[#71C8E4] hover:bg-[#5BB4D1] text-white shadow-xs transition-all cursor-pointer flex items-center gap-1 shrink-0 ml-2"
+                    ? "px-3.5 py-2 min-h-[36px] rounded-full text-xs font-semibold text-brand hover:bg-brand-subtle border border-transparent hover:border-brand-subtle transition-all cursor-pointer shrink-0 ml-2 flex items-center justify-center"
+                    : "px-3.5 py-2 min-h-[36px] rounded-full text-xs font-bold bg-[#EAF7FC] hover:bg-[#D5E3F2] text-[#17627D] border border-[#D5E3F2] shadow-2xs transition-all cursor-pointer flex items-center gap-1 shrink-0 ml-2"
                 }
                 title={
                   assistantTeachers.length > 0
@@ -253,18 +255,35 @@ export function ClassCard({
               </button>
             </div>
 
-            {/* Danh sách badge giáo viên phụ */}
+            {/* Danh sách badge giáo viên phụ (Đánh dấu người bị vô hiệu hóa theo review PR #72) */}
             {assistantTeachers.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-[#ECEDEC]/60">
-                {assistantTeachers.map((teacher) => (
-                  <span
-                    key={teacher.userId}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF7FC] text-[#17627D] border border-[#D5E3F2] shadow-2xs max-w-full"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#71C8E4] shrink-0" />
-                    <span className="truncate max-w-[130px]">{teacher.fullName}</span>
-                  </span>
-                ))}
+                {assistantTeachers.map((teacher) => {
+                  const isInactive = inactiveTeacherIds?.has(teacher.userId);
+                  return (
+                    <span
+                      key={teacher.userId}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border shadow-2xs max-w-full ${
+                        isInactive
+                          ? "bg-danger-bg text-danger border-danger-border"
+                          : "bg-[#EAF7FC] text-[#17627D] border-[#D5E3F2]"
+                      }`}
+                      title={isInactive ? "Tài khoản giáo viên phụ này đã bị vô hiệu hóa" : undefined}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          isInactive ? "bg-danger" : "bg-[#71C8E4]"
+                        }`}
+                      />
+                      <span className="truncate max-w-[120px]">{teacher.fullName}</span>
+                      {isInactive && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/80 border border-danger-border shrink-0 text-danger">
+                          Đã vô hiệu hóa
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>

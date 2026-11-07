@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignAssistantTeachers } from "@/hooks/useClasses";
 import { useUsers } from "@/hooks/useUsers";
@@ -12,6 +12,26 @@ interface AssignAssistantTeachersModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (message: string) => void;
+}
+
+interface DisplayTeacher {
+  id: string;
+  fullName: string;
+  email: string;
+  isDeactivated: boolean;
+}
+
+/**
+ * Hàm loại bỏ dấu tiếng Việt để tìm kiếm không phân biệt dấu
+ * Ví dụ: "binh" khớp với "Bình"
+ */
+function removeVietnameseDiacritics(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
 }
 
 export function AssignAssistantTeachersModal({
@@ -29,6 +49,7 @@ export function AssignAssistantTeachersModal({
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const submitBtnRef = useRef<HTMLButtonElement>(null);
+  const errorAlertRef = useRef<HTMLDivElement>(null);
 
   const assignMutation = useAssignAssistantTeachers();
   const {
@@ -44,30 +65,77 @@ export function AssignAssistantTeachersModal({
     return users.filter((u) => u.role === "Teacher" && u.isActive);
   }, [users]);
 
-  // Ràng buộc loại trừ: Bỏ GVCN hiện tại của chính lớp đó ra khỏi danh sách chọn
-  const eligibleTeachers = useMemo(() => {
-    const homeroomId = classInfo?.homeroomTeacher?.userId;
-    return activeTeachers.filter((t) => t.id !== homeroomId);
-  }, [activeTeachers, classInfo?.homeroomTeacher?.userId]);
+  // Nhận diện các giáo viên phụ hiện tại của lớp mà tài khoản đã bị vô hiệu hóa
+  // (FR-CLASS-02 review PR #72: Phải hiển thị để Admin có thể bỏ tick gỡ ra, tránh bị 409)
+  const inactiveAssistantTeachers = useMemo<DisplayTeacher[]>(() => {
+    if (!classInfo?.assistantTeachers || classInfo.assistantTeachers.length === 0) return [];
+    const activeIds = new Set(activeTeachers.map((t) => t.id));
+    const homeroomId = classInfo.homeroomTeacher?.userId;
 
-  // Lọc theo từ khóa tìm kiếm (họ tên hoặc email)
+    return classInfo.assistantTeachers
+      .filter((at) => !activeIds.has(at.userId) && at.userId !== homeroomId)
+      .map((at) => {
+        const matchedUser = users.find((u) => u.id === at.userId);
+        return {
+          id: at.userId,
+          fullName: at.fullName || matchedUser?.fullName || "Giáo viên",
+          email: matchedUser?.email || "Tài khoản đã bị vô hiệu hóa",
+          isDeactivated: true,
+        };
+      });
+  }, [classInfo, activeTeachers, users]);
+
+  // Danh sách giáo viên khả dụng: gồm các giáo viên đang active (loại trừ GVCN)
+  // và các giáo viên phụ hiện tại đã bị vô hiệu hóa (để Admin có thể bỏ chọn)
+  const eligibleTeachers = useMemo<DisplayTeacher[]>(() => {
+    const homeroomId = classInfo?.homeroomTeacher?.userId;
+    const activeNonHomeroom: DisplayTeacher[] = activeTeachers
+      .filter((t) => t.id !== homeroomId)
+      .map((t) => ({
+        id: t.id,
+        fullName: t.fullName,
+        email: t.email,
+        isDeactivated: false,
+      }));
+
+    // Đưa những người bị vô hiệu hóa lên đầu danh sách để Admin dễ thấy và xử lý gỡ
+    return [...inactiveAssistantTeachers, ...activeNonHomeroom];
+  }, [classInfo, activeTeachers, inactiveAssistantTeachers]);
+
+  // Lọc theo từ khóa tìm kiếm (họ tên hoặc email, không phân biệt dấu tiếng Việt)
   const filteredTeachers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return eligibleTeachers;
-    return eligibleTeachers.filter(
-      (t) =>
-        t.fullName.toLowerCase().includes(term) ||
-        t.email.toLowerCase().includes(term)
-    );
+    const normalizedTerm = removeVietnameseDiacritics(term);
+
+    return eligibleTeachers.filter((t) => {
+      const name = t.fullName.toLowerCase();
+      const email = t.email.toLowerCase();
+      const normalizedName = removeVietnameseDiacritics(t.fullName);
+
+      return (
+        name.includes(term) ||
+        normalizedName.includes(normalizedTerm) ||
+        email.includes(term)
+      );
+    });
   }, [eligibleTeachers, searchTerm]);
 
-  // Quản lý Focus chuẩn a11y: Bẫy focus và khôi phục khi đóng
+  // Quản lý Focus chuẩn a11y: Bẫy focus và khôi phục khi đóng.
+  // Truyền initialFocusRef cố định để không làm effect chạy lại và ghi đè previousActiveElement.
   const { containerRef } = useFocusTrap({
     isOpen,
     isLoading: assignMutation.isPending,
     onClose,
-    initialFocusRef: isLoadingUsers ? undefined : searchInputRef,
+    initialFocusRef: searchInputRef,
   });
+
+  // Khôi phục focus vào khung lỗi khi serverError xuất hiện (chuẩn a11y theo review PR #72)
+  useEffect(() => {
+    if (serverError) {
+      errorAlertRef.current?.focus();
+    }
+  }, [serverError]);
 
   if (!isOpen || !classInfo) return null;
 
@@ -85,6 +153,14 @@ export function AssignAssistantTeachersModal({
     if (assignMutation.isPending) return;
     const filteredIds = filteredTeachers.map((t) => t.id);
     setSelectedTeacherIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+    setServerError(null);
+  };
+
+  // Chỉ bỏ chọn những giáo viên trong kết quả lọc hiện tại (tránh xóa nhầm người ngoài bộ lọc)
+  const handleDeselectFiltered = () => {
+    if (assignMutation.isPending) return;
+    const filteredIdSet = new Set(filteredTeachers.map((t) => t.id));
+    setSelectedTeacherIds((prev) => prev.filter((id) => !filteredIdSet.has(id)));
     setServerError(null);
   };
 
@@ -120,8 +196,6 @@ export function AssignAssistantTeachersModal({
     } catch (err) {
       const apiErr = toApiError(err);
       setServerError(apiErr.message);
-      // Khôi phục focus về nút Submit trong khối catch để tránh rơi focus (chuẩn a11y)
-      submitBtnRef.current?.focus();
     }
   };
 
@@ -160,7 +234,7 @@ export function AssignAssistantTeachersModal({
             type="button"
             onClick={onClose}
             disabled={assignMutation.isPending}
-            className="p-1.5 rounded-full text-muted hover:text-foreground hover:bg-black/5 transition-all cursor-pointer"
+            className="p-2 min-h-[36px] min-w-[36px] rounded-full text-muted hover:text-foreground hover:bg-black/5 transition-all cursor-pointer flex items-center justify-center"
             aria-label="Đóng hộp thoại"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,29 +278,29 @@ export function AssignAssistantTeachersModal({
 
           {/* Ô tìm kiếm & Các nút thao tác chọn nhanh */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <label htmlFor="teacher-search-input" className="text-xs font-bold text-foreground block">
                 Danh sách giáo viên có thể phân công:
               </label>
 
               {eligibleTeachers.length > 0 && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={allFilteredSelected ? handleDeselectAll : handleSelectAllFiltered}
+                    onClick={allFilteredSelected ? handleDeselectFiltered : handleSelectAllFiltered}
                     disabled={assignMutation.isPending || filteredTeachers.length === 0}
-                    className="text-[11px] font-semibold text-brand hover:text-brand-hover hover:underline transition-all cursor-pointer disabled:opacity-50"
+                    className="text-xs font-semibold text-brand hover:text-brand-hover hover:underline transition-all cursor-pointer disabled:opacity-50 min-h-[32px] flex items-center"
                   >
-                    {allFilteredSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                    {allFilteredSelected ? "Bỏ chọn kết quả lọc" : "Chọn tất cả"}
                   </button>
-                  {selectedTeacherIds.length > 0 && !allFilteredSelected && (
+                  {selectedTeacherIds.length > 0 && (
                     <>
                       <span className="text-muted">•</span>
                       <button
                         type="button"
                         onClick={handleDeselectAll}
                         disabled={assignMutation.isPending}
-                        className="text-[11px] font-semibold text-muted hover:text-danger hover:underline transition-all cursor-pointer disabled:opacity-50"
+                        className="text-xs font-semibold text-muted hover:text-danger hover:underline transition-all cursor-pointer disabled:opacity-50 min-h-[32px] flex items-center"
                       >
                         Bỏ chọn hết ({selectedTeacherIds.length})
                       </button>
@@ -236,7 +310,7 @@ export function AssignAssistantTeachersModal({
               )}
             </div>
 
-            {/* Ô tìm kiếm */}
+            {/* Ô tìm kiếm (Chặn nhấn Enter gây submit ngoài ý muốn theo review PR #72) */}
             <div className="relative">
               <input
                 id="teacher-search-input"
@@ -244,9 +318,14 @@ export function AssignAssistantTeachersModal({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                  }
+                }}
                 disabled={assignMutation.isPending || isLoadingUsers}
-                placeholder="Tìm kiếm theo họ tên hoặc email giáo viên..."
-                className="w-full h-9.5 pl-9 pr-8 rounded-xl border border-input bg-card text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-all"
+                placeholder="Tìm kiếm theo họ tên hoặc email (không phân biệt dấu)..."
+                className="w-full h-10 pl-9 pr-8 rounded-xl border border-input bg-card text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-all"
               />
               <svg
                 className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2"
@@ -265,7 +344,7 @@ export function AssignAssistantTeachersModal({
                 <button
                   type="button"
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground p-1 rounded-full"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground p-1.5 rounded-full"
                   aria-label="Xóa từ khóa tìm kiếm"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -284,12 +363,15 @@ export function AssignAssistantTeachersModal({
                 <p className="text-xs text-muted">Đang tải danh sách giáo viên...</p>
               </div>
             ) : isErrorUsers ? (
-              <div className="p-3.5 rounded-2xl bg-danger-bg border border-danger-border text-xs text-danger flex items-center justify-between gap-3">
+              <div
+                role="alert"
+                className="p-3.5 rounded-2xl bg-danger-bg border border-danger-border text-xs text-danger flex items-center justify-between gap-3"
+              >
                 <span>⚠️ {toApiError(errorUsers).message}</span>
                 <button
                   type="button"
                   onClick={() => refetchUsers()}
-                  className="px-3 py-1 rounded-full text-xs font-semibold bg-danger text-white hover:bg-danger-hover transition-all shrink-0 cursor-pointer"
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-danger text-white hover:bg-danger-hover transition-all shrink-0 cursor-pointer min-h-[32px]"
                 >
                   Thử lại
                 </button>
@@ -316,15 +398,20 @@ export function AssignAssistantTeachersModal({
                   const isCurrentAssistant = (classInfo.assistantTeachers ?? []).some(
                     (at) => at.userId === teacher.id
                   );
+                  const isDeactivated = teacher.isDeactivated;
 
                   return (
                     <label
                       key={teacher.id}
                       htmlFor={`teacher-checkbox-${teacher.id}`}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
-                        isChecked
-                          ? "bg-[#E8F8F1] border-[#A7E5D2] text-[#1A624C] shadow-2xs"
-                          : "bg-card border-border hover:bg-[#FAFBF7] hover:border-brand/40 text-foreground"
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer min-h-[48px] ${
+                        isDeactivated
+                          ? isChecked
+                            ? "bg-amber-50/70 border-amber-300 text-amber-950 shadow-2xs"
+                            : "bg-gray-50 border-gray-200 text-gray-500 opacity-80"
+                          : isChecked
+                            ? "bg-[#E8F8F1] border-[#A7E5D2] text-[#1A624C] shadow-2xs"
+                            : "bg-card border-border hover:bg-[#FAFBF7] hover:border-brand/40 text-foreground"
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0 pr-2">
@@ -335,15 +422,17 @@ export function AssignAssistantTeachersModal({
                           checked={isChecked}
                           onChange={() => handleToggle(teacher.id)}
                           disabled={assignMutation.isPending}
-                          className="w-4 h-4 rounded text-brand focus:ring-brand border-gray-300 transition-all cursor-pointer shrink-0"
+                          className="w-4.5 h-4.5 rounded text-brand focus:ring-brand border-gray-300 transition-all cursor-pointer shrink-0"
                         />
 
                         {/* Avatar chữ cái đầu */}
                         <div
                           className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                            isChecked
-                              ? "bg-brand text-white shadow-2xs"
-                              : "bg-brand-subtle text-brand border border-brand/20"
+                            isDeactivated
+                              ? "bg-gray-200 text-gray-600 border border-gray-300"
+                              : isChecked
+                                ? "bg-brand text-white shadow-2xs"
+                                : "bg-brand-subtle text-brand border border-brand/20"
                           }`}
                         >
                           {teacher.fullName.charAt(0).toUpperCase()}
@@ -355,8 +444,13 @@ export function AssignAssistantTeachersModal({
                             <span className="text-xs font-bold truncate">
                               {teacher.fullName}
                             </span>
-                            {isCurrentAssistant && (
-                              <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-brand-subtle text-brand border border-brand/20">
+                            {isDeactivated && (
+                              <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-danger-bg text-danger border border-danger-border">
+                                Đã vô hiệu hóa
+                              </span>
+                            )}
+                            {isCurrentAssistant && !isDeactivated && (
+                              <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-brand-subtle text-brand border border-brand/20">
                                 Đang phụ trách
                               </span>
                             )}
@@ -370,7 +464,11 @@ export function AssignAssistantTeachersModal({
                       {/* Trạng thái tích chọn */}
                       <span className="text-xs font-semibold shrink-0 ml-1">
                         {isChecked ? (
-                          <span className="text-[#1A624C] font-bold text-sm">✓</span>
+                          isDeactivated ? (
+                            <span className="text-amber-800 font-bold text-xs">✓ Đang chọn (Bỏ tick để gỡ)</span>
+                          ) : (
+                            <span className="text-[#1A624C] font-bold text-sm">✓</span>
+                          )
                         ) : (
                           <span className="text-muted/60 text-xs">+ Thêm</span>
                         )}
@@ -389,9 +487,14 @@ export function AssignAssistantTeachersModal({
             </p>
           )}
 
-          {/* Thông báo lỗi từ server */}
+          {/* Thông báo lỗi từ server có role="alert" và ref để khôi phục focus */}
           {serverError && (
-            <div className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger flex items-start gap-2">
+            <div
+              ref={errorAlertRef}
+              tabIndex={-1}
+              role="alert"
+              className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger flex items-start gap-2 outline-none focus:ring-2 focus:ring-danger/40"
+            >
               <span className="shrink-0 mt-0.5">⚠️</span>
               <div className="leading-relaxed font-normal">{serverError}</div>
             </div>
@@ -403,15 +506,15 @@ export function AssignAssistantTeachersModal({
               type="button"
               onClick={onClose}
               disabled={assignMutation.isPending}
-              className="px-4 py-2 rounded-full text-xs font-semibold text-muted hover:text-foreground hover:bg-black/5 transition-all cursor-pointer"
+              className="px-4 py-2 min-h-[38px] rounded-full text-xs font-semibold text-muted hover:text-foreground hover:bg-black/5 transition-all cursor-pointer flex items-center justify-center"
             >
               Hủy bỏ
             </button>
             <button
               ref={submitBtnRef}
               type="submit"
-              disabled={assignMutation.isPending || isLoadingUsers}
-              className="px-5 py-2 rounded-full text-xs font-bold text-white bg-brand hover:bg-brand-hover shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 cursor-pointer"
+              disabled={assignMutation.isPending || isLoadingUsers || isErrorUsers}
+              className="px-5 py-2 min-h-[38px] rounded-full text-xs font-bold text-white bg-brand hover:bg-brand-hover shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 cursor-pointer"
             >
               {assignMutation.isPending ? (
                 <>

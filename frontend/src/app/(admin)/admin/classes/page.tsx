@@ -9,8 +9,9 @@ import { AssignHomeroomTeacherModal } from "@/components/admin/classes/AssignHom
 import { AssignAssistantTeachersModal } from "@/components/admin/classes/AssignAssistantTeachersModal";
 import { AssignClassModal } from "@/components/admin/classes/AssignClassModal";
 import { useClasses, useClassPlacements, useAssignHomeroomTeacher } from "@/hooks/useClasses";
+import { useUsers } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
-import type { ClassResponse, ClassPlacementResponse } from "@/types/class";
+import type { ClassPlacementResponse } from "@/types/class";
 
 export default function AdminClassesPage() {
   const {
@@ -29,18 +30,39 @@ export default function AdminClassesPage() {
     refetch: refetchPlacements,
   } = useClassPlacements();
 
+  const { data: users = [] } = useUsers();
+
+  // Danh sách ID tài khoản người dùng đã bị vô hiệu hóa để hiển thị cảnh báo trên thẻ lớp
+  const inactiveTeacherIds = useMemo(() => {
+    return new Set(users.filter((u) => !u.isActive).map((u) => u.id));
+  }, [users]);
+
   const removeTeacherMutation = useAssignHomeroomTeacher();
 
   // State bộ lọc lớp đang chọn ở bảng và trang hiện tại
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Quản lý trạng thái các hộp thoại
-  const [assigningTeacherClass, setAssigningTeacherClass] = useState<ClassResponse | null>(null);
-  const [assigningAssistantClass, setAssigningAssistantClass] = useState<ClassResponse | null>(null);
-  const [removingTeacherClass, setRemovingTeacherClass] = useState<ClassResponse | null>(null);
+  // Quản lý trạng thái các hộp thoại bằng classId (theo review PR #72 để luôn lấy dữ liệu mới nhất khi refetch)
+  const [assigningTeacherClassId, setAssigningTeacherClassId] = useState<string | null>(null);
+  const [assigningAssistantClassId, setAssigningAssistantClassId] = useState<string | null>(null);
+  const [removingTeacherClassId, setRemovingTeacherClassId] = useState<string | null>(null);
   const [removeTeacherError, setRemoveTeacherError] = useState<string | null>(null);
   const [assigningChild, setAssigningChild] = useState<ClassPlacementResponse | null>(null);
+
+  // Lấy dữ liệu lớp mới nhất tương ứng với ID đang mở modal
+  const assigningTeacherClass = useMemo(
+    () => classes.find((c) => c.id === assigningTeacherClassId) ?? null,
+    [classes, assigningTeacherClassId]
+  );
+  const assigningAssistantClass = useMemo(
+    () => classes.find((c) => c.id === assigningAssistantClassId) ?? null,
+    [classes, assigningAssistantClassId]
+  );
+  const removingTeacherClass = useMemo(
+    () => classes.find((c) => c.id === removingTeacherClassId) ?? null,
+    [classes, removingTeacherClassId]
+  );
 
   // State thông báo thành công (Toast notification)
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -91,7 +113,7 @@ export default function AdminClassesPage() {
       });
 
       showToast(`Đã gỡ giáo viên chủ nhiệm của ${removingTeacherClass.name} thành công.`);
-      setRemovingTeacherClass(null);
+      setRemovingTeacherClassId(null);
       setRemoveTeacherError(null);
     } catch (err) {
       const apiErr = toApiError(err);
@@ -234,16 +256,17 @@ export default function AdminClassesPage() {
                 classInfo={cls}
                 studentCount={studentCount}
                 isSelected={isSelected}
+                inactiveTeacherIds={inactiveTeacherIds}
                 onSelect={() => {
                   setSelectedClassFilter(cls.id);
                   setCurrentPage(1);
                 }}
-                onAssignTeacher={() => setAssigningTeacherClass(cls)}
+                onAssignTeacher={() => setAssigningTeacherClassId(cls.id)}
                 onRemoveTeacher={() => {
                   setRemoveTeacherError(null);
-                  setRemovingTeacherClass(cls);
+                  setRemovingTeacherClassId(cls.id);
                 }}
-                onAssignAssistantTeachers={() => setAssigningAssistantClass(cls)}
+                onAssignAssistantTeachers={() => setAssigningAssistantClassId(cls.id)}
               />
             );
           })
@@ -274,7 +297,7 @@ export default function AdminClassesPage() {
           key={assigningTeacherClass.id}
           classInfo={assigningTeacherClass}
           isOpen={assigningTeacherClass !== null}
-          onClose={() => setAssigningTeacherClass(null)}
+          onClose={() => setAssigningTeacherClassId(null)}
           onSuccess={showToast}
         />
       )}
@@ -285,7 +308,7 @@ export default function AdminClassesPage() {
           key={assigningAssistantClass.id}
           classInfo={assigningAssistantClass}
           isOpen={assigningAssistantClass !== null}
-          onClose={() => setAssigningAssistantClass(null)}
+          onClose={() => setAssigningAssistantClassId(null)}
           onSuccess={showToast}
         />
       )}
@@ -312,7 +335,7 @@ export default function AdminClassesPage() {
         isLoading={removeTeacherMutation.isPending}
         onClose={() => {
           if (!removeTeacherMutation.isPending) {
-            setRemovingTeacherClass(null);
+            setRemovingTeacherClassId(null);
             setRemoveTeacherError(null);
           }
         }}

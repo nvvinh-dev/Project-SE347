@@ -8,9 +8,6 @@ export interface ClassTeacherResponse {
   fullName: string;
 }
 
-// Giữ lại HomeroomTeacherResponse để tương thích ngược hoàn toàn
-export type HomeroomTeacherResponse = ClassTeacherResponse;
-
 export interface ClassResponse {
   id: string;
   name: string;
