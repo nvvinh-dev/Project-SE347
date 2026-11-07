@@ -12,10 +12,10 @@ namespace NhaTre.API.Controllers;
 // Module Đón trả gồm bản ghi đón về của giáo viên và người đón đã đăng ký của phụ huynh, nên route
 // gốc là api/ và Roles gắn theo từng action. [Authorize] ở mức class để action nào quên gắn Roles
 // vẫn bắt đăng nhập: Program.cs không có fallback policy.
-// FR-PICKUP-01: chỉ Giáo viên ghi nhận đón về (BR-PICKUP-01), và chỉ cho trẻ lớp mình chủ nhiệm
+// FR-PICKUP-01: chỉ Giáo viên ghi nhận đón về (BR-PICKUP-01), và chỉ cho trẻ lớp mình phụ trách
 // (D40 mục 2). Bản ghi đã tạo không sửa, không xóa.
 // FR-PICKUP-02: Giáo viên xem người đón đã đăng ký của trẻ lớp mình để xác minh, và xem bản ghi
-// đón về của lớp mình trong một ngày; cùng phạm vi lớp chủ nhiệm.
+// đón về của lớp mình trong một ngày; cùng phạm vi lớp phụ trách.
 // FR-PICKUP-03: chỉ Phụ huynh thêm, xem, sửa người đón của con mình (BR-PICKUP-03, BR-SCOPE-01) và
 // xóa người đón dự phòng (D40 mục 1). Trẻ không phải con mình → 404 (AC-PICKUP-07).
 [ApiController]

@@ -15,40 +15,47 @@ public class AttendanceRepository : IAttendanceRepository
     }
 
     // Phạm vi nằm ngay trong câu truy vấn: trẻ chưa xếp lớp (class_id null) hay lớp chưa có
-    // giáo viên chủ nhiệm đều không khớp. Chỉ đọc, không theo dõi: điểm danh không sửa hồ sơ trẻ
+    // giáo viên phụ trách đều không khớp. Chỉ đọc, không theo dõi: điểm danh không sửa hồ sơ trẻ
     public async Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Children
             .AsNoTracking()
-            .Include(c => c.Class)
             .FirstOrDefaultAsync(c => c.Id == childId
-                && c.Class!.HomeroomTeacher!.UserId == teacherUserId);
+                && scope.Contains(c.ClassId));
     }
 
     // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với FR-ATT-03
     public async Task<Attendance?> FindByIdInHomeroomClassAsync(Guid id, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Attendances
             .AsNoTracking()
             .Include(a => a.Child)
             .FirstOrDefaultAsync(a => a.Id == id
-                && a.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
+                && scope.Contains(a.Child.ClassId));
     }
 
     public async Task<bool> IsHomeroomClassAsync(Guid classId, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Classes
-            .AnyAsync(c => c.Id == classId && c.HomeroomTeacher!.UserId == teacherUserId);
+            .AnyAsync(c => c.Id == classId && scope.Contains((Guid?)c.Id));
     }
 
-    // Phạm vi lớp chủ nhiệm luôn có trong câu truy vấn; trẻ, lớp, ngày chỉ thu hẹp thêm
+    // Phạm vi lớp phụ trách luôn có trong câu truy vấn; trẻ, lớp, ngày chỉ thu hẹp thêm
     public async Task<IReadOnlyList<Attendance>> GetInHomeroomClassesAsync(
         Guid teacherUserId, Guid? childId, Guid? classId, DateOnly? date)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         var query = _dbContext.Attendances
             .AsNoTracking()
             .Include(a => a.Child)
-            .Where(a => a.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
+            .Where(a => scope.Contains(a.Child.ClassId));
 
         if (childId is not null)
             query = query.Where(a => a.ChildId == childId.Value);
@@ -71,7 +78,7 @@ public class AttendanceRepository : IAttendanceRepository
             .AnyAsync(cg => cg.ChildId == childId && cg.GuardianUserId == parentUserId);
     }
 
-    // Liên kết phụ huynh–trẻ luôn có trong câu truy vấn, như phạm vi lớp chủ nhiệm ở phía giáo viên.
+    // Liên kết phụ huynh–trẻ luôn có trong câu truy vấn, như phạm vi lớp phụ trách ở phía giáo viên.
     // Mỗi trẻ chỉ có một bản điểm danh mỗi ngày nên sắp theo ngày là đủ
     public async Task<IReadOnlyList<Attendance>> GetByChildForGuardianAsync(Guid childId, Guid parentUserId)
     {
@@ -105,4 +112,7 @@ public class AttendanceRepository : IAttendanceRepository
             return false;
         }
     }
+
+    public async Task<Guid?> FindTeacherIdAsync(Guid teacherUserId)
+        => await _dbContext.FindTeacherIdAsync(teacherUserId);
 }

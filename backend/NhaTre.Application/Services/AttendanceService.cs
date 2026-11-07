@@ -20,9 +20,9 @@ public class AttendanceService : IAttendanceService
         return attendance is null ? null : ToResponse(attendance, attendance.Child.FullName);
     }
 
-    // FR-ATT-03. Phạm vi là các lớp tài khoản này chủ nhiệm (classes.homeroom_teacher_id, D40 mục 2),
+    // FR-ATT-03. Phạm vi là các lớp tài khoản này phụ trách (GVCN hoặc giáo viên phụ, D40 mục 2),
     // tính theo lớp hiện tại của trẻ như FR-ATT-01. classId client gửi chỉ thu hẹp trong phạm vi đó:
-    // lớp không do mình chủ nhiệm → 404 (AC-ATT-09). Giáo viên chưa chủ nhiệm lớp nào xem theo ngày
+    // lớp không do mình phụ trách → 404 (AC-ATT-09). Giáo viên chưa phụ trách lớp nào xem theo ngày
     // thì nhận danh sách rỗng, xem theo trẻ thì nhận 404 (UC-ATT-03 E1, D46 mục 3)
     public async Task<AttendanceHistoryResult> GetHistoryAsync(
         Guid? childId, Guid? classId, DateOnly? date, Guid teacherUserId)
@@ -67,6 +67,12 @@ public class AttendanceService : IAttendanceService
         if (child is null)
             return new AttendanceResult(AttendanceOutcome.ChildNotFound);
 
+        // Người ghi nhận là chính giáo viên đang thao tác, kể cả khi là giáo viên phụ (D44 mục 2). Qua được
+        // bước lọc phạm vi thì tài khoản đã có hồ sơ teachers; không còn hồ sơ thì coi như ngoài phạm vi
+        var teacherId = await _attendanceRepository.FindTeacherIdAsync(teacherUserId);
+        if (teacherId is null)
+            return new AttendanceResult(AttendanceOutcome.ChildNotFound);
+
         var now = DateTime.UtcNow;
         var today = VietnamTime.DateOf(now);
 
@@ -77,8 +83,7 @@ public class AttendanceService : IAttendanceService
         var attendance = new Attendance
         {
             ChildId = child.Id,
-            // Repository đã lọc lớp chủ nhiệm theo tài khoản đang đăng nhập, nên đây là hồ sơ teachers của chính người gọi
-            RecordedByTeacherId = child.Class!.HomeroomTeacherId!.Value,
+            RecordedByTeacherId = teacherId.Value,
             AttendanceDate = today,
             CheckInTime = now,
             Status = request.Status

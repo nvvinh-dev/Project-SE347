@@ -29,6 +29,12 @@ public class MediaService : IMediaService
         if (homeroomClass is null)
             return null;
 
+        // Người tải lên là chính giáo viên đang thao tác, kể cả khi là giáo viên phụ (D44 mục 2). Qua được
+        // bước lọc phạm vi thì tài khoản đã có hồ sơ teachers; không còn hồ sơ thì coi như ngoài phạm vi
+        var teacherId = await _mediaRepository.FindTeacherIdAsync(teacherUserId);
+        if (teacherId is null)
+            return null;
+
         var uploadedAt = DateTime.UtcNow;
         var newPhotos = new List<ActivityPhoto>(request.Photos.Count);
         var saved = false;
@@ -43,9 +49,7 @@ public class MediaService : IMediaService
                 newPhotos.Add(new ActivityPhoto
                 {
                     ClassId = homeroomClass.Id,
-                    // Repository đã lọc lớp chủ nhiệm theo tài khoản đang đăng nhập, nên đây là hồ sơ teachers
-                    // của chính người gọi
-                    UploadedByTeacherId = homeroomClass.HomeroomTeacherId!.Value,
+                    UploadedByTeacherId = teacherId.Value,
                     UploadedAt = uploadedAt,
                     FileReference = fileReference
                 });

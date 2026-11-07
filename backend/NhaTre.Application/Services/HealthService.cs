@@ -39,11 +39,16 @@ public class HealthService : IHealthService
         if (child is null)
             return null;
 
+        // Người ghi nhận là chính giáo viên đang thao tác, kể cả khi là giáo viên phụ (D44 mục 2). Qua được
+        // bước lọc phạm vi thì tài khoản đã có hồ sơ teachers; không còn hồ sơ thì coi như ngoài phạm vi
+        var teacherId = await _healthRepository.FindTeacherIdAsync(teacherUserId);
+        if (teacherId is null)
+            return null;
+
         var quickHealthStatus = new QuickHealthStatus
         {
             ChildId = child.Id,
-            // Repository đã lọc lớp chủ nhiệm theo tài khoản đang đăng nhập, nên đây là hồ sơ teachers của chính người gọi
-            RecordedByTeacherId = child.Class!.HomeroomTeacherId!.Value,
+            RecordedByTeacherId = teacherId.Value,
             RecordedAt = DateTime.UtcNow,
             Mood = request.Mood,
             TemperatureCelsius = request.TemperatureCelsius,

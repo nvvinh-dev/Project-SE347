@@ -13,7 +13,7 @@ namespace NhaTre.API.Controllers;
 // huynh (children/{childId}/incidents), nên route gốc của Controller là api/ và mỗi action tự ghi tên tài
 // nguyên. Ba vai trò dùng chung nên Roles gắn theo từng action; [Authorize] ở mức class để action nào quên
 // gắn Roles vẫn bắt đăng nhập: Program.cs không có fallback policy.
-// FR-INCIDENT-01: chỉ Giáo viên ghi sự cố (BR-INCIDENT-01), và chỉ cho trẻ lớp mình chủ nhiệm (D40 mục 2).
+// FR-INCIDENT-01: chỉ Giáo viên ghi sự cố (BR-INCIDENT-01), và chỉ cho trẻ lớp mình phụ trách (D40 mục 2).
 // Sự cố đã tạo không sửa mô tả, không xóa.
 // FR-INCIDENT-02: Giáo viên đính thêm ảnh vào sự cố của trẻ lớp mình, cùng phạm vi; ảnh đã đính không xóa.
 // FR-HEALTH-04: Y tế mở sự cố của mọi trẻ trong trường để xem ảnh, không đính ảnh (D39 mục 9).
@@ -47,7 +47,7 @@ public class IncidentsController : ControllerBase
     public async Task<ActionResult<ApiResponse<IncidentResponse>>> GetById(Guid id)
     {
         // Nhánh còn lại là nhánh giáo viên. Thêm vai trò vào Roles của action này thì phải thêm nhánh cho
-        // vai trò đó; nếu không, vai trò mới bị lọc theo lớp chủ nhiệm và luôn nhận 404
+        // vai trò đó; nếu không, vai trò mới bị lọc theo lớp phụ trách và luôn nhận 404
         var result = User.IsInRole(Roles.Medical)
             ? await _incidentService.GetIncidentForMedicalAsync(id)
             : await _incidentService.GetIncidentByIdAsync(id, CurrentUserId());

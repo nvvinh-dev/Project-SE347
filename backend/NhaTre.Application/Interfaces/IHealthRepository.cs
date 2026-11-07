@@ -4,14 +4,14 @@ namespace NhaTre.Application.Interfaces;
 
 public interface IHealthRepository
 {
-    // Trẻ kèm Class, chỉ khi trẻ thuộc lớp do tài khoản này chủ nhiệm (classes.homeroom_teacher_id, D40 mục 2).
+    // Trẻ, chỉ khi trẻ thuộc lớp tài khoản này phụ trách (GVCN hoặc giáo viên phụ, D40 mục 2).
     // null khi trẻ không tồn tại, chưa xếp lớp hoặc thuộc lớp giáo viên khác
     Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId);
 
-    // Trẻ của mọi lớp do tài khoản này chủ nhiệm, sắp theo họ tên; chưa chủ nhiệm lớp nào thì rỗng
+    // Trẻ của mọi lớp tài khoản này phụ trách, sắp theo họ tên; chưa phụ trách lớp nào thì rỗng
     Task<IReadOnlyList<Child>> GetChildrenInHomeroomClassesAsync(Guid teacherUserId);
 
-    // Bản ghi sức khỏe nhanh kèm Child, cùng phạm vi lớp chủ nhiệm như trên
+    // Bản ghi sức khỏe nhanh kèm Child, cùng phạm vi lớp phụ trách như trên
     Task<QuickHealthStatus?> FindQuickHealthStatusInHomeroomClassAsync(Guid id, Guid teacherUserId);
 
     void AddQuickHealthStatus(QuickHealthStatus quickHealthStatus);
@@ -53,4 +53,8 @@ public interface IHealthRepository
         Guid childId, Guid parentUserId);
 
     Task SaveChangesAsync();
+
+    // Hồ sơ teachers của tài khoản này, để ghi người ghi nhận là chính giáo viên đã thao tác (D44 mục 2).
+    // null khi tài khoản không có hồ sơ
+    Task<Guid?> FindTeacherIdAsync(Guid teacherUserId);
 }
