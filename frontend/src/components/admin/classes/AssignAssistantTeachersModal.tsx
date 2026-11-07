@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useMemo, useEffect } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignAssistantTeachers } from "@/hooks/useClasses";
 import { useUsers } from "@/hooks/useUsers";
@@ -14,11 +15,16 @@ interface AssignAssistantTeachersModalProps {
   onSuccess: (message: string) => void;
 }
 
+interface FormValues {
+  teacherUserIds: string[];
+}
+
 interface DisplayTeacher {
   id: string;
   fullName: string;
   email: string;
-  isDeactivated: boolean;
+  isInvalid: boolean;
+  invalidReasonLabel?: string;
 }
 
 /**
@@ -40,10 +46,14 @@ export function AssignAssistantTeachersModal({
   onClose,
   onSuccess,
 }: AssignAssistantTeachersModalProps) {
-  // Danh sách ID các giáo viên phụ được chọn (khởi tạo từ classInfo khi mount theo key={classInfo.id})
-  const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>(
-    () => classInfo?.assistantTeachers?.map((t) => t.userId) ?? []
-  );
+  // Quản lý form theo React Hook Form (chuẩn D12)
+  const { control, setValue, handleSubmit: handleFormSubmit } = useForm<FormValues>({
+    defaultValues: {
+      teacherUserIds: classInfo?.assistantTeachers?.map((t) => t.userId) ?? [],
+    },
+  });
+
+  const selectedTeacherIds = useWatch({ control, name: "teacherUserIds" }) ?? [];
   const [searchTerm, setSearchTerm] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -65,8 +75,8 @@ export function AssignAssistantTeachersModal({
     return users.filter((u) => u.role === "Teacher" && u.isActive);
   }, [users]);
 
-  // Nhận diện các giáo viên phụ hiện tại của lớp mà tài khoản đã bị vô hiệu hóa
-  // (FR-CLASS-02 review PR #72: Phải hiển thị để Admin có thể bỏ tick gỡ ra, tránh bị 409)
+  // Nhận diện các giáo viên phụ hiện tại của lớp mà tài khoản không còn hợp lệ
+  // (Đã vô hiệu hóa hoặc không còn giữ vai trò Giáo viên - review PR #72 lượt 2)
   const inactiveAssistantTeachers = useMemo<DisplayTeacher[]>(() => {
     if (!classInfo?.assistantTeachers || classInfo.assistantTeachers.length === 0) return [];
     const activeIds = new Set(activeTeachers.map((t) => t.id));
@@ -76,17 +86,29 @@ export function AssignAssistantTeachersModal({
       .filter((at) => !activeIds.has(at.userId) && at.userId !== homeroomId)
       .map((at) => {
         const matchedUser = users.find((u) => u.id === at.userId);
+        let reasonLabel = "Đã vô hiệu hóa";
+        let emailNote = "Tài khoản đã bị vô hiệu hóa";
+
+        if (matchedUser && matchedUser.isActive && matchedUser.role !== "Teacher") {
+          reasonLabel = "Không còn là giáo viên";
+          emailNote = `Đã chuyển sang vai trò ${matchedUser.role}`;
+        } else if (!matchedUser) {
+          reasonLabel = "Tài khoản không tồn tại";
+          emailNote = "Không tìm thấy thông tin tài khoản";
+        }
+
         return {
           id: at.userId,
           fullName: at.fullName || matchedUser?.fullName || "Giáo viên",
-          email: matchedUser?.email || "Tài khoản đã bị vô hiệu hóa",
-          isDeactivated: true,
+          email: matchedUser?.email || emailNote,
+          isInvalid: true,
+          invalidReasonLabel: reasonLabel,
         };
       });
   }, [classInfo, activeTeachers, users]);
 
   // Danh sách giáo viên khả dụng: gồm các giáo viên đang active (loại trừ GVCN)
-  // và các giáo viên phụ hiện tại đã bị vô hiệu hóa (để Admin có thể bỏ chọn)
+  // và các giáo viên phụ hiện tại không còn hợp lệ (để Admin có thể bỏ chọn gỡ ra)
   const eligibleTeachers = useMemo<DisplayTeacher[]>(() => {
     const homeroomId = classInfo?.homeroomTeacher?.userId;
     const activeNonHomeroom: DisplayTeacher[] = activeTeachers
@@ -95,10 +117,10 @@ export function AssignAssistantTeachersModal({
         id: t.id,
         fullName: t.fullName,
         email: t.email,
-        isDeactivated: false,
+        isInvalid: false,
       }));
 
-    // Đưa những người bị vô hiệu hóa lên đầu danh sách để Admin dễ thấy và xử lý gỡ
+    // Đưa những người không còn hợp lệ lên đầu danh sách để Admin dễ thấy và xử lý gỡ
     return [...inactiveAssistantTeachers, ...activeNonHomeroom];
   }, [classInfo, activeTeachers, inactiveAssistantTeachers]);
 
@@ -121,6 +143,11 @@ export function AssignAssistantTeachersModal({
     });
   }, [eligibleTeachers, searchTerm]);
 
+  // Các giáo viên có thể chọn trong danh sách kết quả lọc (loại trừ tài khoản không hợp lệ)
+  const selectableFilteredTeachers = useMemo(() => {
+    return filteredTeachers.filter((t) => !t.isInvalid);
+  }, [filteredTeachers]);
+
   // Quản lý Focus chuẩn a11y: Bẫy focus và khôi phục khi đóng.
   // Truyền initialFocusRef cố định để không làm effect chạy lại và ghi đè previousActiveElement.
   const { containerRef } = useFocusTrap({
@@ -141,18 +168,33 @@ export function AssignAssistantTeachersModal({
 
   const handleToggle = (teacherId: string) => {
     if (assignMutation.isPending) return;
-    setSelectedTeacherIds((prev) =>
-      prev.includes(teacherId)
-        ? prev.filter((id) => id !== teacherId)
-        : [...prev, teacherId]
+    const targetTeacher = eligibleTeachers.find((t) => t.id === teacherId);
+    const isChecked = selectedTeacherIds.includes(teacherId);
+
+    // Nếu tài khoản không còn hợp lệ và đã bị bỏ tick, không cho phép tick lại để tránh lỗi 409
+    if (targetTeacher?.isInvalid && !isChecked) {
+      return;
+    }
+
+    setValue(
+      "teacherUserIds",
+      isChecked
+        ? selectedTeacherIds.filter((id) => id !== teacherId)
+        : [...selectedTeacherIds, teacherId],
+      { shouldDirty: true }
     );
     setServerError(null);
   };
 
+  // Chọn tất cả giáo viên hợp lệ trong kết quả lọc (bỏ qua tài khoản không hợp lệ theo review lượt 2)
   const handleSelectAllFiltered = () => {
     if (assignMutation.isPending) return;
-    const filteredIds = filteredTeachers.map((t) => t.id);
-    setSelectedTeacherIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+    const validFilteredIds = selectableFilteredTeachers.map((t) => t.id);
+    setValue(
+      "teacherUserIds",
+      Array.from(new Set([...selectedTeacherIds, ...validFilteredIds])),
+      { shouldDirty: true }
+    );
     setServerError(null);
   };
 
@@ -160,29 +202,32 @@ export function AssignAssistantTeachersModal({
   const handleDeselectFiltered = () => {
     if (assignMutation.isPending) return;
     const filteredIdSet = new Set(filteredTeachers.map((t) => t.id));
-    setSelectedTeacherIds((prev) => prev.filter((id) => !filteredIdSet.has(id)));
+    setValue(
+      "teacherUserIds",
+      selectedTeacherIds.filter((id) => !filteredIdSet.has(id)),
+      { shouldDirty: true }
+    );
     setServerError(null);
   };
 
   const handleDeselectAll = () => {
     if (assignMutation.isPending) return;
-    setSelectedTeacherIds([]);
+    setValue("teacherUserIds", [], { shouldDirty: true });
     setServerError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = handleFormSubmit(async (data) => {
     setServerError(null);
 
     try {
       const updatedClass = await assignMutation.mutateAsync({
         classId: classInfo.id,
         data: {
-          teacherUserIds: selectedTeacherIds,
+          teacherUserIds: data.teacherUserIds,
         },
       });
 
-      const count = updatedClass.assistantTeachers?.length ?? selectedTeacherIds.length;
+      const count = updatedClass.assistantTeachers?.length ?? data.teacherUserIds.length;
       if (count > 0) {
         onSuccess(
           `Đã phân công ${count} giáo viên phụ cho ${classInfo.name} thành công.`
@@ -197,11 +242,11 @@ export function AssignAssistantTeachersModal({
       const apiErr = toApiError(err);
       setServerError(apiErr.message);
     }
-  };
+  });
 
   const allFilteredSelected =
-    filteredTeachers.length > 0 &&
-    filteredTeachers.every((t) => selectedTeacherIds.includes(t.id));
+    selectableFilteredTeachers.length > 0 &&
+    selectableFilteredTeachers.every((t) => selectedTeacherIds.includes(t.id));
 
   return (
     <div
@@ -244,7 +289,7 @@ export function AssignAssistantTeachersModal({
         </div>
 
         {/* Thân biểu mẫu */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
+        <form onSubmit={onSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Thông tin lớp học & GVCN hiện tại */}
           <div className="p-3.5 rounded-2xl bg-[#F8F8F9] border border-border space-y-2 text-xs">
             <div className="flex justify-between items-center">
@@ -288,7 +333,7 @@ export function AssignAssistantTeachersModal({
                   <button
                     type="button"
                     onClick={allFilteredSelected ? handleDeselectFiltered : handleSelectAllFiltered}
-                    disabled={assignMutation.isPending || filteredTeachers.length === 0}
+                    disabled={assignMutation.isPending || selectableFilteredTeachers.length === 0}
                     className="text-xs font-semibold text-brand hover:text-brand-hover hover:underline transition-all cursor-pointer disabled:opacity-50 min-h-[32px] flex items-center"
                   >
                     {allFilteredSelected ? "Bỏ chọn kết quả lọc" : "Chọn tất cả"}
@@ -324,7 +369,7 @@ export function AssignAssistantTeachersModal({
                   }
                 }}
                 disabled={assignMutation.isPending || isLoadingUsers}
-                placeholder="Tìm kiếm theo họ tên hoặc email (không phân biệt dấu)..."
+                placeholder="Tìm theo họ tên hoặc email..."
                 className="w-full h-10 pl-9 pr-8 rounded-xl border border-input bg-card text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-all"
               />
               <svg
@@ -398,59 +443,66 @@ export function AssignAssistantTeachersModal({
                   const isCurrentAssistant = (classInfo.assistantTeachers ?? []).some(
                     (at) => at.userId === teacher.id
                   );
-                  const isDeactivated = teacher.isDeactivated;
+                  const isInvalid = teacher.isInvalid;
 
                   return (
                     <label
                       key={teacher.id}
                       htmlFor={`teacher-checkbox-${teacher.id}`}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer min-h-[48px] ${
-                        isDeactivated
-                          ? isChecked
-                            ? "bg-amber-50/70 border-amber-300 text-amber-950 shadow-2xs"
-                            : "bg-gray-50 border-gray-200 text-gray-500 opacity-80"
-                          : isChecked
-                            ? "bg-[#E8F8F1] border-[#A7E5D2] text-[#1A624C] shadow-2xs"
-                            : "bg-card border-border hover:bg-[#FAFBF7] hover:border-brand/40 text-foreground"
+                      onClick={(e) => {
+                        if (isInvalid && !isChecked) {
+                          e.preventDefault();
+                        }
+                      }}
+                      className={`flex items-center justify-between p-3 rounded-xl border min-h-[48px] select-none gap-2 transition-all ${
+                        isChecked
+                          ? isInvalid
+                            ? "bg-amber-50/70 border-amber-300 text-amber-950 shadow-2xs cursor-pointer"
+                            : "bg-[#EAF7FC]/60 border-[#71C8E4]/60 text-foreground shadow-2xs cursor-pointer"
+                          : isInvalid
+                          ? "bg-muted/10 border-border/60 opacity-60 cursor-not-allowed text-muted"
+                          : "bg-card border-border/80 hover:border-brand/40 hover:bg-brand-subtle/30 text-foreground cursor-pointer"
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         {/* Checkbox */}
                         <input
                           id={`teacher-checkbox-${teacher.id}`}
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleToggle(teacher.id)}
-                          disabled={assignMutation.isPending}
-                          className="w-4.5 h-4.5 rounded text-brand focus:ring-brand border-gray-300 transition-all cursor-pointer shrink-0"
+                          disabled={assignMutation.isPending || (isInvalid && !isChecked)}
+                          className={`w-4 h-4 rounded text-brand focus:ring-brand border-gray-300 transition-all shrink-0 ${
+                            isInvalid && !isChecked ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                          }`}
                         />
 
                         {/* Avatar chữ cái đầu */}
                         <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                            isDeactivated
-                              ? "bg-gray-200 text-gray-600 border border-gray-300"
+                          className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                            isInvalid
+                              ? "bg-danger-bg text-danger border border-danger-border"
                               : isChecked
-                                ? "bg-brand text-white shadow-2xs"
-                                : "bg-brand-subtle text-brand border border-brand/20"
+                              ? "bg-[#EAF7FC] text-[#17627D] border border-[#71C8E4]"
+                              : "bg-[#EAF7FC] text-[#17627D] border border-[#D5E3F2]"
                           }`}
                         >
                           {teacher.fullName.charAt(0).toUpperCase()}
                         </div>
 
                         {/* Họ tên và Email */}
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-bold truncate">
+                            <span className="text-xs font-bold truncate max-w-[150px]">
                               {teacher.fullName}
                             </span>
-                            {isDeactivated && (
-                              <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-danger-bg text-danger border border-danger-border">
-                                Đã vô hiệu hóa
+                            {isInvalid && (
+                              <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-danger-bg text-danger border border-danger-border whitespace-nowrap shrink-0">
+                                {teacher.invalidReasonLabel || "Đã vô hiệu hóa"}
                               </span>
                             )}
-                            {isCurrentAssistant && !isDeactivated && (
-                              <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-brand-subtle text-brand border border-brand/20">
+                            {isCurrentAssistant && !isInvalid && (
+                              <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-brand-subtle text-brand border border-brand/20 whitespace-nowrap shrink-0">
                                 Đang phụ trách
                               </span>
                             )}
@@ -458,17 +510,25 @@ export function AssignAssistantTeachersModal({
                           <span className="text-[11px] text-muted truncate block">
                             {teacher.email}
                           </span>
+                          {isInvalid && isChecked && (
+                            <span className="text-[10px] text-amber-700 block mt-0.5 font-medium leading-tight">
+                              Bỏ tick để gỡ khỏi lớp
+                            </span>
+                          )}
+                          {isInvalid && !isChecked && (
+                            <span className="text-[10px] text-muted italic block mt-0.5 leading-tight">
+                              Không thể phân công lại tài khoản này
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       {/* Trạng thái tích chọn */}
-                      <span className="text-xs font-semibold shrink-0 ml-1">
+                      <span className="text-xs font-semibold shrink-0 ml-2">
                         {isChecked ? (
-                          isDeactivated ? (
-                            <span className="text-amber-800 font-bold text-xs">✓ Đang chọn (Bỏ tick để gỡ)</span>
-                          ) : (
-                            <span className="text-[#1A624C] font-bold text-sm">✓</span>
-                          )
+                          <span className="text-[#1A624C] font-bold text-sm">✓</span>
+                        ) : isInvalid ? (
+                          <span className="text-muted text-[10px] italic">Đã gỡ</span>
                         ) : (
                           <span className="text-muted/60 text-xs">+ Thêm</span>
                         )}

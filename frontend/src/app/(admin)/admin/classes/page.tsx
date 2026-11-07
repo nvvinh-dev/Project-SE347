@@ -32,7 +32,21 @@ export default function AdminClassesPage() {
 
   const { data: users = [] } = useUsers();
 
-  // Danh sách ID tài khoản người dùng đã bị vô hiệu hóa để hiển thị cảnh báo trên thẻ lớp
+  // Bản đồ tài khoản người dùng không hợp lệ (vô hiệu hóa hoặc không còn vai trò Giáo viên)
+  // để hiển thị cảnh báo đồng bộ trên thẻ lớp (review PR #72 lượt 2)
+  const invalidTeacherMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of users) {
+      if (!u.isActive) {
+        map.set(u.id, "Đã vô hiệu hóa");
+      } else if (u.role !== "Teacher") {
+        map.set(u.id, "Không còn là giáo viên");
+      }
+    }
+    return map;
+  }, [users]);
+
+  // Giữ lại inactiveTeacherIds để tương thích
   const inactiveTeacherIds = useMemo(() => {
     return new Set(users.filter((u) => !u.isActive).map((u) => u.id));
   }, [users]);
@@ -257,6 +271,7 @@ export default function AdminClassesPage() {
                 studentCount={studentCount}
                 isSelected={isSelected}
                 inactiveTeacherIds={inactiveTeacherIds}
+                invalidTeacherMap={invalidTeacherMap}
                 onSelect={() => {
                   setSelectedClassFilter(cls.id);
                   setCurrentPage(1);

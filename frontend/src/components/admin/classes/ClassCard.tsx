@@ -8,6 +8,7 @@ interface ClassCardProps {
   studentCount?: number;
   isSelected: boolean;
   inactiveTeacherIds?: Set<string>;
+  invalidTeacherMap?: Map<string, string>;
   onSelect: () => void;
   onAssignTeacher: () => void;
   onRemoveTeacher: () => void;
@@ -19,6 +20,7 @@ export function ClassCard({
   studentCount,
   isSelected,
   inactiveTeacherIds,
+  invalidTeacherMap,
   onSelect,
   onAssignTeacher,
   onRemoveTeacher,
@@ -255,30 +257,34 @@ export function ClassCard({
               </button>
             </div>
 
-            {/* Danh sách badge giáo viên phụ (Đánh dấu người bị vô hiệu hóa theo review PR #72) */}
+            {/* Danh sách badge giáo viên phụ (Đánh dấu người bị vô hiệu hóa hoặc không còn là giáo viên theo review PR #72) */}
             {assistantTeachers.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-[#ECEDEC]/60">
                 {assistantTeachers.map((teacher) => {
-                  const isInactive = inactiveTeacherIds?.has(teacher.userId);
+                  const invalidReason =
+                    invalidTeacherMap?.get(teacher.userId) ||
+                    (inactiveTeacherIds?.has(teacher.userId) ? "Đã vô hiệu hóa" : undefined);
+                  const isInvalid = Boolean(invalidReason);
+
                   return (
                     <span
                       key={teacher.userId}
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border shadow-2xs max-w-full ${
-                        isInactive
+                        isInvalid
                           ? "bg-danger-bg text-danger border-danger-border"
                           : "bg-[#EAF7FC] text-[#17627D] border-[#D5E3F2]"
                       }`}
-                      title={isInactive ? "Tài khoản giáo viên phụ này đã bị vô hiệu hóa" : undefined}
+                      title={isInvalid ? `Tài khoản giáo viên phụ này: ${invalidReason}` : undefined}
                     >
                       <span
                         className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                          isInactive ? "bg-danger" : "bg-[#71C8E4]"
+                          isInvalid ? "bg-danger" : "bg-[#71C8E4]"
                         }`}
                       />
                       <span className="truncate max-w-[120px]">{teacher.fullName}</span>
-                      {isInactive && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/80 border border-danger-border shrink-0 text-danger">
-                          Đã vô hiệu hóa
+                      {isInvalid && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/80 border border-danger-border shrink-0 text-danger whitespace-nowrap">
+                          {invalidReason}
                         </span>
                       )}
                     </span>
