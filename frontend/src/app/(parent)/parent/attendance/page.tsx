@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { ChildSelect } from "@/components/parent/ChildSelect";
+import { RefreshErrorNotice } from "@/components/parent/RefreshErrorNotice";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { FormField } from "@/components/ui/FormField";
 import { Pagination } from "@/components/ui/Pagination";
@@ -50,21 +50,6 @@ function getPresentTime(record: ChildAttendanceResponse) {
     return null;
   }
   return { utc, label: formatAttendanceTime(utc) };
-}
-
-function RefreshErrorNotice({ message, onRetry, isFetching }: {
-  message: string;
-  onRetry: () => void;
-  isFetching: boolean;
-}) {
-  return (
-    <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-warning-border bg-warning-bg px-4 py-3 text-sm sm:px-6">
-      <p className="min-w-0 flex-1 text-foreground">
-        {message} <span className="text-muted">Đang hiển thị dữ liệu đã tải trước đó.</span>
-      </p>
-      <Button size="sm" variant="secondary" disabled={isFetching} onClick={onRetry}>Thử lại</Button>
-    </div>
-  );
 }
 
 function AttendanceHistory({ attendance }: { attendance: ReturnType<typeof useParentAttendance> }) {
@@ -123,7 +108,7 @@ function AttendanceHistory({ attendance }: { attendance: ReturnType<typeof usePa
   return (
     <>
       {attendance.isError && hasVisibleData && (
-        <RefreshErrorNotice message={attendance.error.message} isFetching={attendance.isFetching}
+        <RefreshErrorNotice className="border-b border-warning-border px-4 py-3 sm:px-6" message={attendance.error.message} isFetching={attendance.isFetching}
           onRetry={() => { void attendance.refetch(); }} />
       )}
       <div aria-busy={attendance.isFetching}>
@@ -211,7 +196,7 @@ export default function ParentAttendancePage() {
       <PageHeader title="Lịch sử điểm danh" />
       {children.isError && hasVisibleData && (
         <div className="overflow-hidden rounded-xl border border-warning-border">
-          <RefreshErrorNotice message={children.error.message} isFetching={children.isFetching}
+          <RefreshErrorNotice className="border-b border-warning-border px-4 py-3 sm:px-6" message={children.error.message} isFetching={children.isFetching}
             onRetry={() => { void children.refetch(); }} />
         </div>
       )}
