@@ -14,8 +14,8 @@ namespace NhaTre.API.Controllers;
 // action. [Authorize] ở mức class để action nào quên gắn Roles vẫn bắt đăng nhập: Program.cs không
 // có fallback policy.
 // FR-ATT-01: chỉ Giáo viên tạo điểm danh vào lớp (BR-ATTENDANCE-01), và chỉ cho trẻ lớp mình
-// chủ nhiệm (D40 mục 2). Bản ghi đã tạo không sửa, không xóa (BR-ATTENDANCE-04).
-// FR-ATT-03: Giáo viên xem lịch sử điểm danh, cùng phạm vi lớp chủ nhiệm.
+// phụ trách: GVCN hoặc giáo viên phụ (D40 mục 2). Bản ghi đã tạo không sửa, không xóa (BR-ATTENDANCE-04).
+// FR-ATT-03: Giáo viên xem lịch sử điểm danh, cùng phạm vi lớp phụ trách.
 // FR-ATT-02: Phụ huynh xem lịch sử điểm danh của con mình (child_guardians, D39 mục 10)
 [ApiController]
 [Route("api")]
@@ -33,8 +33,8 @@ public class AttendanceController : ControllerBase
         _checkInValidator = checkInValidator;
     }
 
-    // Chọn theo trẻ, theo ngày hoặc cả hai (UC-ATT-03); classId chỉ để thu hẹp khi giáo viên chủ
-    // nhiệm nhiều lớp. Không chọn trẻ hay ngày thì 400 để không trả cả lịch sử của mọi lớp
+    // Chọn theo trẻ, theo ngày hoặc cả hai (UC-ATT-03); classId chỉ để thu hẹp khi giáo viên phụ
+    // trách nhiều lớp. Không chọn trẻ hay ngày thì 400 để không trả cả lịch sử của mọi lớp
     [HttpGet("attendances")]
     [Authorize(Roles = Roles.Teacher)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<AttendanceResponse>>>> GetHistory(

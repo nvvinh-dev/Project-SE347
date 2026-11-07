@@ -6,8 +6,9 @@ namespace NhaTre.Application.Services;
 
 // FR-TEACHER-01: Kế toán lập hồ sơ giáo viên cho tài khoản Giáo viên có sẵn để Admin phân công lớp
 // (BR-TEACHER-02). Bảng teachers không có trường nào sửa được: họ tên, email là của tài khoản và chỉ
-// Admin sửa (FR-USER-01), còn gắn hồ sơ sang tài khoản khác sẽ chuyển cả lớp chủ nhiệm và bản ghi
-// điểm danh, sức khỏe của giáo viên cũ sang người mới. Vì vậy chỉ có Tạo + Xem, không có Xóa (D40 mục 1).
+// Admin sửa (FR-USER-01), còn gắn hồ sơ sang tài khoản khác sẽ chuyển cả lớp chủ nhiệm, lớp làm
+// giáo viên phụ và bản ghi điểm danh, sức khỏe của giáo viên cũ sang người mới. Vì vậy chỉ có Tạo + Xem,
+// không có Xóa (D40 mục 1).
 // Tạo hồ sơ không thuộc 8 sự kiện của security_events (D50)
 public class TeacherService : ITeacherService
 {

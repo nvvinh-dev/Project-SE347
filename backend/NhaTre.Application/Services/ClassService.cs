@@ -98,7 +98,7 @@ public class ClassService : IClassService
             return new ClassResult(ClassOutcome.AlreadyHomeroom);
 
         // Một giáo viên chủ nhiệm được nhiều lớp. Vai trò hay trạng thái tài khoản đổi sau lúc này cũng
-        // không mở thêm quyền: mọi chức năng của giáo viên xét vai trò trước rồi mới xét lớp chủ nhiệm
+        // không mở thêm quyền: mọi chức năng của giáo viên xét vai trò trước rồi mới xét lớp phụ trách
         // BR-CLASS-04: người đang là giáo viên phụ của lớp thì repository trả HomeroomIsAssistant
         return await SetHomeroomTeacherAsync(targetClass.Id, user.Teacher.Id);
     }

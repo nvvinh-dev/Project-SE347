@@ -22,7 +22,6 @@ public class AttendanceRepository : IAttendanceRepository
 
         return await _dbContext.Children
             .AsNoTracking()
-            .Include(c => c.Class)
             .FirstOrDefaultAsync(c => c.Id == childId
                 && scope.Contains(c.ClassId));
     }

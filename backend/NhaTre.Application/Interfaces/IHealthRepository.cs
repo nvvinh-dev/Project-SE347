@@ -4,7 +4,7 @@ namespace NhaTre.Application.Interfaces;
 
 public interface IHealthRepository
 {
-    // Trẻ kèm Class, chỉ khi trẻ thuộc lớp tài khoản này phụ trách (GVCN hoặc giáo viên phụ, D40 mục 2).
+    // Trẻ, chỉ khi trẻ thuộc lớp tài khoản này phụ trách (GVCN hoặc giáo viên phụ, D40 mục 2).
     // null khi trẻ không tồn tại, chưa xếp lớp hoặc thuộc lớp giáo viên khác
     Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId);
 
