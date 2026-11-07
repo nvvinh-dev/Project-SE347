@@ -3,17 +3,21 @@
  * Tương ứng với NhaTre.Application/DTOs/Classes/
  */
 
-export interface HomeroomTeacherResponse {
+export interface ClassTeacherResponse {
   userId: string;
   fullName: string;
 }
+
+// Giữ lại HomeroomTeacherResponse để tương thích ngược hoàn toàn
+export type HomeroomTeacherResponse = ClassTeacherResponse;
 
 export interface ClassResponse {
   id: string;
   name: string;
   minAgeMonths: number | null;
   maxAgeMonths: number | null;
-  homeroomTeacher: HomeroomTeacherResponse | null;
+  homeroomTeacher: ClassTeacherResponse | null;
+  assistantTeachers: ClassTeacherResponse[];
 }
 
 /**
@@ -42,4 +46,13 @@ export interface AssignClassRequest {
  */
 export interface AssignHomeroomTeacherRequest {
   teacherUserId: string | null;
+}
+
+/**
+ * Body phân công hoặc gỡ giáo viên phụ (PUT /api/classes/{id}/assistant-teachers)
+ * FR-CLASS-02: Toàn bộ danh sách id giáo viên phụ, rỗng [] là gỡ hết
+ * [property: JsonRequired] IReadOnlyList<Guid> TeacherUserIds: Bắt buộc gửi key teacherUserIds
+ */
+export interface AssignAssistantTeachersRequest {
+  teacherUserIds: string[];
 }

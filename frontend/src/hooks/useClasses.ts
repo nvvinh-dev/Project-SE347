@@ -7,6 +7,7 @@ import type {
   ClassPlacementResponse,
   AssignClassRequest,
   AssignHomeroomTeacherRequest,
+  AssignAssistantTeachersRequest,
 } from "@/types/class";
 
 export const CLASSES_QUERY_KEY = ["classes"] as const;
@@ -74,6 +75,32 @@ export function useAssignHomeroomTeacher() {
     mutationFn: async ({ classId, data }) => {
       const response = await apiClient.put<ApiResponse<ClassResponse>>(
         `/api/classes/${classId}/homeroom-teacher`,
+        data
+      );
+      return response.data.data!;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+    },
+    onError: (error) => {
+      // Khi gặp xung đột (409) hoặc lớp không tồn tại (404), đồng bộ lại danh sách lớp
+      if (error.status === 409 || error.status === 404) {
+        queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+      }
+    },
+  });
+}
+
+/**
+ * Phân công hoặc gỡ toàn bộ giáo viên phụ của lớp (PUT /api/classes/{id}/assistant-teachers)
+ * FR-CLASS-02: Toàn bộ danh sách id giáo viên phụ, rỗng [] là gỡ hết
+ */
+export function useAssignAssistantTeachers() {
+  const queryClient = useQueryClient();
+  return useApiMutation<ClassResponse, { classId: string; data: AssignAssistantTeachersRequest }>({
+    mutationFn: async ({ classId, data }) => {
+      const response = await apiClient.put<ApiResponse<ClassResponse>>(
+        `/api/classes/${classId}/assistant-teachers`,
         data
       );
       return response.data.data!;

@@ -6,6 +6,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ClassCard } from "@/components/admin/classes/ClassCard";
 import { ClassPlacementTable } from "@/components/admin/classes/ClassPlacementTable";
 import { AssignHomeroomTeacherModal } from "@/components/admin/classes/AssignHomeroomTeacherModal";
+import { AssignAssistantTeachersModal } from "@/components/admin/classes/AssignAssistantTeachersModal";
 import { AssignClassModal } from "@/components/admin/classes/AssignClassModal";
 import { useClasses, useClassPlacements, useAssignHomeroomTeacher } from "@/hooks/useClasses";
 import { toApiError } from "@/lib/axios";
@@ -36,6 +37,7 @@ export default function AdminClassesPage() {
 
   // Quản lý trạng thái các hộp thoại
   const [assigningTeacherClass, setAssigningTeacherClass] = useState<ClassResponse | null>(null);
+  const [assigningAssistantClass, setAssigningAssistantClass] = useState<ClassResponse | null>(null);
   const [removingTeacherClass, setRemovingTeacherClass] = useState<ClassResponse | null>(null);
   const [removeTeacherError, setRemoveTeacherError] = useState<string | null>(null);
   const [assigningChild, setAssigningChild] = useState<ClassPlacementResponse | null>(null);
@@ -241,6 +243,7 @@ export default function AdminClassesPage() {
                   setRemoveTeacherError(null);
                   setRemovingTeacherClass(cls);
                 }}
+                onAssignAssistantTeachers={() => setAssigningAssistantClass(cls)}
               />
             );
           })
@@ -276,7 +279,18 @@ export default function AdminClassesPage() {
         />
       )}
 
-      {/* 5. Modal Xếp trẻ vào lớp / Chuyển lớp */}
+      {/* 5. Modal Phân công Giáo viên Phụ (FR-CLASS-02) */}
+      {assigningAssistantClass && (
+        <AssignAssistantTeachersModal
+          key={assigningAssistantClass.id}
+          classInfo={assigningAssistantClass}
+          isOpen={assigningAssistantClass !== null}
+          onClose={() => setAssigningAssistantClass(null)}
+          onSuccess={showToast}
+        />
+      )}
+
+      {/* 6. Modal Xếp trẻ vào lớp / Chuyển lớp */}
       {assigningChild && (
         <AssignClassModal
           key={assigningChild.childId}
@@ -288,7 +302,7 @@ export default function AdminClassesPage() {
         />
       )}
 
-      {/* 6. Hộp thoại xác nhận Gỡ Giáo viên Chủ nhiệm */}
+      {/* 7. Hộp thoại xác nhận Gỡ Giáo viên Chủ nhiệm */}
       <ConfirmDialog
         isOpen={removingTeacherClass !== null}
         title="Gỡ giáo viên chủ nhiệm"
