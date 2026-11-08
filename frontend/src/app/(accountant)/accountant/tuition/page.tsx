@@ -18,7 +18,8 @@ import { INVOICE_STATUS_LABELS, type InvoiceResponse, type InvoiceStatus } from 
 
 const PAGE_SIZE = 10;
 type StatusFilter = "all" | InvoiceStatus;
-type Editor = { kind: "create" } | { kind: "edit"; id: string } | { kind: "pay"; id: string };
+// Giữ bản hóa đơn lúc mở popup: nếu tải lại không còn hóa đơn (404) thì popup vẫn hiện được lỗi.
+type Editor = { kind: "create" } | { kind: "edit" | "pay"; invoice: InvoiceResponse };
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -75,7 +76,9 @@ export default function AccountantTuitionPage() {
   const start = (safePage - 1) * PAGE_SIZE;
   const hasCachedData = invoices.data !== undefined;
   const feeReady = !!fee.data;
-  const target = editor && editor.kind !== "create" ? all.find((invoice) => invoice.id === editor.id) : undefined;
+  const target = editor && editor.kind !== "create"
+    ? all.find((invoice) => invoice.id === editor.invoice.id) ?? editor.invoice
+    : undefined;
 
 
   const columns: Column<InvoiceResponse>[] = [
@@ -119,11 +122,11 @@ export default function AccountantTuitionPage() {
       render: (invoice) => invoice.status === "unpaid" ? (
         <div className="flex flex-col gap-2 xl:flex-row">
           <Button size="sm" variant="outline" aria-label={`Sửa hóa đơn của ${invoice.childFullName}`}
-            onClick={() => setEditor({ kind: "edit", id: invoice.id })}>
+            onClick={() => setEditor({ kind: "edit", invoice })}>
             Sửa
           </Button>
           <Button size="sm" aria-label={`Ghi nhận đã thu hóa đơn của ${invoice.childFullName}`}
-            onClick={() => setEditor({ kind: "pay", id: invoice.id })}>
+            onClick={() => setEditor({ kind: "pay", invoice })}>
             Ghi nhận đã thu
           </Button>
         </div>
@@ -170,8 +173,9 @@ export default function AccountantTuitionPage() {
           )}
         </div>
 
-        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs sm:p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div role="group" aria-label="Lọc theo trạng thái" className="grid grid-cols-3 gap-1 rounded-xl bg-background p-1 lg:inline-grid">
+        {/* Từ xl mới đặt nhóm lọc cạnh ô tìm; ở 1024px (sidebar mở) đứng chung một hàng sẽ cắt chữ nhãn. */}
+        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs sm:p-4 xl:flex-row xl:items-center xl:justify-between">
+          <div role="group" aria-label="Lọc theo trạng thái" className="grid grid-cols-3 gap-1 rounded-xl bg-background p-1 xl:inline-grid">
             {STATUS_FILTERS.map(({ value, label }) => (
               <button
                 key={value}
@@ -193,7 +197,7 @@ export default function AccountantTuitionPage() {
               </button>
             ))}
           </div>
-          <form role="search" className="w-full lg:w-80" onSubmit={(event) => event.preventDefault()}>
+          <form role="search" className="w-full xl:w-80" onSubmit={(event) => event.preventDefault()}>
             <label htmlFor="invoice-search" className="sr-only">Tìm hóa đơn theo tên trẻ hoặc mô tả</label>
             <Input
               id="invoice-search"
