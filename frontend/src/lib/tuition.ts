@@ -23,10 +23,15 @@ export function formatAmountInput(amount: number) {
   return currencyFormatter.format(amount);
 }
 
-/** Nhận "2.000.000", "2 000 000" hoặc "2000000"; trả null nếu không phải số nguyên dương. */
+/**
+ * Nhận "2000000" hoặc số có phân cách hàng nghìn bằng dấu chấm, dấu phẩy, khoảng trắng
+ * ("2.000.000", "2,000,000", "2 000 000"); trả null nếu không phải số nguyên dương.
+ * Chỉ nhận dấu phân cách đúng nhóm 3 chữ số để "1500000,5" vẫn bị báo là có phần lẻ.
+ */
 export function parseAmountInput(value: string): number | null {
-  const digits = value.replace(/[.\s]/g, "");
-  if (!/^\d+$/.test(digits)) return null;
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed) && !/^\d{1,3}(?:[.,\s]\d{3})+$/.test(trimmed)) return null;
+  const digits = trimmed.replace(/[.,\s]/g, "");
   const amount = Number(digits);
   return Number.isSafeInteger(amount) ? amount : null;
 }
@@ -34,7 +39,7 @@ export function parseAmountInput(value: string): number | null {
 export function validateAmountInput(value: string) {
   if (!value.trim()) return "Số tiền không được để trống.";
   const amount = parseAmountInput(value);
-  if (amount === null) return "Số tiền chỉ gồm chữ số, không có phần lẻ.";
+  if (amount === null) return "Số tiền chỉ gồm chữ số (có thể dùng dấu chấm hoặc dấu phẩy phân cách hàng nghìn), không có phần lẻ.";
   if (amount <= 0) return "Số tiền phải lớn hơn 0.";
   if (amount > MAX_TUITION_AMOUNT) return "Số tiền không được vượt quá 9.999.999.999 đ.";
   return true;
@@ -44,6 +49,16 @@ export function validateAmountInput(value: string) {
 export function formatIssuedDate(utc: string) {
   const time = Date.parse(utc);
   return Number.isFinite(time) ? dateFormatter.format(time) : "—";
+}
+
+/**
+ * Mô tả mặc định của hóa đơn: mô tả biểu phí + kỳ thu tháng hiện tại.
+ * Biểu phí đã kết thúc bằng "tháng" thì không ghép thêm chữ "tháng" lần nữa.
+ */
+export function defaultInvoiceDescription(feeDescription: string) {
+  const base = feeDescription.trim();
+  const period = currentBillingPeriod();
+  return /(^|\s)tháng$/iu.test(base) ? `${base} ${period}` : `${base} tháng ${period}`;
 }
 
 /** Kỳ thu mặc định là tháng hiện tại theo giờ Việt Nam, ví dụ "11/2026". */

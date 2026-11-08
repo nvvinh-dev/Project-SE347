@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useChildren } from "@/hooks/useChildren";
 import { useSaveInvoice } from "@/hooks/useTuition";
 import {
-  currentBillingPeriod,
+  defaultInvoiceDescription,
   formatAmountInput,
   formatCurrency,
   INVOICE_DESCRIPTION_MAX,
@@ -51,7 +51,7 @@ export function InvoiceFormModal({ invoice, fee, onClose, onSuccess }: InvoiceFo
       : {
         childId: "",
         amount: fee ? formatAmountInput(fee.amount) : "",
-        description: fee ? `${fee.description} tháng ${currentBillingPeriod()}` : "",
+        description: fee ? defaultInvoiceDescription(fee.description) : "",
       },
   });
   const description = useWatch({ control, name: "description" }) ?? "";
@@ -84,7 +84,7 @@ export function InvoiceFormModal({ invoice, fee, onClose, onSuccess }: InvoiceFo
         onSuccess: (saved) => {
           onSuccess(invoice
             ? `Đã cập nhật hóa đơn của ${saved.childFullName}.`
-            : `Đã lập hóa đơn cho ${saved.childFullName}. Phụ huynh của trẻ sẽ nhận được thông báo.`);
+            : `Đã lập hóa đơn cho ${saved.childFullName}. Phụ huynh đã liên kết với trẻ sẽ nhận được thông báo.`);
           onClose();
         },
         onError: (error) => setError("root.server", {
