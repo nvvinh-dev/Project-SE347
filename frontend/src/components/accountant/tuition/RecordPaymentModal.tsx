@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -60,6 +60,9 @@ export function RecordPaymentModal({ invoice, onClose, onSuccess }: RecordPaymen
   const record = useRecordPayment();
   const [confirming, setConfirming] = useState<{ method: PaymentMethod; reference: string | null } | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
+  const continueRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const refocusRef = useRef(false);
   // Danh sách đổi sang paid ngay khi ghi nhận xong; chỉ khóa form khi hóa đơn đã paid từ trước.
   const isPaid = invoice.status === "paid" && !record.isPending && !record.isSuccess;
 
@@ -68,6 +71,19 @@ export function RecordPaymentModal({ invoice, onClose, onSuccess }: RecordPaymen
     shouldUnregister: true,
   });
   const method = useWatch({ control, name: "paymentMethod" });
+
+  // Nút "Quay lại" của hộp xác nhận bị gỡ khỏi DOM khi đóng; trả focus về nút "Tiếp tục" sau khi
+  // React bỏ inert khỏi popup. Hóa đơn vừa bị khóa (409) thì không còn nút này, về nút "Đóng".
+  const backToForm = () => {
+    refocusRef.current = true;
+    setConfirming(null);
+  };
+
+  useEffect(() => {
+    if (confirming || record.isPending || !refocusRef.current) return;
+    refocusRef.current = false;
+    (continueRef.current ?? cancelRef.current)?.focus();
+  }, [confirming, record.isPending]);
 
   const review = (values: PaymentFormValues) => {
     if (!values.paymentMethod || isPaid) return;
@@ -88,7 +104,7 @@ export function RecordPaymentModal({ invoice, onClose, onSuccess }: RecordPaymen
           onClose();
         },
         onError: (error) => {
-          setConfirming(null);
+          backToForm();
           setServerError(error.errors?.length ? error.errors.join(" ") : error.message);
         },
       },
@@ -101,15 +117,15 @@ export function RecordPaymentModal({ invoice, onClose, onSuccess }: RecordPaymen
       description="Ghi nhận khoản học phí phụ huynh đã nộp cho nhà trường."
       isBusy={record.isPending}
       nestedOpen={!!confirming}
-      onNestedEscape={() => { if (!record.isPending) setConfirming(null); }}
+      onNestedEscape={() => { if (!record.isPending) backToForm(); }}
       onClose={onClose}
       footer={(
         <>
-          <Button variant="secondary" className="min-w-20" disabled={record.isPending} onClick={onClose}>
+          <Button ref={cancelRef} variant="secondary" className="min-w-20" disabled={record.isPending} onClick={onClose}>
             {isPaid ? "Đóng" : "Hủy"}
           </Button>
           {!isPaid && (
-            <Button type="submit" form={formId} className="min-w-32" disabled={record.isPending}>Tiếp tục</Button>
+            <Button ref={continueRef} type="submit" form={formId} className="min-w-32" disabled={record.isPending}>Tiếp tục</Button>
           )}
         </>
       )}
@@ -122,7 +138,7 @@ export function RecordPaymentModal({ invoice, onClose, onSuccess }: RecordPaymen
           cancelText="Quay lại"
           isLoading={record.isPending}
           onConfirm={confirm}
-          onClose={() => setConfirming(null)}
+          onClose={backToForm}
           description={confirming && (
             <div className="space-y-4">
               {/* ConfirmDialog không tự cuộn: giới hạn phần tóm tắt để nút xác nhận luôn nằm trong màn hình nhỏ. */}
