@@ -185,9 +185,17 @@ export function AssignHomeroomTeacherModal({
                   </option>
                   {activeTeachers.map((teacher) => {
                     const isCurrent = teacher.id === currentTeacherId;
+                    const isAssistant = (classInfo.assistantTeachers ?? []).some(
+                      (at) => at.userId === teacher.id
+                    );
                     return (
                       <option key={teacher.id} value={teacher.id}>
-                        {teacher.fullName} ({teacher.email}){isCurrent ? " - [Hiện tại]" : ""}
+                        {teacher.fullName} ({teacher.email})
+                        {isCurrent
+                          ? " - [GVCN hiện tại]"
+                          : isAssistant
+                            ? " - [Đang là GV phụ của lớp]"
+                            : ""}
                       </option>
                     );
                   })}

@@ -7,18 +7,24 @@ interface ClassCardProps {
   classInfo: ClassResponse;
   studentCount?: number;
   isSelected: boolean;
+  inactiveTeacherIds?: Set<string>;
+  invalidTeacherMap?: Map<string, string>;
   onSelect: () => void;
   onAssignTeacher: () => void;
   onRemoveTeacher: () => void;
+  onAssignAssistantTeachers: () => void;
 }
 
 export function ClassCard({
   classInfo,
   studentCount,
   isSelected,
+  inactiveTeacherIds,
+  invalidTeacherMap,
   onSelect,
   onAssignTeacher,
   onRemoveTeacher,
+  onAssignAssistantTeachers,
 }: ClassCardProps) {
   // Xác định giao diện màu sắc và thông số theo từng khối lớp (D39 mục 3, AC-CLASS-01)
   const minMonths = classInfo.minAgeMonths;
@@ -70,6 +76,7 @@ export function ClassCard({
       };
 
   const hasTeacher = Boolean(classInfo.homeroomTeacher);
+  const assistantTeachers = classInfo.assistantTeachers ?? [];
 
   return (
     <div
@@ -170,7 +177,7 @@ export function ClassCard({
                   <button
                     type="button"
                     onClick={onAssignTeacher}
-                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-brand hover:bg-brand-subtle border border-transparent hover:border-brand-subtle transition-all cursor-pointer"
+                    className="px-3 py-1.5 min-h-[36px] rounded-full text-xs font-semibold text-brand hover:bg-brand-subtle border border-transparent hover:border-brand-subtle transition-all cursor-pointer flex items-center justify-center"
                     title="Đổi giáo viên chủ nhiệm"
                   >
                     Đổi
@@ -178,7 +185,7 @@ export function ClassCard({
                   <button
                     type="button"
                     onClick={onRemoveTeacher}
-                    className="p-1 rounded-full text-muted hover:text-danger hover:bg-danger-bg transition-all cursor-pointer"
+                    className="p-2 min-h-[36px] min-w-[36px] rounded-full text-muted hover:text-danger hover:bg-danger-bg transition-all cursor-pointer flex items-center justify-center"
                     title="Gỡ giáo viên chủ nhiệm"
                     aria-label={`Gỡ giáo viên chủ nhiệm của ${classInfo.name}`}
                   >
@@ -196,12 +203,95 @@ export function ClassCard({
                 <button
                   type="button"
                   onClick={onAssignTeacher}
-                  className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-[#E8916E] hover:bg-[#D96B43] text-white shadow-xs transition-all cursor-pointer flex items-center gap-1"
+                  className="px-3.5 py-2 min-h-[36px] rounded-full text-xs font-bold bg-[#E8916E] hover:bg-[#D96B43] text-white shadow-xs transition-all cursor-pointer flex items-center gap-1"
                 >
                   <span>Phân công</span>
                 </button>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Khối Giáo viên Phụ (Bảo mẫu / GV Phụ tá) (FR-CLASS-02) */}
+        <div className="pt-2 border-t border-[#F3F4F3]">
+          <div className="p-2.5 rounded-2xl border bg-[#FAFBF7] border-[#ECEDEC] transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 bg-[#EAF7FC] text-[#17627D] border border-[#D5E3F2]">
+                  🥣
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted uppercase font-bold tracking-wider block">
+                      Giáo viên phụ
+                    </span>
+                    {assistantTeachers.length > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EAF7FC] text-[#17627D] border border-[#D5E3F2]">
+                        {assistantTeachers.length}
+                      </span>
+                    )}
+                  </div>
+                  {assistantTeachers.length === 0 && (
+                    <span className="text-xs text-muted italic block mt-0.5">
+                      Chưa phân công
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onAssignAssistantTeachers}
+                className={
+                  assistantTeachers.length > 0
+                    ? "px-3.5 py-2 min-h-[36px] rounded-full text-xs font-semibold text-brand hover:bg-brand-subtle border border-transparent hover:border-brand-subtle transition-all cursor-pointer shrink-0 ml-2 flex items-center justify-center"
+                    : "px-3.5 py-2 min-h-[36px] rounded-full text-xs font-bold bg-[#EAF7FC] hover:bg-[#D5E3F2] text-[#17627D] border border-[#D5E3F2] shadow-2xs transition-all cursor-pointer flex items-center gap-1 shrink-0 ml-2"
+                }
+                title={
+                  assistantTeachers.length > 0
+                    ? "Chỉnh sửa danh sách giáo viên phụ"
+                    : "Phân công giáo viên phụ"
+                }
+              >
+                <span>{assistantTeachers.length > 0 ? "Sửa" : "Phân công"}</span>
+              </button>
+            </div>
+
+            {/* Danh sách badge giáo viên phụ (Đánh dấu người bị vô hiệu hóa hoặc không còn là giáo viên theo review PR #72) */}
+            {assistantTeachers.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-[#ECEDEC]/60">
+                {assistantTeachers.map((teacher) => {
+                  const invalidReason =
+                    invalidTeacherMap?.get(teacher.userId) ||
+                    (inactiveTeacherIds?.has(teacher.userId) ? "Đã vô hiệu hóa" : undefined);
+                  const isInvalid = Boolean(invalidReason);
+
+                  return (
+                    <span
+                      key={teacher.userId}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border shadow-2xs max-w-full ${
+                        isInvalid
+                          ? "bg-danger-bg text-danger border-danger-border"
+                          : "bg-[#EAF7FC] text-[#17627D] border-[#D5E3F2]"
+                      }`}
+                      title={isInvalid ? `Tài khoản giáo viên phụ này: ${invalidReason}` : undefined}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          isInvalid ? "bg-danger" : "bg-[#71C8E4]"
+                        }`}
+                      />
+                      <span className="truncate max-w-[120px]">{teacher.fullName}</span>
+                      {isInvalid && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/80 border border-danger-border shrink-0 text-danger whitespace-nowrap">
+                          {invalidReason}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
