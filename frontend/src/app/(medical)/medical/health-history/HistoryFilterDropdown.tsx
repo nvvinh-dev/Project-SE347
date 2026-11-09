@@ -71,7 +71,7 @@ export function HistoryFilterDropdown({ counts, onChange }: HistoryFilterDropdow
         type="button"
         size="sm"
         variant="secondary"
-        className="!h-auto !min-h-0 !gap-1.5 !rounded-md !border !border-border !bg-card !px-2.5 !py-1.5 !text-xs shadow-xs hover:!bg-background"
+        className="min-h-11"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         aria-controls={`${id}-panel`}
@@ -104,8 +104,8 @@ export function HistoryFilterDropdown({ counts, onChange }: HistoryFilterDropdow
                   };
                   return (
                     <>
-                      <label htmlFor={`${id}-all`} className="grid cursor-pointer grid-cols-[0.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded px-2 py-1 text-sm text-foreground !bg-transparent outline-none ring-0 hover:!bg-background/40">
-                        <div className="relative h-3 w-3">
+                      <label htmlFor={`${id}-all`} className="grid min-h-11 cursor-pointer grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-3 rounded px-2 py-2 text-sm text-foreground hover:bg-background/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40">
+                        <div className="relative h-4 w-4">
                           <Input
                             ref={field.ref}
                             id={`${id}-all`}
@@ -114,9 +114,9 @@ export function HistoryFilterDropdown({ counts, onChange }: HistoryFilterDropdow
                             checked={allSelected}
                             onBlur={field.onBlur}
                             onChange={() => updateTypes(allSelected ? [] : ALL_HISTORY_TYPES)}
-                            className="!m-0 !h-3 !w-3 cursor-pointer appearance-none !rounded-[2px] !border-0 !bg-card !p-0 !outline-none !ring-0 checked:!bg-border focus:!outline-none focus:!ring-0"
+                            className="!m-0 !h-4 !w-4 cursor-pointer appearance-none !rounded-[2px] !border-0 !p-0 checked:bg-border"
                           />
-                          <svg className="pointer-events-none absolute inset-0 h-3 w-3 text-border-hover/80" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                          <svg className="pointer-events-none absolute inset-0 h-4 w-4 text-muted" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                             <rect x="0.5" y="0.5" width="15" height="15" rx="2" stroke="currentColor" strokeWidth={0.75} />
                             {allSelected && (
                               <path className="text-foreground" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" d="m4 8 2.5 2.5L12 5" />
@@ -124,12 +124,12 @@ export function HistoryFilterDropdown({ counts, onChange }: HistoryFilterDropdow
                           </svg>
                         </div>
                         <span>Tất cả</span>
-                        <span className="text-xs tabular-nums text-muted-light">({total})</span>
+                        <span className="text-xs tabular-nums text-muted">({total})</span>
                       </label>
                       <div className="my-1 border-b border-border/60" />
                       {HISTORY_FILTERS.map((filter) => (
-                        <label key={filter.value} htmlFor={`${id}-${filter.value}`} className="grid cursor-pointer grid-cols-[0.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded px-2 py-1 text-sm text-foreground !bg-transparent outline-none ring-0 hover:!bg-background/40">
-                          <div className="relative h-3 w-3">
+                        <label key={filter.value} htmlFor={`${id}-${filter.value}`} className="grid min-h-11 cursor-pointer grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-3 rounded px-2 py-2 text-sm text-foreground hover:bg-background/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40">
+                          <div className="relative h-4 w-4">
                             <Input
                               id={`${id}-${filter.value}`}
                               type="checkbox"
@@ -140,9 +140,9 @@ export function HistoryFilterDropdown({ counts, onChange }: HistoryFilterDropdow
                               onChange={(event) => updateTypes(event.target.checked
                                 ? [...field.value, filter.value]
                                 : field.value.filter((type) => type !== filter.value))}
-                              className="!m-0 !h-3 !w-3 cursor-pointer appearance-none !rounded-[2px] !border-0 !bg-card !p-0 !outline-none !ring-0 checked:!bg-border focus:!outline-none focus:!ring-0"
+                              className="!m-0 !h-4 !w-4 cursor-pointer appearance-none !rounded-[2px] !border-0 !p-0 checked:bg-border"
                             />
-                            <svg className="pointer-events-none absolute inset-0 h-3 w-3 text-border-hover/80" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <svg className="pointer-events-none absolute inset-0 h-4 w-4 text-muted" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                               <rect x="0.5" y="0.5" width="15" height="15" rx="2" stroke="currentColor" strokeWidth={0.75} />
                               {field.value.includes(filter.value) && (
                                 <path className="text-foreground" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" d="m4 8 2.5 2.5L12 5" />
@@ -150,7 +150,7 @@ export function HistoryFilterDropdown({ counts, onChange }: HistoryFilterDropdow
                             </svg>
                           </div>
                           <span>{filter.label}</span>
-                          <span className="text-xs tabular-nums text-muted-light">({counts[filter.value]})</span>
+                          <span className="text-xs tabular-nums text-muted">({counts[filter.value]})</span>
                         </label>
                       ))}
                     </>

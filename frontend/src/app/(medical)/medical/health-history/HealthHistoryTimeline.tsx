@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { StatusMessage } from "@/components/ui/StatusMessage";
+import { formatTemperatureCelsius } from "@/lib/health";
 import {
   formatMeasurementDateTime,
   formatMeasurementNumber,
@@ -53,19 +54,7 @@ export function HealthHistoryTimeline({
     }));
   };
 
-  const [filterSelection, setFilterSelection] = useState<{
-    childId: string;
-    types: HistoryRecordType[];
-  }>({ childId, types: ALL_HISTORY_TYPES });
-
-  // Đổi trẻ luôn trở về đủ loại bản ghi, kể cả khi quay lại trẻ đã xem.
-  if (filterSelection.childId !== childId) {
-    setFilterSelection({ childId, types: ALL_HISTORY_TYPES });
-  }
-
-  const selectedTypes = filterSelection.childId === childId
-    ? filterSelection.types
-    : ALL_HISTORY_TYPES;
+  const [selectedTypes, setSelectedTypes] = useState<HistoryRecordType[]>(ALL_HISTORY_TYPES);
 
   const { counts, visibleItems } = useMemo(() => {
     const counts: Record<HistoryRecordType, number> = {
@@ -85,17 +74,13 @@ export function HealthHistoryTimeline({
     };
   }, [items, selectedTypes]);
 
-  const selectHistoryFilters = (types: HistoryRecordType[]) => {
-    setFilterSelection({ childId, types });
-  };
-
   return (
     <section className="min-w-0 space-y-2" aria-labelledby="health-history-heading">
       <div className="flex items-center justify-between gap-3">
         <h3 id="health-history-heading" className="min-w-0 text-sm font-semibold text-foreground">
           Lịch sử sức khỏe & Sự cố ({items.length} bản ghi)
         </h3>
-        <HistoryFilterDropdown key={childId} counts={counts} onChange={selectHistoryFilters} />
+        <HistoryFilterDropdown counts={counts} onChange={setSelectedTypes} />
       </div>
 
       <div id="health-history-records" className="min-w-0">
@@ -173,7 +158,7 @@ function IncidentCard({
   return (
     <div className="min-w-0 space-y-1.5">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-b border-border/40 pb-1.5">
-        <span className="inline-flex items-center rounded-lg border border-warning-border bg-warning-bg px-2.5 py-0.5 text-xs font-semibold text-warning">
+        <span className="inline-flex items-center rounded-lg border border-warning-border bg-warning-bg px-2.5 py-0.5 text-xs font-semibold text-foreground">
           Sự cố
         </span>
         <time
@@ -206,7 +191,7 @@ function IncidentCard({
 function QuickHealthStatusCard({ item }: { item: QuickHealthStatusHistoryItem }) {
   const temperatureDisplay =
     item.temperatureCelsius !== null
-      ? `${formatMeasurementNumber(item.temperatureCelsius)} °C`
+      ? formatTemperatureCelsius(item.temperatureCelsius)
       : "Chưa ghi nhận";
 
   return (
@@ -233,7 +218,7 @@ function QuickHealthStatusCard({ item }: { item: QuickHealthStatusHistoryItem })
 
         <div className="flex min-w-0 items-baseline gap-x-2">
           <dt className="shrink-0 text-sm font-semibold text-foreground">Thân nhiệt:</dt>
-          <dd className={`min-w-0 text-sm font-normal tabular-nums ${item.temperatureCelsius === null ? "text-muted-light italic" : "text-foreground"}`}>
+          <dd className={`min-w-0 text-sm font-normal tabular-nums ${item.temperatureCelsius === null ? "text-muted italic" : "text-foreground"}`}>
             {temperatureDisplay}
           </dd>
         </div>
@@ -277,14 +262,14 @@ function GrowthMeasurementCard({ item }: { item: GrowthMeasurementHistoryItem })
       <dl className="grid grid-cols-1 gap-y-1 sm:grid-cols-2 sm:gap-x-8">
         <div className="flex min-w-0 items-baseline gap-x-2">
           <dt className="shrink-0 text-sm font-semibold text-foreground">Chiều cao:</dt>
-          <dd className={`min-w-0 text-sm font-normal tabular-nums ${item.heightCm === null ? "text-muted-light italic" : "text-foreground"}`}>
+          <dd className={`min-w-0 text-sm font-normal tabular-nums ${item.heightCm === null ? "text-muted italic" : "text-foreground"}`}>
             {heightDisplay}
           </dd>
         </div>
 
         <div className="flex min-w-0 items-baseline gap-x-2">
           <dt className="shrink-0 text-sm font-semibold text-foreground">Cân nặng:</dt>
-          <dd className={`min-w-0 text-sm font-normal tabular-nums ${item.weightKg === null ? "text-muted-light italic" : "text-foreground"}`}>
+          <dd className={`min-w-0 text-sm font-normal tabular-nums ${item.weightKg === null ? "text-muted italic" : "text-foreground"}`}>
             {weightDisplay}
           </dd>
         </div>

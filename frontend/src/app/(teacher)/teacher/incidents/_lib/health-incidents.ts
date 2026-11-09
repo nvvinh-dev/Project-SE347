@@ -1,21 +1,19 @@
 import { apiClient, ApiError, toApiError } from "@/lib/axios";
 import type { ApiResponse } from "@/types/auth";
+import { MOOD_LABELS, type HealthMood } from "@/types/health";
+
+export { formatTemperatureCelsius } from "@/lib/health";
 
 export const MOOD_OPTIONS = [
-  { value: "Happy", label: "Vui vẻ", icon: "😊" },
-  { value: "Normal", label: "Bình thường", icon: "🙂" },
-  { value: "Tired", label: "Mệt mỏi", icon: "😴" },
-  { value: "Fussy", label: "Quấy khóc", icon: "😢" },
+  { value: "Happy", label: MOOD_LABELS.Happy, icon: "😊" },
+  { value: "Normal", label: MOOD_LABELS.Normal, icon: "🙂" },
+  { value: "Tired", label: MOOD_LABELS.Tired, icon: "😴" },
+  { value: "Fussy", label: MOOD_LABELS.Fussy, icon: "😢" },
 ] as const;
-export type Mood = (typeof MOOD_OPTIONS)[number]["value"];
+export type Mood = HealthMood;
 export const MOOD_META: Readonly<Record<string, { label: string; icon: string }>> = Object.fromEntries(
   MOOD_OPTIONS.map(({ value, label, icon }) => [value, { label, icon }])
 );
-
-export function formatTemperatureCelsius(value: number | null): string {
-  if (value === null) return "Không đo thân nhiệt";
-  return `${value.toLocaleString("vi-VN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} °C`;
-}
 
 export interface QuickHealthRequest {
   childId: string;

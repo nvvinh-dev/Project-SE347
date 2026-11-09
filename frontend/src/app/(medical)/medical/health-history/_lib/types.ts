@@ -1,16 +1,7 @@
-import type { SchoolChild } from "@/types/health";
+import { MOOD_LABELS, type HealthMood, type SchoolChild } from "@/types/health";
 
-export type HealthMood = "Happy" | "Normal" | "Tired" | "Fussy";
-
-export const MOOD_LABELS: Record<string, string> = {
-  Happy: "Vui vẻ",
-  Normal: "Bình thường",
-  Tired: "Mệt",
-  Fussy: "Quấy khóc",
-};
-
-export function getMoodLabel(mood: string): string {
-  return MOOD_LABELS[mood] ?? mood;
+export function getMoodLabel(mood: HealthMood): string {
+  return MOOD_LABELS[mood];
 }
 
 export interface IncidentHistoryItem {

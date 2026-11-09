@@ -1,3 +1,12 @@
+export type HealthMood = "Happy" | "Normal" | "Tired" | "Fussy";
+
+export const MOOD_LABELS: Record<HealthMood, string> = {
+  Happy: "Vui vẻ",
+  Normal: "Bình thường",
+  Tired: "Mệt",
+  Fussy: "Quấy khóc",
+};
+
 export interface SchoolChild {
   id: string;
   fullName: string;
