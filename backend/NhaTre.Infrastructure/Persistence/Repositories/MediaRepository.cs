@@ -13,13 +13,15 @@ public class MediaRepository : IMediaRepository
         _dbContext = dbContext;
     }
 
-    // Phạm vi nằm ngay trong câu truy vấn, cùng cách với sự cố: lớp chưa có giáo viên chủ nhiệm không khớp.
+    // Phạm vi nằm ngay trong câu truy vấn, cùng cách với sự cố: lớp không do mình phụ trách không khớp.
     // Chỉ đọc, không theo dõi: chia sẻ ảnh không sửa lớp
     public async Task<Class?> FindHomeroomClassAsync(Guid classId, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Classes
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == classId && c.HomeroomTeacher!.UserId == teacherUserId);
+            .FirstOrDefaultAsync(c => c.Id == classId && scope.Contains((Guid?)c.Id));
     }
 
     // Lớp nạp ở trên không được theo dõi, nên chỉ ghi các dòng activity_photos mới. Id do EF sinh ngay lúc
@@ -33,6 +35,9 @@ public class MediaRepository : IMediaRepository
     {
         await _dbContext.SaveChangesAsync();
     }
+
+    public async Task<Guid?> FindTeacherIdAsync(Guid teacherUserId)
+        => await _dbContext.FindTeacherIdAsync(teacherUserId);
 
     public async Task<int> CountActivityPhotosOfChildForGuardianAsync(Guid childId, Guid parentUserId)
     {

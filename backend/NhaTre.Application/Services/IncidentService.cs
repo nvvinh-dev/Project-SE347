@@ -32,11 +32,16 @@ public class IncidentService : IIncidentService
         if (child is null)
             return null;
 
+        // Người ghi nhận là chính giáo viên đang thao tác, kể cả khi là giáo viên phụ (D44 mục 2). Qua được
+        // bước lọc phạm vi thì tài khoản đã có hồ sơ teachers; không còn hồ sơ thì coi như ngoài phạm vi
+        var teacherId = await _incidentRepository.FindTeacherIdAsync(teacherUserId);
+        if (teacherId is null)
+            return null;
+
         var incident = new Incident
         {
             ChildId = child.Id,
-            // Repository đã lọc lớp chủ nhiệm theo tài khoản đang đăng nhập, nên đây là hồ sơ teachers của chính người gọi
-            RecordedByTeacherId = child.Class!.HomeroomTeacherId!.Value,
+            RecordedByTeacherId = teacherId.Value,
             // Validator đã chặn chuỗi không có múi giờ; chuỗi có độ lệch (+07:00) được đọc thành giờ máy
             // chủ, đổi lại về UTC để lưu vào timestamptz
             OccurredAt = request.OccurredAtUtc.ToUniversalTime(),

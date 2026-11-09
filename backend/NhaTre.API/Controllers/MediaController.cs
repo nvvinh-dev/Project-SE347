@@ -13,7 +13,7 @@ namespace NhaTre.API.Controllers;
 // và ảnh theo con của phụ huynh (children/{childId}/activity-photos), nên route gốc của Controller là api/ và
 // mỗi action tự ghi tên tài nguyên. Hai vai trò dùng chung nên Roles gắn theo từng action; [Authorize] ở mức
 // class để action nào quên gắn Roles vẫn bắt đăng nhập: Program.cs không có fallback policy.
-// FR-MEDIA-01: chỉ Giáo viên chia sẻ ảnh (BR-MEDIA-01), và chỉ cho lớp mình chủ nhiệm (BR-MEDIA-03, D40 mục 2).
+// FR-MEDIA-01: chỉ Giáo viên chia sẻ ảnh (BR-MEDIA-01), và chỉ cho lớp mình phụ trách (BR-MEDIA-03, D40 mục 2).
 // Ảnh đã chia sẻ không sửa, không xóa.
 // FR-MEDIA-02: Phụ huynh chỉ xem ảnh của lớp con mình đang học (child_guardians, BR-MEDIA-02, D39 mục 10).
 [ApiController]
@@ -40,7 +40,7 @@ public class MediaController : ControllerBase
     }
 
     // Multipart: 1–5 ảnh ở trường photos (D39 mục 5). Trả các ảnh vừa chia sẻ kèm URL ký hạn 60 phút (D53).
-    // Lớp không tồn tại và lớp giáo viên khác chủ nhiệm cùng trả 404, không ảnh nào được lưu (AC-MEDIA-03).
+    // Lớp không tồn tại và lớp mình không phụ trách cùng trả 404, không ảnh nào được lưu (AC-MEDIA-03).
     // Route xem ảnh duy nhất là của phụ huynh theo con, giáo viên không gọi được, nên 201 không kèm Location
     // (api-conventions §4)
     [HttpPost("classes/{classId:guid}/activity-photos")]

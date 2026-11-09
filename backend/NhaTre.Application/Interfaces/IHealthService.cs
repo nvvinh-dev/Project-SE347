@@ -4,16 +4,16 @@ namespace NhaTre.Application.Interfaces;
 
 public interface IHealthService
 {
-    // null khi bản ghi không tồn tại hoặc ngoài phạm vi lớp chủ nhiệm
+    // null khi bản ghi không tồn tại hoặc ngoài phạm vi lớp phụ trách
     Task<QuickHealthStatusResponse?> GetQuickHealthStatusByIdAsync(Guid id, Guid teacherUserId);
 
-    // null khi trẻ ngoài phạm vi lớp chủ nhiệm, không có lý do thất bại nào khác
+    // null khi trẻ ngoài phạm vi lớp phụ trách, không có lý do thất bại nào khác
     Task<QuickHealthStatusResponse?> CreateQuickHealthStatusAsync(QuickHealthStatusRequest request, Guid teacherUserId);
 
-    // Trẻ của mọi lớp do tài khoản này chủ nhiệm; chưa chủ nhiệm lớp nào thì danh sách rỗng
+    // Trẻ của mọi lớp tài khoản này phụ trách; chưa phụ trách lớp nào thì danh sách rỗng
     Task<IReadOnlyList<HomeroomChildResponse>> GetHomeroomChildrenAsync(Guid teacherUserId);
 
-    // null khi trẻ ngoài phạm vi lớp chủ nhiệm
+    // null khi trẻ ngoài phạm vi lớp phụ trách
     Task<HomeroomChildResponse?> GetHomeroomChildByIdAsync(Guid childId, Guid teacherUserId);
 
     // Trẻ toàn trường cho Y tế chọn; trường chưa có trẻ nào thì danh sách rỗng

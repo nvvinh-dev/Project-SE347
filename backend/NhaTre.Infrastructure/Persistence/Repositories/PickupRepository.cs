@@ -16,14 +16,15 @@ public class PickupRepository : IPickupRepository
     }
 
     // Phạm vi nằm ngay trong câu truy vấn, cùng cách xác định với điểm danh vào lớp (FR-ATT-01):
-    // trẻ chưa xếp lớp (class_id null) hay lớp chưa có giáo viên chủ nhiệm đều không khớp
+    // trẻ chưa xếp lớp (class_id null) hay lớp không do mình phụ trách đều không khớp
     public async Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Children
             .AsNoTracking()
-            .Include(c => c.Class)
             .FirstOrDefaultAsync(c => c.Id == childId
-                && c.Class!.HomeroomTeacher!.UserId == teacherUserId);
+                && scope.Contains(c.ClassId));
     }
 
     public async Task<Attendance?> FindAttendanceAsync(Guid childId, DateOnly attendanceDate)
@@ -47,24 +48,28 @@ public class PickupRepository : IPickupRepository
     // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với bản điểm danh
     public async Task<Pickup?> FindByIdInHomeroomClassAsync(Guid id, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Pickups
             .AsNoTracking()
             .Include(p => p.Attendance)
                 .ThenInclude(a => a.Child)
             .FirstOrDefaultAsync(p => p.Id == id
-                && p.Attendance.Child.Class!.HomeroomTeacher!.UserId == teacherUserId);
+                && scope.Contains(p.Attendance.Child.ClassId));
     }
 
-    // Phạm vi lớp chủ nhiệm luôn có trong câu truy vấn như lịch sử điểm danh (FR-ATT-03). Lọc theo
+    // Phạm vi lớp phụ trách luôn có trong câu truy vấn như lịch sử điểm danh (FR-ATT-03). Lọc theo
     // ngày của bản điểm danh (ngày theo giờ Việt Nam), không theo pickup_time là giờ UTC
     public async Task<IReadOnlyList<Pickup>> GetByDateInHomeroomClassesAsync(DateOnly attendanceDate, Guid teacherUserId)
     {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
         return await _dbContext.Pickups
             .AsNoTracking()
             .Include(p => p.Attendance)
                 .ThenInclude(a => a.Child)
             .Where(p => p.Attendance.AttendanceDate == attendanceDate
-                && p.Attendance.Child.Class!.HomeroomTeacher!.UserId == teacherUserId)
+                && scope.Contains(p.Attendance.Child.ClassId))
             .OrderBy(p => p.Attendance.Child.FullName)
             .ThenBy(p => p.Attendance.ChildId)
             .ToListAsync();
@@ -140,4 +145,7 @@ public class PickupRepository : IPickupRepository
 
         return deletedRows == 1;
     }
+
+    public async Task<Guid?> FindTeacherIdAsync(Guid teacherUserId)
+        => await _dbContext.FindTeacherIdAsync(teacherUserId);
 }

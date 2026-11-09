@@ -13,8 +13,8 @@ namespace NhaTre.API.Controllers;
 // số đo), nên route gốc là api/ và Roles gắn theo từng action. [Authorize] ở mức class để action
 // nào quên gắn Roles vẫn bắt đăng nhập: Program.cs không có fallback policy.
 // FR-HEALTH-01: chỉ Giáo viên tạo bản ghi sức khỏe nhanh (BR-HEALTH-01), và chỉ cho trẻ lớp mình
-// chủ nhiệm (D40 mục 2). Bản ghi đã tạo không sửa, không xóa.
-// FR-HEALTH-07: Giáo viên xem lưu ý sức khỏe của trẻ lớp mình chủ nhiệm, chỉ xem (BR-HEALTH-08).
+// phụ trách: GVCN hoặc giáo viên phụ (D40 mục 2). Bản ghi đã tạo không sửa, không xóa.
+// FR-HEALTH-07: Giáo viên xem lưu ý sức khỏe của trẻ lớp mình phụ trách, chỉ xem (BR-HEALTH-08).
 // FR-HEALTH-02, FR-HEALTH-03: chỉ Y tế tạo và xem số đo chiều cao, cân nặng (BR-HEALTH-02), cho trẻ
 // toàn trường (D43 mục 2). Số đo đã tạo không sửa, không xóa
 // Danh sách trẻ cho Y tế chọn: chỉ Y tế, trẻ toàn trường, kèm lưu ý sức khỏe nhưng không kèm lớp
@@ -25,7 +25,7 @@ namespace NhaTre.API.Controllers;
 // D39 mục 10) qua một route riêng, chỉ đọc (BR-HEALTH-06); các route tạo, xem của Giáo viên và Y tế ở
 // trên không mở cho phụ huynh
 // FR-HEALTH-06: chỉ Y tế ghi, sửa hoặc xóa trắng lưu ý sức khỏe của trẻ toàn trường (BR-HEALTH-07);
-// vai trò khác, kể cả giáo viên chủ nhiệm và phụ huynh của trẻ → 403 (AC-HEALTH-12, AC-HEALTH-15)
+// vai trò khác, kể cả giáo viên phụ trách lớp và phụ huynh của trẻ → 403 (AC-HEALTH-12, AC-HEALTH-15)
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -81,7 +81,7 @@ public class HealthController : ControllerBase
             ApiResponse<QuickHealthStatusResponse>.Ok(result));
     }
 
-    // Trẻ của các lớp mình chủ nhiệm, mỗi trẻ chỉ có id, họ tên và lưu ý sức khỏe (D45). Màn hình
+    // Trẻ của các lớp mình phụ trách, mỗi trẻ chỉ có id, họ tên và lưu ý sức khỏe (D45). Màn hình
     // giáo viên cũng dùng danh sách này để chọn trẻ khi điểm danh; chưa được gán lớp thì danh sách rỗng
     [HttpGet("homeroom-children")]
     [Authorize(Roles = Roles.Teacher)]

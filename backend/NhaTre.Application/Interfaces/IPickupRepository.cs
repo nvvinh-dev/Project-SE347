@@ -4,7 +4,7 @@ namespace NhaTre.Application.Interfaces;
 
 public interface IPickupRepository
 {
-    // Trẻ kèm Class, chỉ khi trẻ thuộc lớp do tài khoản này chủ nhiệm (classes.homeroom_teacher_id, D40 mục 2).
+    // Trẻ, chỉ khi trẻ thuộc lớp tài khoản này phụ trách (GVCN hoặc giáo viên phụ, D40 mục 2).
     // null khi trẻ không tồn tại, chưa xếp lớp hoặc thuộc lớp giáo viên khác
     Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId);
 
@@ -14,10 +14,10 @@ public interface IPickupRepository
     // Người đón đã đăng ký của đúng trẻ này, người đón chính trước (tối đa hai người, D24)
     Task<IReadOnlyList<RegisteredPickupPerson>> GetRegisteredPersonsAsync(Guid childId);
 
-    // Bản ghi đón về kèm Attendance và Child, cùng phạm vi lớp chủ nhiệm như trên
+    // Bản ghi đón về kèm Attendance và Child, cùng phạm vi lớp phụ trách như trên
     Task<Pickup?> FindByIdInHomeroomClassAsync(Guid id, Guid teacherUserId);
 
-    // Bản ghi đón về gắn với bản điểm danh của ngày đó, kèm Attendance và Child, cùng phạm vi lớp chủ nhiệm
+    // Bản ghi đón về gắn với bản điểm danh của ngày đó, kèm Attendance và Child, cùng phạm vi lớp phụ trách
     Task<IReadOnlyList<Pickup>> GetByDateInHomeroomClassesAsync(DateOnly attendanceDate, Guid teacherUserId);
 
     // Thêm và lưu ngay; false khi bản điểm danh đã có bản ghi đón về (vi phạm UNIQUE attendance_id)
@@ -37,4 +37,8 @@ public interface IPickupRepository
     // Xóa người đón dự phòng id, cùng điều kiện khóa ảnh như trên. Người đón chính không bao giờ bị xóa
     // ở đây (D40 mục 1); false khi không còn dòng nào khớp
     Task<bool> TryDeleteBackupPersonAsync(Guid id, string currentFacePhotoReference);
+
+    // Hồ sơ teachers của tài khoản này, để ghi người ghi nhận là chính giáo viên đã thao tác (D44 mục 2).
+    // null khi tài khoản không có hồ sơ
+    Task<Guid?> FindTeacherIdAsync(Guid teacherUserId);
 }
