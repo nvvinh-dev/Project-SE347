@@ -29,6 +29,7 @@ public class AppDbContext : DbContext
     public DbSet<MenuEntry> MenuEntries => Set<MenuEntry>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<SecurityEvent> SecurityEvents => Set<SecurityEvent>();
+    public DbSet<Complaint> Complaints => Set<Complaint>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

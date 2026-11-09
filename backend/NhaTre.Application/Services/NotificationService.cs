@@ -45,6 +45,22 @@ public class NotificationService : INotificationService
         return recipientIds.Count;
     }
 
+    public async Task NotifyActiveAdminsAsync(string message)
+    {
+        EnsureMessage(message);
+        var recipientIds = await _notificationRepository.GetActiveAdminIdsAsync();
+        await SaveAsync(recipientIds, message);
+    }
+
+    public async Task NotifyParentAsync(Guid parentUserId, string message)
+    {
+        EnsureMessage(message);
+        if (!await _notificationRepository.IsActiveParentAsync(parentUserId))
+            return;
+
+        await SaveAsync([parentUserId], message);
+    }
+
     public async Task<SchoolClosureResponse> BroadcastSchoolClosureAsync(SchoolClosureRequest request)
     {
         var recipientCount = await NotifyActiveParentsAsync(SchoolClosurePrefix + request.Content.Trim());
