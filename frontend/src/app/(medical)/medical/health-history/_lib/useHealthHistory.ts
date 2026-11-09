@@ -123,6 +123,6 @@ export function useHealthHistory(selectedChildId: string | null) {
     enabled: Boolean(user?.userId && selectedChildId),
     networkMode: "always",
     retry: false,
-    staleTime: 60_000,
+    staleTime: 0,
   });
 }

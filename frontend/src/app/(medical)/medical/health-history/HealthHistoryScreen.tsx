@@ -9,6 +9,7 @@ import { StatusMessage } from "@/components/ui/StatusMessage";
 import { useSchoolChildren } from "@/hooks/useSchoolChildren";
 import { formatDateOfBirth } from "@/lib/growth-measurements";
 import { HealthHistoryTimeline } from "./HealthHistoryTimeline";
+import { HistoryRefreshNotice } from "./HistoryRefreshNotice";
 import { useHealthHistory } from "./_lib/useHealthHistory";
 
 interface ChildSelectorFormValues {
@@ -19,6 +20,7 @@ export function HealthHistoryScreen() {
   const {
     data: children,
     isLoading: isChildrenLoading,
+    isFetching: isChildrenFetching,
     isError: isChildrenError,
     error: childrenError,
     refetch: refetchChildren,
@@ -38,6 +40,7 @@ export function HealthHistoryScreen() {
   const {
     data: historyData,
     isLoading: isHistoryLoading,
+    isFetching: isHistoryFetching,
     isError: isHistoryError,
     error: historyError,
     refetch: refetchHistory,
@@ -100,7 +103,7 @@ export function HealthHistoryScreen() {
       />
 
       <div className="min-w-0 rounded-xl border border-border/80 bg-card px-4 py-3 shadow-sm sm:px-5">
-        {isChildrenError ? (
+        {isChildrenError && !children ? (
           <StatusMessage
             status="error"
             title="Không thể tải danh sách trẻ"
@@ -134,6 +137,14 @@ export function HealthHistoryScreen() {
               </p>
             )}
           </form>
+        )}
+        {isChildrenError && children && (
+          <HistoryRefreshNotice
+            title="Chưa thể cập nhật danh sách trẻ."
+            message={childrenError?.message}
+            isFetching={isChildrenFetching}
+            onRetry={() => { void refetchChildren(); }}
+          />
         )}
       </div>
 
@@ -175,7 +186,7 @@ export function HealthHistoryScreen() {
         </section>
       )}
 
-      {!selectedChildId && !isChildrenError && (
+      {!selectedChildId && (!isChildrenError || children) && (
         isChildrenLoading ? (
           <StatusMessage status="loading" title="Đang tải danh sách trẻ..." message="Vui lòng chờ trong giây lát." />
         ) : children?.length === 0 ? (
@@ -203,7 +214,7 @@ export function HealthHistoryScreen() {
             />
           )}
 
-          {isHistoryError && (
+          {isHistoryError && !historyData && (
             <StatusMessage
               status="error"
               title="Không thể tải lịch sử sức khỏe"
@@ -212,7 +223,16 @@ export function HealthHistoryScreen() {
             />
           )}
 
-          {!isHistoryLoading && !isHistoryError && historyData && (
+          {isHistoryError && historyData && (
+            <HistoryRefreshNotice
+              title="Chưa thể cập nhật lịch sử sức khỏe."
+              message={historyError?.message}
+              isFetching={isHistoryFetching}
+              onRetry={() => { void refetchHistory(); }}
+            />
+          )}
+
+          {historyData && (
             <HealthHistoryTimeline
               key={selectedChildId}
               childId={selectedChildId}

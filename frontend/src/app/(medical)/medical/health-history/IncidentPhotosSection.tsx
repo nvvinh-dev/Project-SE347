@@ -4,6 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/Button";
 import { SignedImage } from "@/components/ui/SignedImage";
 import { StatusMessage } from "@/components/ui/StatusMessage";
+import { HistoryRefreshNotice } from "./HistoryRefreshNotice";
 import { useIncidentDetail } from "./_lib/useIncidentDetail";
 
 interface IncidentPhotosSectionProps {
@@ -24,7 +25,7 @@ export function IncidentPhotosSection({
   onToggle,
 }: IncidentPhotosSectionProps) {
   // Chỉ truy vấn chi tiết sự cố khi người dùng bấm mở
-  const { data, isLoading, isError, error, refetch, getFreshPhotoUrl } =
+  const { data, isLoading, isFetching, isError, error, refetch, getFreshPhotoUrl } =
     useIncidentDetail(childId, incidentId, isOpen);
 
   if (photoCount <= 0) {
@@ -62,7 +63,7 @@ export function IncidentPhotosSection({
             />
           )}
 
-          {isError && (
+          {isError && !data && (
             <StatusMessage
               status="error"
               title={error?.message ?? "Không thể tải ảnh của sự cố này."}
@@ -72,7 +73,16 @@ export function IncidentPhotosSection({
             />
           )}
 
-          {!isLoading && !isError && data && (
+          {isError && data && (
+            <HistoryRefreshNotice
+              title="Chưa thể cập nhật ảnh sự cố."
+              message={error?.message}
+              isFetching={isFetching}
+              onRetry={() => { void refetch(); }}
+            />
+          )}
+
+          {data && (
             <>
               {data.photos.length === 0 ? (
                 <StatusMessage
