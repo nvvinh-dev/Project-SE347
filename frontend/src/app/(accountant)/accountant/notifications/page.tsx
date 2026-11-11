@@ -1,23 +1,35 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { SchoolClosureForm, type SentClosure } from "@/components/accountant/notifications/SchoolClosureForm";
+import { SuccessToast, type ToastMessage } from "@/components/accountant/SuccessToast";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function AccountantNotificationsPage() {
+  const [lastSent, setLastSent] = useState<SentClosure | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const hideToast = useCallback(() => setToast(null), []);
+
+  const handleSent = (result: SentClosure) => {
+    setLastSent(result);
+    // Không ai nhận thì báo ở khung "Lần gửi vừa rồi" (màu cảnh báo), không hiện popup thành công.
+    if (result.recipientCount > 0) {
+      // recipientCount là số tài khoản Phụ huynh đang hoạt động của toàn trường lúc gửi (D39 mục 6).
+      setToast({
+        id: result.sentAt,
+        text: `Đã gửi thông báo nghỉ học tới toàn bộ phụ huynh (${result.recipientCount} tài khoản đang hoạt động).`,
+      });
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <PageHeader
         title="Thông báo nghỉ học"
         description="Phát thông báo nghỉ học đột xuất hoặc kế hoạch nghỉ đến toàn bộ phụ huynh học sinh"
       />
-      <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-        </div>
-        <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
-        <p className="mt-1 text-sm text-muted">
-          Tính năng phát thông báo nghỉ học đến toàn bộ phụ huynh học sinh sẽ được hoàn thiện trong các thẻ nghiệp vụ tiếp theo.
-        </p>
-      </div>
+      <SchoolClosureForm lastSent={lastSent} onSent={handleSent} />
+      <SuccessToast toast={toast} onClose={hideToast} />
     </div>
   );
 }
