@@ -76,7 +76,7 @@ export function AssignAssistantTeachersModal({
   }, [users]);
 
   // Nhận diện các giáo viên phụ hiện tại của lớp mà tài khoản không còn hợp lệ
-  // (Đã vô hiệu hóa hoặc không còn giữ vai trò Giáo viên - review PR #72 lượt 2)
+  // (Đã vô hiệu hóa hoặc không còn giữ vai trò Giáo viên)
   const inactiveAssistantTeachers = useMemo<DisplayTeacher[]>(() => {
     if (!classInfo?.assistantTeachers || classInfo.assistantTeachers.length === 0) return [];
     const activeIds = new Set(activeTeachers.map((t) => t.id));
@@ -157,7 +157,7 @@ export function AssignAssistantTeachersModal({
     initialFocusRef: searchInputRef,
   });
 
-  // Khôi phục focus vào khung lỗi khi serverError xuất hiện (chuẩn a11y theo review PR #72)
+  // Khôi phục focus vào khung lỗi khi serverError xuất hiện (chuẩn a11y)
   useEffect(() => {
     if (serverError) {
       errorAlertRef.current?.focus();
@@ -186,7 +186,7 @@ export function AssignAssistantTeachersModal({
     setServerError(null);
   };
 
-  // Chọn tất cả giáo viên hợp lệ trong kết quả lọc (bỏ qua tài khoản không hợp lệ theo review lượt 2)
+  // Chọn tất cả giáo viên hợp lệ trong kết quả lọc (bỏ qua tài khoản không hợp lệ)
   const handleSelectAllFiltered = () => {
     if (assignMutation.isPending) return;
     const validFilteredIds = selectableFilteredTeachers.map((t) => t.id);
@@ -355,7 +355,7 @@ export function AssignAssistantTeachersModal({
               )}
             </div>
 
-            {/* Ô tìm kiếm (Chặn nhấn Enter gây submit ngoài ý muốn theo review PR #72) */}
+            {/* Ô tìm kiếm (Chặn phím Enter submit form ngoài ý muốn) */}
             <div className="relative">
               <input
                 id="teacher-search-input"
