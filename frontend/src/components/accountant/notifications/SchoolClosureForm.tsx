@@ -96,9 +96,14 @@ export function SchoolClosureForm({ lastSent, onSent }: SchoolClosureFormProps) 
     broadcast.mutate({ content: sentContent }, {
       onSuccess: ({ recipientCount }) => {
         setConfirming(null);
+        // Gửi được thì xóa ô soạn và đưa focus về ô (nút Gửi lúc này bị khóa vì ô rỗng).
         // Chưa ai nhận thì giữ nội dung để gửi lại khi đã có tài khoản Phụ huynh.
-        if (recipientCount > 0) reset({ content: "" });
-        else refocusRef.current = "submit";
+        if (recipientCount > 0) {
+          reset({ content: "" });
+          refocusRef.current = "content";
+        } else {
+          refocusRef.current = "submit";
+        }
         onSent({ content: sentContent, recipientCount, sentAt: Date.now() });
       },
       onError: (error) => {
@@ -113,7 +118,7 @@ export function SchoolClosureForm({ lastSent, onSent }: SchoolClosureFormProps) 
   };
 
   return (
-    <div className="grid min-w-0 gap-5 lg:grid-cols-2">
+    <div className="grid min-w-0 gap-5 xl:grid-cols-2">
       <section aria-labelledby="closure-form-title" className="min-w-0 rounded-2xl border border-brand-border bg-card p-4 shadow-xs sm:p-6">
         <h2 id="closure-form-title" className="mb-5 text-base font-semibold text-foreground">Soạn thông báo</h2>
         <form noValidate onSubmit={handleSubmit(review)} className="space-y-5">
@@ -146,12 +151,18 @@ export function SchoolClosureForm({ lastSent, onSent }: SchoolClosureFormProps) 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button
               variant="secondary"
+              className="whitespace-nowrap"
               disabled={broadcast.isPending || !content}
-              onClick={() => reset({ content: "" })}
+              onClick={() => {
+                reset({ content: "" });
+                // Nút này tự khóa khi ô rỗng; đưa focus về ô để gõ lại ngay. setFocus của RHF không
+                // chạy ngay sau reset nên focus thẳng vào ô.
+                document.getElementById(CONTENT_ID)?.focus();
+              }}
             >
               Xóa nội dung
             </Button>
-            <Button ref={submitRef} type="submit" className="sm:min-w-40" disabled={!trimmed} isLoading={broadcast.isPending}>
+            <Button ref={submitRef} type="submit" className="whitespace-nowrap sm:min-w-40" disabled={!trimmed} isLoading={broadcast.isPending}>
               <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M6 12 3.27 3.13a59.77 59.77 0 0 1 18.22 8.87 59.77 59.77 0 0 1-18.22 8.88L6 12Zm0 0h7.5" />
               </svg>
@@ -172,7 +183,9 @@ export function SchoolClosureForm({ lastSent, onSent }: SchoolClosureFormProps) 
 
         {lastSent && (
           <section
+            key={lastSent.sentAt}
             aria-labelledby="closure-last-title"
+            role={lastSent.recipientCount === 0 ? "alert" : undefined}
             className={lastSent.recipientCount > 0
               ? "rounded-2xl border border-brand-border bg-brand-subtle p-4 sm:p-5"
               : "rounded-2xl border border-warning-border bg-warning-bg p-4 sm:p-5"}
