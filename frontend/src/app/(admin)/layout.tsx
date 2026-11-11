@@ -14,13 +14,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <RoleGuard allowed={["Admin"]}>
       <div className="flex min-h-screen bg-background">
         <div className="hidden lg:block shrink-0">
-          <Sidebar items={adminNav} roleLabel="Quản trị viên" onLogout={logout} />
+          <Sidebar
+            items={adminNav}
+            roleLabel="Quản trị viên"
+            onLogout={logout}
+            notificationsHref="/admin/notifications"
+          />
         </div>
         <MobileNav
           items={adminNav}
           roleLabel="Quản trị viên"
           userName={user?.fullName || "Quản trị viên"}
           onLogout={logout}
+          notificationsHref="/admin/notifications"
         />
         <main className="flex-1 min-w-0 lg:pt-0 pt-16">
           <div className="w-full max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
