@@ -1,0 +1,15 @@
+// Phản chiếu DTO trong NhaTre.Application/DTOs/Notifications.
+
+// FR-NOTI-03: Kế toán chỉ gửi nội dung; người nhận do backend xác định (D44).
+export interface SchoolClosureRequest {
+  content: string;
+}
+
+// Số phụ huynh đã nhận; bằng 0 khi chưa có tài khoản Phụ huynh nào đang hoạt động.
+export interface SchoolClosureResponse {
+  recipientCount: number;
+}
+
+// Khớp hằng SchoolClosurePrefix ở NotificationService: backend tự ghép, frontend chỉ dùng để xem trước.
+export const SCHOOL_CLOSURE_PREFIX = "Nhà trường thông báo nghỉ học: ";
+export const SCHOOL_CLOSURE_CONTENT_MAX = 500;
