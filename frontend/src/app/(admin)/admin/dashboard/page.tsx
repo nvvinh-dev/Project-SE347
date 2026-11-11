@@ -292,7 +292,7 @@ export default function AdminDashboardPage() {
           ) : null}
 
           {/* 5. Bộ 4 Thẻ KPI Pastel Đa tầng Ngữ nghĩa */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
             {/* KPI 1: Mint Pastel - Sĩ số học sinh toàn trường (FR-DASH-02) */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between">
@@ -332,8 +332,9 @@ export default function AdminDashboardPage() {
                     ✓ 100% đã xếp lớp
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-warning border border-warning-border">
-                    ⚠ {stats?.unassignedStudents} chờ xếp
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-foreground border border-warning-border">
+                    <span className="text-warning mr-1">⚠</span>
+                    {stats?.unassignedStudents} chờ xếp
                   </span>
                 )}
               </div>
@@ -434,10 +435,10 @@ export default function AdminDashboardPage() {
               </p>
             </div>
 
-            {/* KPI 3: Warm Pastel - Tỷ lệ trẻ đã xếp lớp */}
+            {/* KPI 3: Peach Pastel - Tỷ lệ trẻ đã xếp lớp */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-warning-bg text-warning flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-[#FDF2EC] text-[#D96B43] flex items-center justify-center">
                   <svg
                     className="w-5 h-5"
                     viewBox="0 0 24 24"
@@ -451,7 +452,7 @@ export default function AdminDashboardPage() {
                     <path d="m9 12 2 2 4-4" />
                   </svg>
                 </div>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-warning border border-warning-border">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FDF2EC] text-foreground border border-[#F8D4C8]">
                   {isLoadingChildren || isErrorChildren
                     ? "—"
                     : `${stats?.assignedStudents}/${stats?.totalStudents} học sinh`}
@@ -478,7 +479,7 @@ export default function AdminDashboardPage() {
               <div className="space-y-1 pt-1 border-t border-border">
                 <div className="w-full h-1.5 rounded-full bg-background overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-warning transition-all duration-500"
+                    className="h-full rounded-full bg-[#D96B43] transition-all duration-500"
                     style={{ width: `${isLoadingChildren || isErrorChildren ? 0 : assignedRatio}%` }}
                   />
                 </div>
@@ -514,22 +515,27 @@ export default function AdminDashboardPage() {
                   >
                     Lỗi tải • Thử lại
                   </button>
+                ) : (revenueStats?.totalCollected ?? 0) === 0 && (revenueStats?.unpaidInvoiceCount ?? 0) === 0 ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-background text-muted border border-border">
+                    Chưa có khoản thu
+                  </span>
                 ) : (revenueStats?.unpaidInvoiceCount ?? 0) === 0 ? (
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand-subtle text-brand-text border border-brand-border">
                     ✓ Đã thu đủ
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-warning border border-warning-border">
-                    ⚠ {revenueStats?.unpaidInvoiceCount} chưa thu
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-foreground border border-warning-border">
+                    <span className="text-warning mr-1">⚠</span>
+                    {revenueStats?.unpaidInvoiceCount} chưa thu
                   </span>
                 )}
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                  Doanh thu tháng {revenueStats?.month ?? currentMonth}
+                  Doanh thu tháng {revenueStats ? `${revenueStats.month}/${revenueStats.year}` : `${currentMonth}/${currentYear}`}
                 </p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
+                  <span className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight whitespace-nowrap">
                     {isLoadingRevenue || isErrorRevenue
                       ? "—"
                       : new Intl.NumberFormat("vi-VN").format(revenueStats?.totalCollected ?? 0) + " đ"}
@@ -545,7 +551,11 @@ export default function AdminDashboardPage() {
                 <span>
                   {isLoadingRevenue || isErrorRevenue
                     ? "—"
-                    : `${revenueStats?.unpaidInvoiceCount ?? 0} hóa đơn chưa thanh toán`}
+                    : (revenueStats?.unpaidInvoiceCount ?? 0) > 0
+                      ? `${revenueStats?.unpaidInvoiceCount} hóa đơn còn chưa thanh toán (mọi kỳ)`
+                      : (revenueStats?.totalCollected ?? 0) === 0
+                        ? "Chưa phát sinh hóa đơn học phí"
+                        : "Tất cả hóa đơn đã được thanh toán"}
                 </span>
               </p>
             </div>

@@ -81,7 +81,7 @@ public class DashboardService : IDashboardService
 
     public async Task<RevenueStatisticsResponse> GetRevenueStatisticsAsync()
     {
-        // trello-board.md §4: Lấy số liệu bằng ITuitionService.GetRevenueReportAsync() (FR-TUITION-03), không tự tính lại
+        // Lấy số liệu qua ITuitionService.GetRevenueReportAsync() (FR-TUITION-03), không tự tính lại
         // D39 mục 12: Kỳ báo cáo là tháng hiện tại, tổng thu trong tháng + số hóa đơn chưa thanh toán (unpaid)
         var report = await _tuitionService.GetRevenueReportAsync();
 
