@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useChangeRole } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -27,9 +27,9 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
   const changeRole = useChangeRole();
 
   const {
+    control,
     handleSubmit,
     setValue,
-    watch,
     reset,
   } = useForm<ChangeRoleFormValues>({
     defaultValues: {
@@ -37,7 +37,7 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
     },
   });
 
-  const selectedRole = watch("role");
+  const selectedRole = useWatch({ control, name: "role" });
 
   const handleClose = useCallback(() => {
     if (changeRole.isPending) return;

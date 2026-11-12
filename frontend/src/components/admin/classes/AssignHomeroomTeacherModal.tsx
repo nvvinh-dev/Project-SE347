@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignHomeroomTeacher } from "@/hooks/useClasses";
 import { useUsers } from "@/hooks/useUsers";
@@ -41,9 +41,9 @@ export function AssignHomeroomTeacherModal({
   const activeTeachers = users.filter((u) => u.role === "Teacher" && u.isActive);
 
   const {
+    control,
     register,
     handleSubmit,
-    watch,
     reset,
     formState: { errors },
   } = useForm<AssignHomeroomTeacherFormValues>({
@@ -52,21 +52,26 @@ export function AssignHomeroomTeacherModal({
     },
   });
 
-  const selectedTeacherId = watch("teacherId");
+  const selectedTeacherId = useWatch({ control, name: "teacherId" });
   const currentTeacherId = classInfo?.homeroomTeacher?.userId;
+
+  const handleClose = useCallback(() => {
+    if (assignMutation.isPending) return;
+    setServerError(null);
+    onClose();
+  }, [assignMutation.isPending, onClose]);
 
   // Cập nhật lại giá trị mặc định khi classInfo thay đổi hoặc mở modal
   useEffect(() => {
     if (isOpen && classInfo) {
       reset({ teacherId: classInfo.homeroomTeacher?.userId ?? "" });
-      setServerError(null);
     }
   }, [isOpen, classInfo, reset]);
 
   const { containerRef } = useFocusTrap({
     isOpen,
     isLoading: assignMutation.isPending,
-    onClose,
+    onClose: handleClose,
     initialFocusRef: selectRef,
   });
 
@@ -99,7 +104,7 @@ export function AssignHomeroomTeacherModal({
         "giáo viên";
 
       onSuccess(`Đã phân công ${teacherName} làm chủ nhiệm ${classInfo.name} thành công.`);
-      onClose();
+      handleClose();
     } catch (err) {
       const apiErr = toApiError(err);
       setServerError(apiErr.message);
@@ -127,9 +132,7 @@ export function AssignHomeroomTeacherModal({
       {/* Lớp nền mờ */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
-        onClick={() => {
-          if (!assignMutation.isPending) onClose();
-        }}
+        onClick={handleClose}
       />
 
       {/* Khối hộp thoại phân công */}
@@ -144,7 +147,7 @@ export function AssignHomeroomTeacherModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={assignMutation.isPending}
             className="p-1.5 rounded-full text-muted hover:text-foreground hover:bg-black/5 transition-all"
             aria-label="Đóng hộp thoại"
@@ -262,7 +265,7 @@ export function AssignHomeroomTeacherModal({
           <div className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={assignMutation.isPending}
               className="px-4 py-2 rounded-full text-xs font-semibold text-muted hover:text-foreground hover:bg-black/5 transition-all"
             >

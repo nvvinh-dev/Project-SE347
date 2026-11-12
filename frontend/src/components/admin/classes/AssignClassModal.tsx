@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import React, { useState, useEffect, useCallback } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignClass } from "@/hooks/useClasses";
 import { calculateAgeInMonths, fitsAgeRange, formatDate, formatAgeFriendly } from "@/lib/classAge";
@@ -32,9 +32,9 @@ export function AssignClassModal({
   const assignMutation = useAssignClass();
 
   const {
+    control,
     register,
     handleSubmit,
-    watch,
     reset,
   } = useForm<AssignClassFormValues>({
     defaultValues: {
@@ -42,20 +42,25 @@ export function AssignClassModal({
     },
   });
 
-  const selectedSelection = watch("classSelection");
+  const selectedSelection = useWatch({ control, name: "classSelection" });
+
+  const handleClose = useCallback(() => {
+    if (assignMutation.isPending) return;
+    setServerError(null);
+    onClose();
+  }, [assignMutation.isPending, onClose]);
 
   // Đồng bộ lại form khi placement hoặc isOpen thay đổi
   useEffect(() => {
     if (isOpen && placement) {
       reset({ classSelection: placement.classId ?? "" });
-      setServerError(null);
     }
   }, [isOpen, placement, reset]);
 
   const { containerRef } = useFocusTrap({
     isOpen,
     isLoading: assignMutation.isPending,
-    onClose,
+    onClose: handleClose,
   });
 
   if (!isOpen || !placement) return null;
@@ -105,7 +110,7 @@ export function AssignClassModal({
         onSuccess(`Đã gỡ bé ${updatedPlacement.fullName} khỏi lớp học thành công.`);
       }
 
-      onClose();
+      handleClose();
     } catch (err) {
       const apiErr = toApiError(err);
       setServerError(apiErr.message);
@@ -127,9 +132,7 @@ export function AssignClassModal({
       {/* Lớp nền mờ */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
-        onClick={() => {
-          if (!assignMutation.isPending) onClose();
-        }}
+        onClick={handleClose}
       />
 
       {/* Khối hộp thoại xếp lớp */}
@@ -144,7 +147,7 @@ export function AssignClassModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={assignMutation.isPending}
             className="p-1.5 rounded-full text-muted hover:text-foreground hover:bg-black/5 transition-all"
             aria-label="Đóng hộp thoại"
@@ -326,7 +329,7 @@ export function AssignClassModal({
           <div className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={assignMutation.isPending}
               className="px-4 py-2 rounded-full text-xs font-semibold text-muted hover:text-foreground hover:bg-black/5 transition-all"
             >
