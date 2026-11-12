@@ -1,3 +1,4 @@
+using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Classes;
 using NhaTre.Application.Interfaces;
 using NhaTre.Domain.Constants;
@@ -11,8 +12,6 @@ namespace NhaTre.Application.Services;
 public class ClassService : IClassService
 {
     // Tuổi tính tới ngày hôm nay theo giờ Việt Nam, không theo múi giờ của máy chủ
-    private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
-
     private static readonly short TeacherRoleId = Roles.ToRoleId(Roles.Teacher);
 
     private readonly IClassRepository _classRepository;
@@ -138,7 +137,7 @@ public class ClassService : IClassService
     }
 
     private static DateOnly TodayInVietnam()
-        => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VietnamTimeZone));
+        => VietnamTime.DateOf(DateTime.UtcNow);
 
     private async Task<ClassResult> SetHomeroomTeacherAsync(Guid classId, Guid? teacherId)
     {
