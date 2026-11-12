@@ -15,4 +15,12 @@ public interface IMediaRepository
     // Hồ sơ teachers của tài khoản này, để ghi người ghi nhận là chính giáo viên đã thao tác (D44 mục 2).
     // null khi tài khoản không có hồ sơ
     Task<Guid?> FindTeacherIdAsync(Guid teacherUserId);
+
+    // Hai method dưới cùng một phạm vi: ảnh của lớp trẻ đang học, chỉ khi trẻ liên kết với phụ huynh này
+    // (child_guardians, D39 mục 10). Trẻ chưa xếp lớp thì không có ảnh nào
+    Task<int> CountActivityPhotosOfChildForGuardianAsync(Guid childId, Guid parentUserId);
+
+    // Mới nhất trước, trùng thời điểm thì theo id tăng dần
+    Task<IReadOnlyList<ActivityPhoto>> GetActivityPhotosOfChildForGuardianAsync(Guid childId, Guid parentUserId,
+        int skip, int take);
 }

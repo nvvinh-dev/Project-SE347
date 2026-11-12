@@ -207,6 +207,7 @@ builder.Services.AddScoped<IValidator<AttachIncidentPhotosRequest>, AttachIncide
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<IValidator<ShareActivityPhotosRequest>, ShareActivityPhotosRequestValidator>();
+builder.Services.AddScoped<IValidator<ActivityPhotoListQuery>, ActivityPhotoListQueryValidator>();
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<IValidator<CreateWeeklyMenuRequest>, CreateWeeklyMenuRequestValidator>();
