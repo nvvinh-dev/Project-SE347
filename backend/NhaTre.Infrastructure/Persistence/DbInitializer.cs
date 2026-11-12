@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NhaTre.Application.Interfaces;
+using NhaTre.Domain.Constants;
 using NhaTre.Domain.Entities;
 
 namespace NhaTre.Infrastructure.Persistence;
@@ -20,7 +21,7 @@ public static class DbInitializer
         var admin = new User
         {
             Id = Guid.NewGuid(),
-            RoleId = 1, // Admin — khớp RoleConfiguration
+            RoleId = Roles.ToRoleId(Roles.Admin),
             FullName = "Quản trị hệ thống",
             LoginIdentifier = SeedAdminEmail,
             CredentialReference = passwordHasher.Hash(SeedAdminPassword),

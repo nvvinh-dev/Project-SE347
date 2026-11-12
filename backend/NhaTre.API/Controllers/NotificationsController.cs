@@ -9,11 +9,12 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace NhaTre.API.Controllers;
 
-// Module Thông báo phục vụ nhiều vai trò (Phụ huynh, Y tế xem; Kế toán phát thông báo nghỉ học ở
+// Module Thông báo phục vụ nhiều vai trò (Phụ huynh, Y tế, Admin xem; Kế toán phát thông báo nghỉ học ở
 // FR-NOTI-03), nên Roles gắn theo từng action. [Authorize] ở mức class để action nào quên gắn Roles
 // vẫn bắt đăng nhập: Program.cs không có fallback policy.
 // FR-NOTI-01, FR-NOTI-02: Phụ huynh và Y tế xem thông báo gửi cho chính mình (BR-NOTIFICATION-02);
-// Admin, Giáo viên, Kế toán không nhận thông báo → 403 (AC-NOTI-05). Client không tạo thông báo:
+// FR-NOTI-04: Admin xem thông báo phản ánh mới gửi cho chính mình qua cùng route.
+// Giáo viên, Kế toán không nhận thông báo → 403 (AC-NOTI-05). Client không tạo thông báo:
 // module phát sinh sự kiện ghi qua INotificationService (D39 mục 6).
 // FR-NOTI-03: chỉ Kế toán phát thông báo nghỉ học, Kế toán chỉ nhập nội dung (BR-NOTIFICATION-03).
 [ApiController]
@@ -38,7 +39,7 @@ public class NotificationsController : ControllerBase
     // Không có xem theo id: danh sách đã đủ nội dung, thông báo không có trạng thái đã đọc và không
     // trỏ tới bản ghi gây ra nó (D25)
     [HttpGet]
-    [Authorize(Roles = $"{Roles.Parent},{Roles.Medical}")]
+    [Authorize(Roles = $"{Roles.Parent},{Roles.Medical},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<NotificationPageResponse>>> GetMine(
         [FromQuery] NotificationListQuery query)
     {

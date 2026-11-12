@@ -1,55 +1,48 @@
 /**
- * Định nghĩa DTO phản ánh và xử lý ý kiến của phụ huynh (FR-COMPLAINT-01/02, D45)
+ * Định nghĩa DTO phản ánh và xử lý ý kiến của phụ huynh (FR-COMPLAINT-01/02, D24, D39 mục 18, D45).
+ * Khớp đúng backend NhaTre.Application/DTOs/Complaints/
  */
 
-export type ComplaintStatus = "Pending" | "InProgress" | "Resolved";
+export type ComplaintStatus = "New" | "InProgress" | "Resolved";
 
-export interface ComplaintChildDto {
-  id: string;
-  fullName: string;
-  className: string;
-}
-
-export interface ComplaintParentDto {
-  id: string;
-  fullName: string;
-  email?: string;
-  phone?: string;
-}
+export const COMPLAINT_STATUS_LABELS: Record<ComplaintStatus, string> = {
+  New: "Mới",
+  InProgress: "Đang xử lý",
+  Resolved: "Đã xử lý",
+};
 
 export interface ComplaintResponse {
   id: string;
-  child: ComplaintChildDto;
-  parent: ComplaintParentDto;
+  childId: string;
+  childFullName: string;
+  className: string | null;
+  submittedByFullName: string;
   content: string;
   status: ComplaintStatus;
-  photoUrl?: string | null;
-  photoPath?: string | null;
-  createdAt: string;
-  resolvedAt?: string | null;
-  resolvedByName?: string | null;
+  resolution?: string | null;
+  createdAtUtc: string;
+  resolvedAtUtc?: string | null;
+}
+
+export interface HandleComplaintRequest {
+  status: "InProgress" | "Resolved";
   resolution?: string | null;
 }
 
-export interface ComplaintHandlingRequest {
-  status: "InProgress" | "Resolved";
-  resolution: string;
-}
+export type ComplaintHandlingRequest = HandleComplaintRequest;
 
 export interface ComplaintListQuery {
-  status?: ComplaintStatus | "All";
+  status?: ComplaintStatus;
   page?: number;
   pageSize?: number;
 }
 
-export interface ComplaintListResponse {
+export interface ComplaintPageResponse {
   items: ComplaintResponse[];
-  totalCount: number;
   page: number;
   pageSize: number;
-  totalPages: number;
-  pendingCount: number;
-  inProgressCount: number;
-  resolvedCount: number;
+  totalCount: number;
 }
 
+// Giữ alias tương thích nếu có import
+export type ComplaintListResponse = ComplaintPageResponse;

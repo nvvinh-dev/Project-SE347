@@ -5,6 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useUpdateComplaintHandling } from "@/hooks/useComplaints";
+import { toApiError } from "@/lib/axios";
 import type { ComplaintResponse } from "@/types/complaint";
 
 interface ComplaintHandlingModalProps {
@@ -36,22 +37,30 @@ export function ComplaintHandlingModal({
     register,
     handleSubmit,
     control,
+    clearErrors,
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
-      status: complaint.status === "Pending" ? "InProgress" : complaint.status,
+      status: complaint.status === "Resolved" ? "Resolved" : "InProgress",
       resolution: complaint.resolution ?? "",
     },
   });
 
+  const statusValue = useWatch({ control, name: "status" });
   const resolutionValue = useWatch({ control, name: "resolution" }) || "";
+
+  // Khi chuyển sang InProgress, xóa lỗi resolution nếu có
+  useEffect(() => {
+    if (statusValue === "InProgress") {
+      clearErrors("resolution");
+    }
+  }, [statusValue, clearErrors]);
 
   // Quản lý focus chuẩn a11y: khóa cuộn, bẫy Tab và khôi phục khi đóng
   const { containerRef } = useFocusTrap({
     isOpen,
     isLoading: updateMutation.isPending,
     onClose,
-    initialFocusRef: textareaRef,
   });
 
   // Khôi phục focus vào khung cảnh báo lỗi khi có lỗi từ máy chủ
@@ -76,26 +85,30 @@ export function ComplaintHandlingModal({
         id: complaint.id,
         data: {
           status: pendingValues.status,
-          resolution: pendingValues.resolution.trim(),
+          resolution:
+            pendingValues.status === "Resolved" ? pendingValues.resolution.trim() : null,
         },
       });
       setShowConfirm(false);
       onClose();
     } catch (err: unknown) {
       setShowConfirm(false);
-      const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi khi cập nhật phản ánh.";
-      setSubmitError(msg);
+      const apiError = toApiError(err);
+      setSubmitError(apiError.message);
     }
   };
 
+  const isResolved = statusValue === "Resolved";
+
   const { ref: formTextareaRef, ...textareaRest } = register("resolution", {
-    required: "Vui lòng nhập nội dung kết quả xử lý.",
     validate: (val) => {
-      if (!val || !val.trim()) {
-        return "Nội dung kết quả xử lý không được để trống.";
-      }
-      if (val.trim().length > 2000) {
-        return "Kết quả xử lý không được vượt quá 2000 ký tự.";
+      if (statusValue === "Resolved") {
+        if (!val || !val.trim()) {
+          return "Phản ánh đã xử lý xong phải kèm kết quả xử lý.";
+        }
+        if (val.trim().length > 2000) {
+          return "Kết quả xử lý không được dài quá 2000 ký tự.";
+        }
       }
       return true;
     },
@@ -121,7 +134,8 @@ export function ComplaintHandlingModal({
               </h2>
               <p className="text-xs text-muted mt-0.5 truncate">
                 Phản ánh của phụ huynh bé{" "}
-                <strong className="text-foreground">{complaint.child.fullName}</strong> ({complaint.child.className})
+                <strong className="text-foreground">{complaint.childFullName}</strong>{" "}
+                {complaint.className ? `(Lớp ${complaint.className})` : "(Chưa xếp lớp)"}
               </p>
             </div>
             <button
@@ -153,8 +167,9 @@ export function ComplaintHandlingModal({
           {/* Tóm tắt nội dung phản ánh gốc */}
           <div className="p-3.5 rounded-xl bg-background border border-border text-xs space-y-1.5">
             <div className="flex items-center justify-between text-muted flex-wrap gap-1">
-              <span>Phụ huynh: <strong>{complaint.parent.fullName}</strong></span>
-              <span>{complaint.parent.phone ? `SĐT: ${complaint.parent.phone}` : ""}</span>
+              <span>
+                Phụ huynh gửi: <strong>{complaint.submittedByFullName}</strong>
+              </span>
             </div>
             <p className="text-foreground italic break-words wrap-anywhere min-w-0">
               &quot;{complaint.content}&quot;
@@ -163,11 +178,11 @@ export function ComplaintHandlingModal({
 
           {/* Form */}
           <form onSubmit={handleSubmit(onPreSubmit)} className="space-y-4">
-            {/* Lựa chọn trạng thái xử lý */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
+            {/* Lựa chọn trạng thái xử lý có fieldset + legend chuẩn a11y */}
+            <fieldset className="space-y-1.5 border-0 p-0 m-0">
+              <legend className="text-xs font-semibold text-foreground mb-1.5">
                 Trạng thái xử lý <span className="text-danger">*</span>
-              </label>
+              </legend>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="flex items-center gap-2.5 p-3 min-h-11 rounded-xl border border-border bg-background cursor-pointer hover:border-info transition-all text-xs select-none">
                   <input
@@ -188,41 +203,55 @@ export function ComplaintHandlingModal({
                   <span className="font-medium text-foreground">Đã xử lý xong</span>
                 </label>
               </div>
-            </div>
+            </fieldset>
 
             {/* Nhập nội dung kết quả xử lý */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <label htmlFor="resolution-input" className="font-semibold text-foreground">
-                  Nội dung kết quả / biện pháp xử lý <span className="text-danger">*</span>
+                  Nội dung kết quả / biện pháp xử lý{" "}
+                  {isResolved ? <span className="text-danger">*</span> : null}
                 </label>
-                <span
-                  className={`text-[11px] ${
-                    resolutionValue.length > 2000 ? "text-danger font-bold" : "text-muted"
-                  }`}
-                >
-                  {resolutionValue.length}/2000
-                </span>
+                {isResolved ? (
+                  <span
+                    className={`text-[11px] ${
+                      resolutionValue.length > 2000 ? "text-danger font-bold" : "text-muted"
+                    }`}
+                  >
+                    {resolutionValue.length}/2000
+                  </span>
+                ) : null}
               </div>
-              <textarea
-                id="resolution-input"
-                rows={4}
-                maxLength={2000}
-                placeholder="Ghi rõ quá trình trao đổi với phụ huynh, giáo viên và phương án giải quyết..."
-                className={`w-full p-3 rounded-xl border bg-background text-xs text-foreground placeholder:text-muted focus:outline-hidden focus:ring-2 focus:ring-brand transition-all resize-y ${
-                  errors.resolution ? "border-danger focus:ring-danger" : "border-border"
-                }`}
-                {...textareaRest}
-                ref={(e) => {
-                  formTextareaRef(e);
-                  textareaRef.current = e;
-                }}
-              />
-              {errors.resolution ? (
-                <p className="text-[11px] text-danger font-medium mt-1">
-                  {errors.resolution.message}
-                </p>
-              ) : null}
+
+              {isResolved ? (
+                <>
+                  <textarea
+                    id="resolution-input"
+                    rows={4}
+                    maxLength={2000}
+                    placeholder="Ghi rõ quá trình trao đổi với phụ huynh, giáo viên và phương án giải quyết..."
+                    className={`w-full p-3 rounded-xl border bg-background text-xs text-foreground placeholder:text-muted focus:outline-hidden focus:ring-2 focus:ring-brand transition-all resize-y ${
+                      errors.resolution ? "border-danger focus:ring-danger" : "border-border"
+                    }`}
+                    {...textareaRest}
+                    ref={(e) => {
+                      formTextareaRef(e);
+                      textareaRef.current = e;
+                    }}
+                  />
+                  {errors.resolution ? (
+                    <p className="text-[11px] text-danger font-medium mt-1">
+                      {errors.resolution.message}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <div className="p-3 rounded-xl border border-dashed border-border bg-muted/10 text-xs text-muted">
+                  <p>
+                    Chỉ nhập kết quả khi chuyển sang <strong>Đã xử lý xong</strong> (backend không lưu kết quả ở bước Đang xử lý).
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -253,12 +282,25 @@ export function ComplaintHandlingModal({
         title="Xác nhận cập nhật xử lý phản ánh"
         description={
           <div className="space-y-2 text-xs text-muted">
-            <p>
-              Trạng thái phản ánh và kết quả xử lý sau khi xác nhận sẽ được ghi nhận chính thức vào hồ sơ điều hành của nhà trường.
-            </p>
-            <p className="font-semibold text-warning">
-              ⚠️ Bạn có chắc chắn muốn cập nhật trạng thái này không?
-            </p>
+            {pendingValues?.status === "Resolved" ? (
+              <>
+                <p>
+                  Bạn đang chuẩn bị chuyển phản ánh sang trạng thái <strong>Đã xử lý xong</strong> với kết quả xử lý đã nhập.
+                </p>
+                <p className="font-semibold text-danger">
+                  ⚠️ Lưu ý: Khi đã chuyển sang &quot;Đã xử lý xong&quot;, phản ánh sẽ được hoàn tất và KHÔNG THỂ chỉnh sửa hay thay đổi nội dung được nữa.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  Phản ánh sẽ được chuyển sang trạng thái <strong>Đang xử lý</strong> để ghi nhận việc Ban giám hiệu đang tiến hành giải quyết.
+                </p>
+                <p className="font-semibold text-foreground">
+                  Bạn có chắc chắn muốn cập nhật trạng thái này không?
+                </p>
+              </>
+            )}
           </div>
         }
         confirmText="Đồng ý cập nhật"

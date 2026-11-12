@@ -241,6 +241,71 @@ namespace NhaTre.Infrastructure.Migrations
                     b.ToTable("class_teachers", (string)null);
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.Complaint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("HandledByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("handled_by_user_id");
+
+                    b.Property<string>("Resolution")
+                        .HasColumnType("text")
+                        .HasColumnName("resolution");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("SubmittedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_complaints");
+
+                    b.HasIndex("ChildId")
+                        .HasDatabaseName("ix_complaints_child_id");
+
+                    b.HasIndex("HandledByUserId")
+                        .HasDatabaseName("ix_complaints_handled_by_user_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_complaints_status");
+
+                    b.HasIndex("SubmittedByUserId")
+                        .HasDatabaseName("ix_complaints_submitted_by_user_id");
+
+                    b.ToTable("complaints", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Complaint_Resolution", "status <> 'Resolved' OR (resolution IS NOT NULL AND resolution <> '')");
+
+                            t.HasCheckConstraint("CK_Complaint_Status", "status IN ('New', 'InProgress', 'Resolved')");
+                        });
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.GrowthMeasurement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1022,6 +1087,35 @@ namespace NhaTre.Infrastructure.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.Complaint", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Child", "Child")
+                        .WithMany()
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_complaints_children_child_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.User", "HandledByUser")
+                        .WithMany()
+                        .HasForeignKey("HandledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_complaints_users_handled_by_user_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.User", "SubmittedByUser")
+                        .WithMany()
+                        .HasForeignKey("SubmittedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_complaints_users_submitted_by_user_id");
+
+                    b.Navigation("Child");
+
+                    b.Navigation("HandledByUser");
+
+                    b.Navigation("SubmittedByUser");
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.GrowthMeasurement", b =>

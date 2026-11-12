@@ -1,16 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import { Pagination } from "@/components/ui/Pagination";
-import { SignedImage } from "@/components/ui/SignedImage";
 import { ComplaintHandlingModal } from "@/components/admin/complaints/ComplaintHandlingModal";
 import { useComplaints } from "@/hooks/useComplaints";
 import type { ComplaintResponse, ComplaintStatus } from "@/types/complaint";
 
-type FilterTab = "Pending" | "InProgress" | "Resolved" | "All";
+type FilterTab = "New" | "InProgress" | "Resolved" | "All";
 
 function formatVietnamTime(utcString: string) {
   try {
@@ -30,9 +28,9 @@ function formatVietnamTime(utcString: string) {
 
 function getStatusBadge(status: ComplaintStatus) {
   switch (status) {
-    case "Pending":
+    case "New":
       return {
-        label: "Mới tiếp nhận",
+        label: "Mới gửi",
         badgeClass: "bg-warning-bg text-warning border-warning-border",
         dotColor: "bg-warning",
       };
@@ -57,7 +55,10 @@ function getStatusBadge(status: ComplaintStatus) {
   }
 }
 
-function getClassBadge(className: string) {
+function getClassBadge(className: string | null) {
+  if (!className) {
+    return "bg-muted/10 text-muted border-border";
+  }
   const lower = className.toLowerCase();
   if (lower.includes("mầm")) {
     return "bg-brand-subtle text-brand-text border-brand-border";
@@ -69,15 +70,14 @@ function getClassBadge(className: string) {
 }
 
 export default function AdminComplaintsPage() {
-  const [activeTab, setActiveTab] = useState<FilterTab>("Pending");
+  const [activeTab, setActiveTab] = useState<FilterTab>("New");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintResponse | null>(null);
-  const [viewingPhotoUrl, setViewingPhotoUrl] = useState<string | null>(null);
 
   const pageSize = 10;
 
   const { data, isLoading, isError, error, refetch } = useComplaints({
-    status: activeTab,
+    status: activeTab === "All" ? undefined : activeTab,
     page: currentPage,
     pageSize,
   });
@@ -93,22 +93,8 @@ export default function AdminComplaintsPage() {
     setCurrentPage(Math.max(1, Math.min(newPage, totalPages)));
   };
 
-  const getTabCount = (tab: FilterTab): string => {
-    if (isLoading || isError || !data) return "—";
-    switch (tab) {
-      case "Pending":
-        return String(data.pendingCount ?? 0);
-      case "InProgress":
-        return String(data.inProgressCount ?? 0);
-      case "Resolved":
-        return String(data.resolvedCount ?? 0);
-      case "All":
-        return String(data.totalCount ?? 0);
-    }
-  };
-
   const tabs: { key: FilterTab; label: string }[] = [
-    { key: "Pending", label: "Mới" },
+    { key: "New", label: "Mới" },
     { key: "InProgress", label: "Đang xử lý" },
     { key: "Resolved", label: "Đã xử lý" },
     { key: "All", label: "Tất cả" },
@@ -122,30 +108,22 @@ export default function AdminComplaintsPage() {
         description="Tiếp nhận, theo dõi và phản hồi các ý kiến đóng góp, phản ánh của phụ huynh học sinh"
       />
 
-      {/* 2. Bộ lọc Tabs theo trạng thái */}
+      {/* 2. Bộ lọc Tabs theo trạng thái (không đếm số lượng do backend chỉ trả totalCount theo tab hiện tại) */}
       <div className="flex items-center gap-2 border-b border-border pb-1 overflow-x-auto select-none">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
-          const count = getTabCount(tab.key);
           return (
             <button
               key={tab.key}
               type="button"
               onClick={() => handleTabChange(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer min-h-11 ${
+              className={`px-4 py-2.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer min-h-11 ${
                 isActive
                   ? "bg-brand text-white shadow-2xs"
                   : "bg-card text-muted hover:text-foreground hover:bg-background border border-border"
               }`}
             >
-              <span>{tab.label}</span>
-              <span
-                className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                  isActive ? "bg-white/20 text-white" : "bg-background text-muted border border-border"
-                }`}
-              >
-                {count}
-              </span>
+              {tab.label}
             </button>
           );
         })}
@@ -180,7 +158,7 @@ export default function AdminComplaintsPage() {
             </div>
             <h3 className="text-sm font-bold text-foreground">Không có phản ánh nào</h3>
             <p className="text-xs text-muted max-w-sm mx-auto">
-              {activeTab === "Pending"
+              {activeTab === "New"
                 ? "Tuyệt vời! Hiện tại không có phản ánh mới nào đang chờ tiếp nhận."
                 : activeTab === "InProgress"
                   ? "Không có phản ánh nào đang trong quá trình xử lý."
@@ -201,8 +179,9 @@ export default function AdminComplaintsPage() {
             <div className="grid grid-cols-1 gap-4">
               {data.items.map((complaint: ComplaintResponse) => {
                 const statusBadge = getStatusBadge(complaint.status);
-                const classBadge = getClassBadge(complaint.child.className);
-                const initial = complaint.child.fullName?.charAt(0)?.toUpperCase() || "B";
+                const classBadge = getClassBadge(complaint.className);
+                const initial = complaint.childFullName?.charAt(0)?.toUpperCase() || "B";
+                const isResolved = complaint.status === "Resolved";
 
                 return (
                   <div
@@ -219,17 +198,17 @@ export default function AdminComplaintsPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-bold text-foreground truncate">
-                              Bé {complaint.child.fullName}
+                              Bé {complaint.childFullName}
                             </span>
                             <span
                               className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${classBadge}`}
                             >
-                              Lớp {complaint.child.className}
+                              {complaint.className ? `Lớp ${complaint.className}` : "Chưa xếp lớp"}
                             </span>
                           </div>
                           <p className="text-xs text-muted mt-0.5">
-                            Phụ huynh: <strong className="text-foreground">{complaint.parent.fullName}</strong>
-                            {complaint.parent.phone ? ` • SĐT: ${complaint.parent.phone}` : ""}
+                            Phụ huynh gửi:{" "}
+                            <strong className="text-foreground">{complaint.submittedByFullName}</strong>
                           </p>
                         </div>
                       </div>
@@ -243,7 +222,7 @@ export default function AdminComplaintsPage() {
                           <span>{statusBadge.label}</span>
                         </span>
                         <span className="text-[11px] text-muted whitespace-nowrap">
-                          {formatVietnamTime(complaint.createdAt)}
+                          {formatVietnamTime(complaint.createdAtUtc)}
                         </span>
                       </div>
                     </div>
@@ -257,84 +236,66 @@ export default function AdminComplaintsPage() {
                         <p className="whitespace-pre-wrap break-words wrap-anywhere">{complaint.content}</p>
                       </div>
 
-                      {/* Ảnh đính kèm nếu có */}
-                      {complaint.photoUrl ? (
-                        <div className="space-y-1.5">
-                          <p className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                            Hình ảnh đính kèm:
-                          </p>
-                          <div className="inline-block">
-                            <button
-                              type="button"
-                              onClick={() => setViewingPhotoUrl(complaint.photoUrl ?? null)}
-                              title="Bấm để xem ảnh phóng to"
-                              className="relative w-28 h-28 rounded-xl overflow-hidden border border-border hover:border-brand transition-all cursor-pointer block group min-h-11 min-w-11"
-                            >
-                              <SignedImage
-                                src={complaint.photoUrl}
-                                alt="Ảnh đính kèm phản ánh"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                              />
-                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-semibold transition-opacity">
-                                🔍 Xem ảnh
-                              </div>
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-
                       {/* Kết quả xử lý nếu đã có */}
                       {complaint.resolution ? (
                         <div className="p-4 rounded-xl bg-brand-subtle/40 border border-brand-border/60 text-xs space-y-1.5">
                           <div className="flex items-center justify-between text-brand-text font-bold text-[11px] uppercase tracking-wider flex-wrap gap-1">
-                            <span>Biện pháp & Kết quả xử lý:</span>
-                            {complaint.resolvedAt ? (
+                            <span>Biện pháp &amp; Kết quả xử lý:</span>
+                            {complaint.resolvedAtUtc ? (
                               <span className="text-[11px] font-medium text-muted lowercase">
-                                lúc {formatVietnamTime(complaint.resolvedAt)}
+                                lúc {formatVietnamTime(complaint.resolvedAtUtc)}
                               </span>
                             ) : null}
                           </div>
                           <p className="text-foreground whitespace-pre-wrap leading-relaxed break-words wrap-anywhere min-w-0">
                             {complaint.resolution}
                           </p>
-                          {complaint.resolvedByName ? (
-                            <p className="text-[11px] text-muted text-right pt-1 truncate">
-                              Người xử lý: <strong>{complaint.resolvedByName}</strong>
-                            </p>
-                          ) : null}
                         </div>
                       ) : null}
                     </div>
 
-                    {/* Footer Thẻ: Nút hành động */}
+                    {/* Footer Thẻ: Nút hành động (ẩn khi đã Resolved vì backend chặn 409) */}
                     <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedComplaint(complaint)}
-                        className={`inline-flex items-center gap-1.5 px-4 py-2 min-h-11 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                          complaint.status === "Pending"
-                            ? "bg-brand hover:bg-brand-hover text-white shadow-2xs"
-                            : "bg-background hover:bg-card border border-border text-foreground"
-                        }`}
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                        <span>
-                          {complaint.status === "Pending"
-                            ? "Tiếp nhận & Xử lý"
-                            : "Cập nhật kết quả"}
+                      {isResolved ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-brand">
+                          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span>Đã hoàn tất xử lý</span>
                         </span>
-                      </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedComplaint(complaint)}
+                          className={`inline-flex items-center gap-1.5 px-4 py-2 min-h-11 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                            complaint.status === "New"
+                              ? "bg-brand hover:bg-brand-hover text-white shadow-2xs"
+                              : "bg-background hover:bg-card border border-border text-foreground"
+                          }`}
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                          <span>
+                            {complaint.status === "New"
+                              ? "Tiếp nhận & Xử lý"
+                              : "Cập nhật kết quả"}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -364,41 +325,6 @@ export default function AdminComplaintsPage() {
           isOpen={true}
           onClose={() => setSelectedComplaint(null)}
         />
-      ) : null}
-
-      {/* 5. Modal Phóng To Xem Ảnh */}
-      {viewingPhotoUrl ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-200"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Xem ảnh phóng to"
-          onClick={() => setViewingPhotoUrl(null)}
-        >
-          <div
-            className="relative max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden bg-card border border-border shadow-2xl p-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setViewingPhotoUrl(null)}
-              aria-label="Đóng xem ảnh"
-              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors cursor-pointer min-h-11 min-w-11"
-            >
-              ✕
-            </button>
-            <div className="relative max-h-[80vh] flex items-center justify-center">
-              <Image
-                src={viewingPhotoUrl}
-                alt="Ảnh phóng to"
-                width={800}
-                height={600}
-                unoptimized
-                className="max-h-[80vh] w-auto object-contain rounded-xl"
-              />
-            </div>
-          </div>
-        </div>
       ) : null}
     </div>
   );

@@ -9,6 +9,7 @@ public class NotificationRepository : INotificationRepository
 {
     private static readonly short MedicalRoleId = Roles.ToRoleId(Roles.Medical);
     private static readonly short ParentRoleId = Roles.ToRoleId(Roles.Parent);
+    private static readonly short AdminRoleId = Roles.ToRoleId(Roles.Admin);
 
     private readonly AppDbContext _dbContext;
 
@@ -46,6 +47,20 @@ public class NotificationRepository : INotificationRepository
 
     public Task<IReadOnlyList<Guid>> GetActiveParentIdsAsync()
         => GetActiveUserIdsByRoleAsync(ParentRoleId);
+
+    public Task<IReadOnlyList<Guid>> GetActiveAdminIdsAsync()
+        => GetActiveUserIdsByRoleAsync(AdminRoleId);
+
+    // Người gửi phản ánh có thể đã bị vô hiệu hóa, đổi vai trò hoặc bị gỡ liên kết với trẻ trước khi
+    // phản ánh được xử lý xong; cùng điều kiện với GetActiveParentIdsOfChildAsync
+    public async Task<bool> IsActiveGuardianOfChildAsync(Guid userId, Guid childId)
+    {
+        return await _dbContext.ChildGuardians
+            .AnyAsync(cg => cg.ChildId == childId
+                && cg.GuardianUserId == userId
+                && cg.GuardianUser.IsActive
+                && cg.GuardianUser.RoleId == ParentRoleId);
+    }
 
     public void AddRange(IEnumerable<Notification> notifications)
     {

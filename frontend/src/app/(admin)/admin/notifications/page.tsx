@@ -5,37 +5,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import { Pagination } from "@/components/ui/Pagination";
 import { useNotifications } from "@/hooks/useNotifications";
-import type { NotificationResponse } from "@/types/notification";
-
-function getNotificationCategory(message: string) {
-  const lower = message.toLowerCase();
-  if (lower.includes("sự cố") || lower.includes("tai nạn") || lower.includes("y tế")) {
-    return {
-      icon: "🩺",
-      badgeText: "Sự cố y tế",
-      badgeClass: "bg-danger-bg text-danger border-danger-border",
-    };
-  }
-  if (lower.includes("phản ánh") || lower.includes("ý kiến") || lower.includes("đóng góp")) {
-    return {
-      icon: "💬",
-      badgeText: "Ý kiến phụ huynh",
-      badgeClass: "bg-info-bg text-info-text border-info-border",
-    };
-  }
-  if (lower.includes("nghỉ học") || lower.includes("thông báo nghỉ")) {
-    return {
-      icon: "📢",
-      badgeText: "Nghỉ học",
-      badgeClass: "bg-warning-bg text-warning border-warning-border",
-    };
-  }
-  return {
-    icon: "🔔",
-    badgeText: "Hệ thống",
-    badgeClass: "bg-brand-subtle text-brand-text border-brand-border",
-  };
-}
+import type { NotificationResponse } from "@/types/notifications";
 
 function formatVietnamTime(utcString: string) {
   try {
@@ -73,7 +43,7 @@ export default function AdminNotificationsPage() {
       {/* 1. Header trang thông báo */}
       <PageHeader
         title="Thông báo hệ thống"
-        description="Danh sách thông báo, cảnh báo sự cố và cập nhật điều hành gửi đến Ban giám hiệu"
+        description="Danh sách thông báo in-app gửi đến Ban giám hiệu (FR-NOTI-04)"
       />
 
       {/* 2. Nội dung danh sách thông báo */}
@@ -101,7 +71,7 @@ export default function AdminNotificationsPage() {
         ) : !data || data.items.length === 0 ? (
           <div className="p-12 text-center bg-card rounded-2xl border border-border shadow-2xs space-y-3">
             <div className="w-12 h-12 mx-auto rounded-full bg-brand-subtle text-brand flex items-center justify-center text-xl">
-              ✨
+              🔔
             </div>
             <h3 className="text-sm font-bold text-foreground">Hộp thư thông báo đang trống</h3>
             <p className="text-xs text-muted max-w-sm mx-auto">
@@ -119,29 +89,39 @@ export default function AdminNotificationsPage() {
 
             <div className="space-y-2.5">
               {data.items.map((item: NotificationResponse) => {
-                const category = getNotificationCategory(item.message);
                 return (
                   <div
                     key={item.id}
-                    className="p-4 sm:p-5 rounded-2xl bg-card border border-border hover:border-brand-border/60 hover:shadow-2xs transition-all space-y-2"
+                    className="p-4 sm:p-5 rounded-2xl bg-card border border-border hover:border-brand-border/60 hover:shadow-2xs transition-all flex items-start gap-3.5"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-lg shrink-0">{category.icon}</span>
-                        <span
-                          className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${category.badgeClass}`}
-                        >
-                          {category.badgeText}
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-muted shrink-0 whitespace-nowrap">
-                        {formatVietnamTime(item.createdAtUtc)}
-                      </span>
+                    <div className="w-9 h-9 rounded-xl bg-brand-subtle text-brand flex items-center justify-center text-base shrink-0 mt-0.5">
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                      </svg>
                     </div>
 
-                    <p className="text-xs sm:text-sm text-foreground font-medium leading-relaxed pl-7 break-words wrap-anywhere min-w-0">
-                      {item.message}
-                    </p>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-foreground">
+                          Thông báo điều hành
+                        </span>
+                        <span className="text-[11px] text-muted whitespace-nowrap">
+                          {formatVietnamTime(item.createdAtUtc)}
+                        </span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-foreground leading-relaxed break-words wrap-anywhere min-w-0">
+                        {item.message}
+                      </p>
+                    </div>
                   </div>
                 );
               })}
