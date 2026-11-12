@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignHomeroomTeacher } from "@/hooks/useClasses";
 import { useUsers } from "@/hooks/useUsers";
@@ -14,18 +15,19 @@ interface AssignHomeroomTeacherModalProps {
   onSuccess: (message: string) => void;
 }
 
+interface AssignHomeroomTeacherFormValues {
+  teacherId: string;
+}
+
 export function AssignHomeroomTeacherModal({
   classInfo,
   isOpen,
   onClose,
   onSuccess,
 }: AssignHomeroomTeacherModalProps) {
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(
-    classInfo?.homeroomTeacher?.userId ?? ""
-  );
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const selectRef = useRef<HTMLSelectElement>(null);
+  const selectRef = useRef<HTMLSelectElement | null>(null);
   const assignMutation = useAssignHomeroomTeacher();
   const {
     data: users = [],
@@ -38,6 +40,29 @@ export function AssignHomeroomTeacherModal({
   // Lọc danh sách giáo viên đang hoạt động (role === "Teacher" và isActive === true)
   const activeTeachers = users.filter((u) => u.role === "Teacher" && u.isActive);
 
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<AssignHomeroomTeacherFormValues>({
+    defaultValues: {
+      teacherId: classInfo?.homeroomTeacher?.userId ?? "",
+    },
+  });
+
+  const selectedTeacherId = watch("teacherId");
+  const currentTeacherId = classInfo?.homeroomTeacher?.userId;
+
+  // Cập nhật lại giá trị mặc định khi classInfo thay đổi hoặc mở modal
+  useEffect(() => {
+    if (isOpen && classInfo) {
+      reset({ teacherId: classInfo.homeroomTeacher?.userId ?? "" });
+      setServerError(null);
+    }
+  }, [isOpen, classInfo, reset]);
+
   const { containerRef } = useFocusTrap({
     isOpen,
     isLoading: assignMutation.isPending,
@@ -47,18 +72,15 @@ export function AssignHomeroomTeacherModal({
 
   if (!isOpen || !classInfo) return null;
 
-  const currentTeacherId = classInfo.homeroomTeacher?.userId;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: AssignHomeroomTeacherFormValues) => {
     setServerError(null);
 
-    if (!selectedTeacherId) {
+    if (!values.teacherId) {
       setServerError("Vui lòng chọn giáo viên để phân công làm chủ nhiệm.");
       return;
     }
 
-    if (selectedTeacherId === currentTeacherId) {
+    if (values.teacherId === currentTeacherId) {
       setServerError("Giáo viên này đã là giáo viên chủ nhiệm của lớp.");
       return;
     }
@@ -67,13 +89,13 @@ export function AssignHomeroomTeacherModal({
       const updatedClass = await assignMutation.mutateAsync({
         classId: classInfo.id,
         data: {
-          teacherUserId: selectedTeacherId,
+          teacherUserId: values.teacherId,
         },
       });
 
       const teacherName =
         updatedClass.homeroomTeacher?.fullName ??
-        activeTeachers.find((t) => t.id === selectedTeacherId)?.fullName ??
+        activeTeachers.find((t) => t.id === values.teacherId)?.fullName ??
         "giáo viên";
 
       onSuccess(`Đã phân công ${teacherName} làm chủ nhiệm ${classInfo.name} thành công.`);
@@ -83,6 +105,15 @@ export function AssignHomeroomTeacherModal({
       setServerError(apiErr.message);
     }
   };
+
+  const { ref: registerSelectRef, ...restSelectRegister } = register("teacherId", {
+    required: "Vui lòng chọn giáo viên để phân công làm chủ nhiệm.",
+    validate: (val) => {
+      if (!val) return "Vui lòng chọn giáo viên để phân công làm chủ nhiệm.";
+      if (val === currentTeacherId) return "Giáo viên này đã là giáo viên chủ nhiệm của lớp.";
+      return true;
+    },
+  });
 
   return (
     <div
@@ -125,7 +156,7 @@ export function AssignHomeroomTeacherModal({
         </div>
 
         {/* Thân biểu mẫu cuộn được */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Thông tin lớp học hiện tại */}
           <div className="p-3.5 rounded-2xl bg-[#F8F8F9] border border-border space-y-2 text-xs">
             <div className="flex justify-between items-center">
@@ -167,10 +198,13 @@ export function AssignHomeroomTeacherModal({
               <>
                 <select
                   id="teacher-select"
-                  ref={selectRef}
-                  value={selectedTeacherId}
+                  {...restSelectRegister}
+                  ref={(e) => {
+                    registerSelectRef(e);
+                    selectRef.current = e;
+                  }}
                   onChange={(e) => {
-                    setSelectedTeacherId(e.target.value);
+                    restSelectRegister.onChange(e);
                     setServerError(null);
                   }}
                   disabled={assignMutation.isPending || isLoadingUsers}
@@ -200,6 +234,12 @@ export function AssignHomeroomTeacherModal({
                     );
                   })}
                 </select>
+
+                {errors.teacherId && (
+                  <p className="text-[11px] text-danger font-medium mt-1">
+                    {errors.teacherId.message}
+                  </p>
+                )}
 
                 {!isLoadingUsers && activeTeachers.length === 0 && (
                   <p className="text-[11px] text-muted italic">
