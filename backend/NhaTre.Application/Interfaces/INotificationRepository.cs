@@ -9,7 +9,7 @@ public interface INotificationRepository
     Task<IReadOnlyList<Guid>> GetActiveMedicalUserIdsAsync();
     Task<IReadOnlyList<Guid>> GetActiveParentIdsAsync();
     Task<IReadOnlyList<Guid>> GetActiveAdminIdsAsync();
-    Task<bool> IsActiveParentAsync(Guid userId);
+    Task<bool> IsActiveGuardianOfChildAsync(Guid userId, Guid childId);
     void AddRange(IEnumerable<Notification> notifications);
     Task SaveChangesAsync();
 

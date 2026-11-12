@@ -51,11 +51,15 @@ public class NotificationRepository : INotificationRepository
     public Task<IReadOnlyList<Guid>> GetActiveAdminIdsAsync()
         => GetActiveUserIdsByRoleAsync(AdminRoleId);
 
-    // Người gửi phản ánh có thể đã bị vô hiệu hóa hoặc đổi vai trò trước khi phản ánh được xử lý xong
-    public async Task<bool> IsActiveParentAsync(Guid userId)
+    // Người gửi phản ánh có thể đã bị vô hiệu hóa, đổi vai trò hoặc bị gỡ liên kết với trẻ trước khi
+    // phản ánh được xử lý xong; cùng điều kiện với GetActiveParentIdsOfChildAsync
+    public async Task<bool> IsActiveGuardianOfChildAsync(Guid userId, Guid childId)
     {
-        return await _dbContext.Users
-            .AnyAsync(u => u.Id == userId && u.IsActive && u.RoleId == ParentRoleId);
+        return await _dbContext.ChildGuardians
+            .AnyAsync(cg => cg.ChildId == childId
+                && cg.GuardianUserId == userId
+                && cg.GuardianUser.IsActive
+                && cg.GuardianUser.RoleId == ParentRoleId);
     }
 
     public void AddRange(IEnumerable<Notification> notifications)

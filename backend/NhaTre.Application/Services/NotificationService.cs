@@ -52,10 +52,10 @@ public class NotificationService : INotificationService
         await SaveAsync(recipientIds, message);
     }
 
-    public async Task NotifyParentAsync(Guid parentUserId, string message)
+    public async Task NotifyGuardianOfChildAsync(Guid parentUserId, Guid childId, string message)
     {
         EnsureMessage(message);
-        if (!await _notificationRepository.IsActiveParentAsync(parentUserId))
+        if (!await _notificationRepository.IsActiveGuardianOfChildAsync(parentUserId, childId))
             return;
 
         await SaveAsync([parentUserId], message);

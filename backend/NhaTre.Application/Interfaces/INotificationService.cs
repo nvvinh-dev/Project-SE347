@@ -19,8 +19,9 @@ public interface INotificationService
     // Chỉ phản ánh mới (FR-COMPLAINT-01, FR-NOTI-04)
     Task NotifyActiveAdminsAsync(string message);
     // Phản ánh đã xử lý xong (FR-COMPLAINT-02) → phụ huynh đã gửi; bỏ qua nếu tài khoản đã bị vô
-    // hiệu hóa hoặc không còn là Phụ huynh
-    Task NotifyParentAsync(Guid parentUserId, string message);
+    // hiệu hóa, không còn là Phụ huynh hoặc đã bị gỡ liên kết với trẻ (phạm vi tính lại theo
+    // child_guardians hiện tại — D39 mục 16)
+    Task NotifyGuardianOfChildAsync(Guid parentUserId, Guid childId, string message);
 
     // FR-NOTI-03: Kế toán phát thông báo nghỉ học tới mọi tài khoản Phụ huynh đang hoạt động
     Task<SchoolClosureResponse> BroadcastSchoolClosureAsync(SchoolClosureRequest request);

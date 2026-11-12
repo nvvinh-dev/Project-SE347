@@ -93,7 +93,7 @@ public class ComplaintService : IComplaintService
             var submitterId = await _complaintRepository.FindSubmitterIdAsync(id);
             if (submitterId is not null)
             {
-                await _notificationService.NotifyParentAsync(submitterId.Value,
+                await _notificationService.NotifyGuardianOfChildAsync(submitterId.Value, complaint.ChildId,
                     $"Phản ánh về bé {complaint.ChildFullName} đã được Ban giám hiệu xử lý xong. "
                     + "Phụ huynh xem kết quả trong mục phản ánh.");
             }
