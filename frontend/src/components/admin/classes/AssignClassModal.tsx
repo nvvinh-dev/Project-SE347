@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignClass } from "@/hooks/useClasses";
 import { calculateAgeInMonths, fitsAgeRange, formatDate, formatAgeFriendly } from "@/lib/classAge";
@@ -15,6 +16,10 @@ interface AssignClassModalProps {
   onSuccess: (message: string) => void;
 }
 
+interface AssignClassFormValues {
+  classSelection: string; // cls.id | "__REMOVE__" | ""
+}
+
 export function AssignClassModal({
   placement,
   classes,
@@ -22,13 +27,30 @@ export function AssignClassModal({
   onClose,
   onSuccess,
 }: AssignClassModalProps) {
-  // classId được chọn; null biểu thị hành động gỡ trẻ khỏi lớp
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(
-    placement?.classId ?? null
-  );
   const [serverError, setServerError] = useState<string | null>(null);
 
   const assignMutation = useAssignClass();
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+  } = useForm<AssignClassFormValues>({
+    defaultValues: {
+      classSelection: placement?.classId ?? "",
+    },
+  });
+
+  const selectedSelection = watch("classSelection");
+
+  // Đồng bộ lại form khi placement hoặc isOpen thay đổi
+  useEffect(() => {
+    if (isOpen && placement) {
+      reset({ classSelection: placement.classId ?? "" });
+      setServerError(null);
+    }
+  }, [isOpen, placement, reset]);
 
   const { containerRef } = useFocusTrap({
     isOpen,
@@ -46,14 +68,22 @@ export function AssignClassModal({
     fitsAgeRange(ageInMonths, c.minAgeMonths, c.maxAgeMonths)
   );
 
-  const isNoChange = selectedClassId === currentClassId;
+  const targetClassId =
+    selectedSelection === "__REMOVE__" || selectedSelection === ""
+      ? null
+      : selectedSelection;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const isNoChange = targetClassId === currentClassId;
+
+  const onSubmit = async (values: AssignClassFormValues) => {
     setServerError(null);
+    const resolvedClassId =
+      values.classSelection === "__REMOVE__" || values.classSelection === ""
+        ? null
+        : values.classSelection;
 
-    if (isNoChange) {
-      if (selectedClassId === null) {
+    if (resolvedClassId === currentClassId) {
+      if (resolvedClassId === null) {
         setServerError("Trẻ chưa được xếp lớp.");
       } else {
         setServerError("Trẻ đã ở lớp này.");
@@ -65,7 +95,7 @@ export function AssignClassModal({
       const updatedPlacement = await assignMutation.mutateAsync({
         childId: placement.childId,
         data: {
-          classId: selectedClassId,
+          classId: resolvedClassId,
         },
       });
 
@@ -81,6 +111,9 @@ export function AssignClassModal({
       setServerError(apiErr.message);
     }
   };
+
+  const isRemoving = targetClassId === null && placement.classId !== null;
+  const isClassSelectionRegister = register("classSelection");
 
   return (
     <div
@@ -123,7 +156,7 @@ export function AssignClassModal({
         </div>
 
         {/* Thân biểu mẫu cuộn được */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Thông tin trẻ (Tối thiểu theo AC-CLASS-04) */}
           <div className="p-4 rounded-2xl bg-[#F8F8F9] border border-border space-y-2.5 text-xs">
             <div className="flex items-center justify-between">
@@ -166,7 +199,7 @@ export function AssignClassModal({
                 </div>
               ) : (
                 classes.map((cls) => {
-                  const isSelected = selectedClassId === cls.id;
+                  const isSelected = targetClassId === cls.id;
                   const isCurrent = placement.classId === cls.id;
                   const fits = fitsAgeRange(ageInMonths, cls.minAgeMonths, cls.maxAgeMonths);
 
@@ -187,10 +220,11 @@ export function AssignClassModal({
                         <input
                           id={`class-radio-${cls.id}`}
                           type="radio"
-                          name="class-selection"
+                          value={cls.id}
+                          {...isClassSelectionRegister}
                           checked={isSelected}
-                          onChange={() => {
-                            setSelectedClassId(cls.id);
+                          onChange={(e) => {
+                            isClassSelectionRegister.onChange(e);
                             setServerError(null);
                           }}
                           className="w-4 h-4 text-brand focus:ring-brand"
@@ -232,7 +266,7 @@ export function AssignClassModal({
               {placement.classId && (
                 <label
                   htmlFor="class-radio-remove"
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${selectedClassId === null
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${isRemoving
                     ? "border-danger bg-danger-bg ring-1 ring-danger"
                     : "border-dashed border-border hover:border-danger/40 bg-card hover:bg-danger-bg/20"
                     }`}
@@ -241,10 +275,11 @@ export function AssignClassModal({
                     <input
                       id="class-radio-remove"
                       type="radio"
-                      name="class-selection"
-                      checked={selectedClassId === null}
-                      onChange={() => {
-                        setSelectedClassId(null);
+                      value="__REMOVE__"
+                      {...isClassSelectionRegister}
+                      checked={isRemoving}
+                      onChange={(e) => {
+                        isClassSelectionRegister.onChange(e);
                         setServerError(null);
                       }}
                       className="w-4 h-4 text-danger focus:ring-danger"
@@ -262,11 +297,11 @@ export function AssignClassModal({
           </div>
 
           {/* Gợi ý nếu chọn lớp không khớp độ tuổi */}
-          {selectedClassId !== null &&
+          {targetClassId !== null &&
             !fitsAgeRange(
               ageInMonths,
-              classes.find((c) => c.id === selectedClassId)?.minAgeMonths ?? null,
-              classes.find((c) => c.id === selectedClassId)?.maxAgeMonths ?? null
+              classes.find((c) => c.id === targetClassId)?.minAgeMonths ?? null,
+              classes.find((c) => c.id === targetClassId)?.maxAgeMonths ?? null
             ) && (
               <div className="p-3 rounded-xl bg-[#FFF9E6] border border-[#FFF3DD] text-[11px] text-[#7A5B00] flex items-start gap-2">
                 <span className="shrink-0 mt-0.5">💡</span>
@@ -302,10 +337,10 @@ export function AssignClassModal({
               disabled={
                 assignMutation.isPending ||
                 isNoChange ||
-                (placement.classId === null && selectedClassId === null)
+                (placement.classId === null && targetClassId === null)
               }
               className={`px-5 py-2 rounded-full text-xs font-bold text-white shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 ${
-                selectedClassId === null && placement.classId !== null
+                isRemoving
                   ? "bg-danger hover:bg-danger-hover"
                   : "bg-brand hover:bg-brand-hover"
               }`}
@@ -315,7 +350,7 @@ export function AssignClassModal({
                   <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   <span>Đang xử lý...</span>
                 </>
-              ) : selectedClassId === null && placement.classId !== null ? (
+              ) : isRemoving ? (
                 <span>Xác nhận gỡ lớp</span>
               ) : (
                 <span>Xác nhận xếp lớp</span>
