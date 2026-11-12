@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NhaTre.Application.DTOs.Media;
 using NhaTre.Application.Interfaces;
 using NhaTre.Domain.Entities;
 
@@ -11,6 +12,21 @@ public class MediaRepository : IMediaRepository
     public MediaRepository(AppDbContext dbContext)
     {
         _dbContext = dbContext;
+    }
+
+    // Cùng biểu thức phạm vi với FindHomeroomClassAsync bên dưới, không viết lại điều kiện GVCN hay giáo viên phụ.
+    // Chiếu thẳng sang DTO nên câu SQL chỉ đọc id và tên (D45). Xếp theo nhóm tuổi như ClassRepository.GetAllAsync
+    // (Mầm, Chồi, Lá); OrderBy đặt trước Select vì EF không dịch được OrderBy trên record đã dựng
+    public async Task<IReadOnlyList<HomeroomClassResponse>> GetHomeroomClassesAsync(Guid teacherUserId)
+    {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
+        return await _dbContext.Classes
+            .AsNoTracking()
+            .Where(c => scope.Contains((Guid?)c.Id))
+            .OrderBy(c => c.MinAgeMonths)
+            .Select(c => new HomeroomClassResponse(c.Id, c.Name))
+            .ToListAsync();
     }
 
     // Phạm vi nằm ngay trong câu truy vấn, cùng cách với sự cố: lớp không do mình phụ trách không khớp.

@@ -1,9 +1,14 @@
+using NhaTre.Application.DTOs.Media;
 using NhaTre.Domain.Entities;
 
 namespace NhaTre.Application.Interfaces;
 
 public interface IMediaRepository
 {
+    // Các lớp tài khoản này phụ trách (GVCN hoặc giáo viên phụ, D40 mục 2), xếp theo nhóm tuổi như GET api/classes.
+    // Chỉ đọc id và tên (D45). Chưa phụ trách lớp nào thì danh sách rỗng
+    Task<IReadOnlyList<HomeroomClassResponse>> GetHomeroomClassesAsync(Guid teacherUserId);
+
     // Lớp chỉ khi tài khoản này phụ trách (GVCN hoặc giáo viên phụ, D40 mục 2). null khi lớp không tồn tại hoặc
     // tài khoản này không phụ trách
     Task<Class?> FindHomeroomClassAsync(Guid classId, Guid teacherUserId);

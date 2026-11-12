@@ -9,10 +9,11 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace NhaTre.API.Controllers;
 
-// Module Ảnh hoạt động gồm hai tài nguyên: ảnh của lớp (classes/{classId}/activity-photos, giáo viên chia sẻ)
-// và ảnh theo con của phụ huynh (children/{childId}/activity-photos), nên route gốc của Controller là api/ và
-// mỗi action tự ghi tên tài nguyên. Hai vai trò dùng chung nên Roles gắn theo từng action; [Authorize] ở mức
-// class để action nào quên gắn Roles vẫn bắt đăng nhập: Program.cs không có fallback policy.
+// Module Ảnh hoạt động gồm ba tài nguyên: lớp mình phụ trách (homeroom-classes, giáo viên chọn lớp), ảnh của lớp
+// (classes/{classId}/activity-photos, giáo viên chia sẻ) và ảnh theo con của phụ huynh
+// (children/{childId}/activity-photos), nên route gốc của Controller là api/ và mỗi action tự ghi tên tài nguyên.
+// Hai vai trò dùng chung nên Roles gắn theo từng action; [Authorize] ở mức class để action nào quên gắn Roles
+// vẫn bắt đăng nhập: Program.cs không có fallback policy.
 // FR-MEDIA-01: chỉ Giáo viên chia sẻ ảnh (BR-MEDIA-01), và chỉ cho lớp mình phụ trách (BR-MEDIA-03, D40 mục 2).
 // Ảnh đã chia sẻ không sửa, không xóa.
 // FR-MEDIA-02: Phụ huynh chỉ xem ảnh của lớp con mình đang học (child_guardians, BR-MEDIA-02, D39 mục 10).
@@ -37,6 +38,17 @@ public class MediaController : ControllerBase
         _mediaService = mediaService;
         _shareActivityPhotosValidator = shareActivityPhotosValidator;
         _activityPhotoListQueryValidator = activityPhotoListQueryValidator;
+    }
+
+    // Các lớp mình phụ trách (GVCN hoặc giáo viên phụ, D40 mục 2), mỗi lớp chỉ có id và tên (D45). Màn hình chia
+    // sẻ ảnh dùng danh sách này để chọn lớp và lấy classId cho route bên dưới. Xếp theo nhóm tuổi như
+    // GET api/classes, không phân trang; chưa được gán lớp nào thì danh sách rỗng
+    [HttpGet("homeroom-classes")]
+    [Authorize(Roles = Roles.Teacher)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<HomeroomClassResponse>>>> GetHomeroomClasses()
+    {
+        var result = await _mediaService.GetHomeroomClassesAsync(CurrentUserId());
+        return Ok(ApiResponse<IReadOnlyList<HomeroomClassResponse>>.Ok(result));
     }
 
     // Multipart: 1–5 ảnh ở trường photos (D39 mục 5). Trả các ảnh vừa chia sẻ kèm URL ký hạn 60 phút (D53).
