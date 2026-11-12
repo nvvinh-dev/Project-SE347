@@ -24,6 +24,7 @@ export const parentNav: NavItem[] = [
   { title: "Thực đơn tuần", href: "/parent/menu", icon: "menu" },
   { title: "Ảnh hoạt động", href: "/parent/photos", icon: "photos" },
   { title: "Hóa đơn học phí", href: "/parent/tuition", icon: "tuition" },
+  { title: "Phản ánh", href: "/parent/complaints", icon: "complaints" },
   { title: "Thông báo", href: "/parent/notifications", icon: "notifications" },
 ];
 
