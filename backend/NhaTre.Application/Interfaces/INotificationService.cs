@@ -4,7 +4,8 @@ namespace NhaTre.Application.Interfaces;
 
 // D39 mục 6: service duy nhất ghi bảng notifications. Module gọi tự soạn message
 // (câu tiếng Việt hoàn chỉnh — D25), lưu xong bản ghi của mình rồi gọi một trong
-// bốn nhóm người nhận dưới đây. Chỉ Phụ huynh và Y tế nhận thông báo (BR-NOTIFICATION-01).
+// các nhóm người nhận dưới đây. Chỉ Phụ huynh, Y tế và Admin nhận thông báo (BR-NOTIFICATION-01);
+// Admin chỉ nhận thông báo phản ánh mới.
 public interface INotificationService
 {
     // Hóa đơn mới hoặc hóa đơn unpaid được sửa (FR-TUITION-02); sự cố (FR-INCIDENT-01) hoặc sức khỏe nhanh (FR-HEALTH-01) mới
@@ -15,10 +16,17 @@ public interface INotificationService
     Task NotifyActiveMedicalUsersAsync(string message);
     // Thông báo nghỉ học (FR-NOTI-03); trả số phụ huynh đã nhận
     Task<int> NotifyActiveParentsAsync(string message);
+    // Chỉ phản ánh mới (FR-COMPLAINT-01, FR-NOTI-04)
+    Task NotifyActiveAdminsAsync(string message);
+    // Phản ánh đã xử lý xong (FR-COMPLAINT-02) → phụ huynh đã gửi; bỏ qua nếu tài khoản đã bị vô
+    // hiệu hóa, không còn là Phụ huynh hoặc đã bị gỡ liên kết với trẻ (phạm vi tính lại theo
+    // child_guardians hiện tại — D39 mục 16)
+    Task NotifyGuardianOfChildAsync(Guid parentUserId, Guid childId, string message);
 
     // FR-NOTI-03: Kế toán phát thông báo nghỉ học tới mọi tài khoản Phụ huynh đang hoạt động
     Task<SchoolClosureResponse> BroadcastSchoolClosureAsync(SchoolClosureRequest request);
 
-    // FR-NOTI-01, FR-NOTI-02: Phụ huynh và Y tế xem thông báo gửi cho chính mình (BR-NOTIFICATION-02)
+    // FR-NOTI-01, FR-NOTI-02, FR-NOTI-04: Phụ huynh, Y tế và Admin xem thông báo gửi cho chính mình
+    // (BR-NOTIFICATION-02)
     Task<NotificationPageResponse> GetMyNotificationsAsync(Guid recipientUserId, NotificationListQuery query);
 }
