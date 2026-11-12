@@ -116,7 +116,7 @@ nhóm chức năng đã có:
 | Thực đơn tuần | `/api/weekly-menus` | Kế toán, Phụ huynh |
 | Điểm danh vào lớp | `/api/attendances` | Giáo viên, Phụ huynh |
 | Đón về và người đón | `/api/pickups`, `/api/children/{id}/pickup-persons` | Giáo viên, Phụ huynh |
-| Sức khỏe và số đo | `/api/quick-health-statuses`, `/api/school-children`, `/api/children/{id}/health` | Giáo viên, Y tế, Phụ huynh |
+| Sức khỏe và số đo | `/api/quick-health-statuses`, `/api/homeroom-children`, `/api/school-children`, `/api/children/{id}/health` | Giáo viên, Y tế, Phụ huynh |
 | Sự cố | `/api/incidents` | Giáo viên, Y tế, Phụ huynh |
 | Ảnh hoạt động | `/api/classes/{id}/activity-photos`, `/api/children/{id}/activity-photos` | Giáo viên, Phụ huynh |
 | Thông báo | `/api/notifications` | Phụ huynh, Y tế, Admin, Kế toán |

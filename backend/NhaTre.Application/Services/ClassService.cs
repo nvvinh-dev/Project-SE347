@@ -11,7 +11,6 @@ namespace NhaTre.Application.Services;
 // Xếp lớp, gán giáo viên chủ nhiệm và giáo viên phụ không thuộc 8 sự kiện của security_events (D50)
 public class ClassService : IClassService
 {
-    // Tuổi tính tới ngày hôm nay theo giờ Việt Nam, không theo múi giờ của máy chủ
     private static readonly short TeacherRoleId = Roles.ToRoleId(Roles.Teacher);
 
     private readonly IClassRepository _classRepository;
@@ -136,6 +135,7 @@ public class ClassService : IClassService
         return new ClassPlacementResult(ClassOutcome.Success, child with { ClassId = null, ClassName = null });
     }
 
+    // Tuổi tính tới ngày hôm nay theo giờ Việt Nam, không theo múi giờ của máy chủ
     private static DateOnly TodayInVietnam()
         => VietnamTime.DateOf(DateTime.UtcNow);
 
