@@ -4,15 +4,19 @@ using NhaTre.Application.Interfaces;
 
 namespace NhaTre.Application.Services;
 
-// FR-DASH-02, FR-DASH-03: Thống kê số lượng trẻ và điểm danh cho Admin (D23, D39 mục 12)
+// FR-DASH-02, FR-DASH-03, FR-DASH-04: Thống kê số lượng trẻ, điểm danh và doanh thu cho Admin (D23, D39 mục 12)
 // AC-DASH-06, D40 mục 3, D45: Xử lý số liệu tổng hợp, tuyệt đối không lộ dữ liệu từng trẻ
 public class DashboardService : IDashboardService
 {
     private readonly IDashboardRepository _dashboardRepository;
+    private readonly ITuitionService _tuitionService;
 
-    public DashboardService(IDashboardRepository dashboardRepository)
+    public DashboardService(
+        IDashboardRepository dashboardRepository,
+        ITuitionService tuitionService)
     {
         _dashboardRepository = dashboardRepository;
+        _tuitionService = tuitionService;
     }
 
     public async Task<ChildrenStatisticsResponse> GetChildrenStatisticsAsync()
@@ -72,6 +76,21 @@ public class DashboardService : IDashboardService
             PresentRecords: presentRecords,
             OverallAttendanceRate: overallRate,
             Classes: classDtos
+        );
+    }
+
+    public async Task<RevenueStatisticsResponse> GetRevenueStatisticsAsync()
+    {
+        // Lấy số liệu qua ITuitionService.GetRevenueReportAsync() (FR-TUITION-03), không tự tính lại
+        // D39 mục 12: Kỳ báo cáo là tháng hiện tại, tổng thu trong tháng + số hóa đơn chưa thanh toán (unpaid)
+        var report = await _tuitionService.GetRevenueReportAsync();
+
+        return new RevenueStatisticsResponse(
+            Year: report.Year,
+            Month: report.Month,
+            TotalCollected: report.TotalCollected,
+            UnpaidInvoiceCount: report.UnpaidInvoiceCount,
+            GeneratedAtUtc: report.GeneratedAtUtc
         );
     }
 }

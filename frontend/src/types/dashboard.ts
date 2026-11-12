@@ -37,3 +37,11 @@ export interface AttendanceStatisticsResponse {
   overallAttendanceRate: number;
   classes: ClassAttendanceDto[];
 }
+
+export interface RevenueStatisticsResponse {
+  year: number;
+  month: number;
+  totalCollected: number;
+  unpaidInvoiceCount: number;
+  generatedAtUtc: string;
+}
