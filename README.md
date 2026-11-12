@@ -36,7 +36,16 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=...;Port=543
 dotnet user-secrets set "Jwt:Key" "<chuỗi ngẫu nhiên tối thiểu 32 ký tự>"
 ```
 
-Xin chuỗi kết nối từ lead. Không đưa hai giá trị này vào bất kỳ file nào trong repo.
+Các chức năng có ảnh (ảnh sự cố, ảnh hoạt động, ảnh người đón) cần thêm hai giá trị của Supabase Storage:
+
+```
+dotnet user-secrets set "Supabase:Url" "https://<mã-project>.supabase.co"
+dotnet user-secrets set "Supabase:ServiceKey" "<service key>"
+```
+
+Thiếu hai giá trị này thì ứng dụng vẫn chạy, chỉ những request đụng tới ảnh trả lỗi 500.
+
+Xin các giá trị trên từ lead. Không đưa giá trị nào vào bất kỳ file nào trong repo.
 
 Phía frontend, sao chép `frontend/.env.example` thành `frontend/.env.local`. Giá trị mặc
 định đã trỏ về `http://localhost:5015`, chỉ sửa nếu bạn đổi cổng backend.
@@ -92,10 +101,26 @@ Application phụ thuộc Domain. Domain không tham chiếu ngược lên lớp
 
 ## API hiện có
 
-| Phương thức | Đường dẫn | Mô tả |
+Danh sách đầy đủ, kèm tham số và kiểu dữ liệu, xem ở Swagger (`/swagger`) khi chạy backend. Các
+nhóm chức năng đã có:
+
+| Nhóm | Đường dẫn chính | Vai trò dùng |
 | --- | --- | --- |
-| POST | `/api/auth/login` | Đăng nhập, trả về token JWT |
-| GET | `/api/auth/me` | Thông tin người đang đăng nhập, cần token |
+| Đăng nhập, đăng xuất | `/api/auth` | Mọi vai trò |
+| Tài khoản và vai trò | `/api/users` | Admin |
+| Lớp, xếp lớp, giáo viên phụ trách | `/api/classes`, `/api/class-placements` | Admin |
+| Thống kê | `/api/dashboard` | Admin |
+| Hồ sơ trẻ, liên kết phụ huynh | `/api/children`, `/api/parent-accounts` | Kế toán, Phụ huynh |
+| Hồ sơ giáo viên | `/api/teachers`, `/api/teacher-accounts` | Kế toán |
+| Học phí, hóa đơn, doanh thu | `/api/tuition-fees`, `/api/invoices`, `/api/revenue-reports` | Kế toán, Phụ huynh |
+| Thực đơn tuần | `/api/weekly-menus` | Kế toán, Phụ huynh |
+| Điểm danh vào lớp | `/api/attendances` | Giáo viên, Phụ huynh |
+| Đón về và người đón | `/api/pickups`, `/api/children/{id}/pickup-persons` | Giáo viên, Phụ huynh |
+| Sức khỏe và số đo | `/api/quick-health-statuses`, `/api/homeroom-children`, `/api/school-children`, `/api/children/{id}/health` | Giáo viên, Y tế, Phụ huynh |
+| Sự cố | `/api/incidents` | Giáo viên, Y tế, Phụ huynh |
+| Ảnh hoạt động | `/api/classes/{id}/activity-photos`, `/api/children/{id}/activity-photos` | Giáo viên, Phụ huynh |
+| Thông báo | `/api/notifications` | Phụ huynh, Y tế, Admin, Kế toán |
+| Phản ánh | `/api/complaints`, `/api/children/{id}/complaints` | Phụ huynh, Admin |
 
 Mọi response đều theo chung một khuôn, kể cả khi lỗi:
 

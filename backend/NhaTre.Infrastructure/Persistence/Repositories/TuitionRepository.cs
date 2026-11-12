@@ -48,6 +48,7 @@ public class TuitionRepository : ITuitionRepository
 
         return await query
             .OrderByDescending(i => i.IssuedAt)
+            .ThenBy(i => i.Id)
             .ToListAsync();
     }
 
