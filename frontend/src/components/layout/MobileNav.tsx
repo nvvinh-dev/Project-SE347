@@ -12,9 +12,11 @@ interface MobileNavProps {
   userName: string;
   onLogout: () => Promise<void>;
   notificationsHref?: string;
+  /** Nút thông báo do màn hình cung cấp; mặc định giữ liên kết thông báo hiện có. */
+  notificationSlot?: React.ReactNode;
 }
 
-export function MobileNav({ items, roleLabel, userName, onLogout, notificationsHref }: MobileNavProps) {
+export function MobileNav({ items, roleLabel, userName, onLogout, notificationsHref, notificationSlot }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
@@ -38,7 +40,7 @@ export function MobileNav({ items, roleLabel, userName, onLogout, notificationsH
           <span className="text-[10px] font-semibold bg-brand-subtle text-brand-text px-2 py-0.5 rounded-full border border-brand-border">{roleLabel}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          {notificationsHref && (
+          {notificationSlot ?? (notificationsHref && (
             <Link
               href={notificationsHref}
               className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-background text-muted hover:text-brand-text transition-colors cursor-pointer"
@@ -48,7 +50,7 @@ export function MobileNav({ items, roleLabel, userName, onLogout, notificationsH
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             </Link>
-          )}
+          ))}
           <button
             onClick={() => setOpen(!open)}
             className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-background text-foreground transition-colors cursor-pointer"
