@@ -21,6 +21,13 @@ public class MediaService : IMediaService
         _childGuardianRepository = childGuardianRepository;
     }
 
+    // Danh sách lớp để màn hình chia sẻ ảnh (FR-MEDIA-01) chọn lớp rồi gửi classId. Phạm vi lớp phụ trách và thứ tự
+    // nằm ngay trong truy vấn; giáo viên chưa được gán lớp nào thì danh sách rỗng, không phải 404
+    public async Task<IReadOnlyList<HomeroomClassResponse>> GetHomeroomClassesAsync(Guid teacherUserId)
+    {
+        return await _mediaRepository.GetHomeroomClassesAsync(teacherUserId);
+    }
+
     // FR-MEDIA-01, AC-MEDIA-01. Validator đã kiểm số lượng, định dạng và dung lượng ảnh. Lớp không tồn tại hay
     // không phải lớp mình → 404 (AC-MEDIA-03), kiểm trước khi upload nên không file nào lên Storage. Người tải
     // lên và thời điểm do backend quyết định (D44 mục 2); các ảnh của một lần chia sẻ cùng một thời điểm
