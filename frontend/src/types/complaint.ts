@@ -29,8 +29,6 @@ export interface HandleComplaintRequest {
   resolution?: string | null;
 }
 
-export type ComplaintHandlingRequest = HandleComplaintRequest;
-
 export interface ComplaintListQuery {
   status?: ComplaintStatus;
   page?: number;
@@ -43,6 +41,3 @@ export interface ComplaintPageResponse {
   pageSize: number;
   totalCount: number;
 }
-
-// Giữ alias tương thích nếu có import
-export type ComplaintListResponse = ComplaintPageResponse;

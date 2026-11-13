@@ -41,7 +41,7 @@ export function ComplaintHandlingModal({
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
-      status: complaint.status === "Resolved" ? "Resolved" : "InProgress",
+      status: complaint.status === "New" ? "InProgress" : "Resolved",
       resolution: complaint.resolution ?? "",
     },
   });
@@ -248,7 +248,7 @@ export function ComplaintHandlingModal({
               ) : (
                 <div className="p-3 rounded-xl border border-dashed border-border bg-muted/10 text-xs text-muted">
                   <p>
-                    Chỉ nhập kết quả khi chuyển sang <strong>Đã xử lý xong</strong> (backend không lưu kết quả ở bước Đang xử lý).
+                    Kết quả chỉ được ghi khi phản ánh đã xử lý xong.
                   </p>
                 </div>
               )}
