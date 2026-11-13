@@ -10,14 +10,10 @@ import { Input } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
 import { Select } from "@/components/ui/Select";
 import { StatusMessage } from "@/components/ui/StatusMessage";
-import { useNotifications } from "./_lib/useNotifications";
-import { formatIncidentNotification, notificationPlainText } from "./_lib/formatIncidentNotification";
+import { useNotifications } from "@/hooks/useNotifications";
+import { formatIncidentNotification } from "./_lib/formatIncidentNotification";
 
 const timeFormatter = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-const localDateFormatter = new Intl.DateTimeFormat("vi-VN", {
-  day: "2-digit", month: "2-digit", year: "numeric",
-  hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-});
 const dayFormatter = new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit", month: "2-digit", year: "numeric",
 });
@@ -45,7 +41,7 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
   const receivedDate = useWatch({ control, name: "receivedDate" }) ?? "";
   const searchField = register("search");
   const dateField = register("receivedDate");
-  const query = useNotifications(currentPage, 20);
+  const query = useNotifications({ page: currentPage, pageSize: 20 });
   const data = query.data;
   const dateOptions = useMemo(() => {
     const days = new Map<string, string>();
@@ -56,10 +52,10 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
   }, [data?.items, receivedDate]);
   const filteredItems = useMemo(() => {
     const term = searchable(search.trim());
-    return (data?.items ?? []).filter((item) => (!term || searchable(notificationPlainText(item.message)).includes(term)) &&
+    return (data?.items ?? []).filter((item) => (!term || searchable(item.message).includes(term)) &&
       (!receivedDate || localDay(item.createdAtUtc) === receivedDate));
   }, [data?.items, search, receivedDate]);
-  const selected = filteredItems.find((item) => item.id === selectedId);
+  const selected = data?.items.find((item) => item.id === selectedId);
   const selectedFields = selected ? formatIncidentNotification(selected.message) : null;
   const hasFilters = Boolean(search.trim() || receivedDate);
   const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / data.pageSize)) : 1;
@@ -121,13 +117,12 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
                     {hasFilters && <p className="text-xs text-muted" aria-live="polite">{filteredItems.length} thông báo phù hợp</p>}
                     <ol className="grid min-w-0 gap-2.5">
                       {filteredItems.map((item) => {
-                        const fields = formatIncidentNotification(item.message);
                         return <li key={item.id}>
                         <article className="min-w-0">
-                          <Button variant="ghost" className={`w-full min-w-0 items-start rounded-xl border bg-card px-4! py-3! text-left shadow-xs ${selectedId === item.id
-                            ? "border-brand-border ring-1 ring-brand-border hover:bg-brand-subtle/50"
-                            : "border-border hover:border-brand-border hover:bg-brand-subtle/30"}`}
-                            data-notification-id={item.id} aria-pressed={selectedId === item.id} aria-label={`Xem thông báo nhận lúc ${localDateFormatter.format(new Date(item.createdAtUtc))}`}
+                          <Button variant="ghost" className={`w-full min-w-0 items-start rounded-xl border px-4! py-3! text-left shadow-xs active:bg-card focus:ring-0! focus-visible:ring-2! focus-visible:ring-border-hover ${selectedId === item.id
+                            ? "border-muted-light bg-background hover:border-muted-light hover:bg-background"
+                            : "border-border bg-card hover:border-border-hover hover:bg-background"}`}
+                            data-notification-id={item.id} aria-pressed={selectedId === item.id}
                             onClick={(event) => {
                               selectedButtonRef.current = event.currentTarget;
                               setSelectedId(item.id);
@@ -143,11 +138,11 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
                                   <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-warning-bg text-warning">
                                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 4h.01M10.3 3.9 2.6 17.2A2 2 0 004.3 20h15.4a2 2 0 001.7-2.8L13.7 3.9a2 2 0 00-3.4 0z" /></svg>
                                   </span>
-                                  <span className="min-w-0 break-words pt-1 text-sm font-semibold text-foreground [overflow-wrap:anywhere]">{fields ? fields.childName : "Thông báo sự cố"}</span>
+                                  <span className="min-w-0 break-words pt-1 text-sm font-semibold text-foreground [overflow-wrap:anywhere]">Thông báo sự cố</span>
                                 </span>
-                                <span className="shrink-0 pt-1 text-xs font-normal text-muted">{fields?.occurredAtLabel ?? "Chưa có thời điểm xảy ra"}</span>
+                                <span className="pt-1 text-xs font-normal text-muted">Nhận lúc <time dateTime={item.createdAtUtc}>{timeFormatter.format(new Date(item.createdAtUtc))} - {dayFormatter.format(new Date(item.createdAtUtc))}</time></span>
                               </span>
-                              <span className="line-clamp-2 whitespace-pre-wrap break-words text-sm font-normal leading-relaxed text-foreground [overflow-wrap:anywhere]">{fields ? fields.description : notificationPlainText(item.message)}</span>
+                              <span className="line-clamp-2 whitespace-pre-wrap break-words text-sm font-normal leading-relaxed text-foreground [overflow-wrap:anywhere]">{item.message}</span>
                             </span>
                           </Button>
                         </article>
@@ -155,7 +150,7 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
                     </ol>
                   </>}
 
-                <div aria-label="Tùy chọn phân trang" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none] focus-visible:outline-2 focus-visible:outline-brand">
+                <div className="max-w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none]">
                   <div className="flex w-full min-w-max items-center justify-between gap-3 py-2 text-xs text-muted">
                     <span className="shrink-0 whitespace-nowrap">Trang {data.page} / {totalPages}</span>
                     <Pagination className="shrink-0 flex-nowrap! justify-end! gap-0 py-0!" page={data.page} pageSize={data.pageSize}
@@ -178,29 +173,29 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
                 </div>
                 <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
                 <dl className="grid min-w-0 grid-cols-2 gap-4 border-b border-border bg-brand-subtle/30 p-4 sm:p-5">
-                  <div className="col-span-2 min-w-0">
-                    <dt className="sr-only">Trẻ liên quan</dt>
-                    <dd className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">{selectedFields?.childName ?? "Chưa có thông tin trẻ"}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="min-h-8 text-xs font-medium text-muted sm:min-h-0">Thời điểm xảy ra</dt>
-                    <dd className="mt-1 text-sm font-semibold text-foreground">{selectedFields?.occurredAtLabel ?? "Chưa có thời điểm xảy ra"}</dd>
-                  </div>
-                  <div className="min-w-0">
+                  {selectedFields && <>
+                    <div className="col-span-2 min-w-0">
+                      <dt className="sr-only">Trẻ liên quan</dt>
+                      <dd className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">{selectedFields.childName}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="min-h-8 text-xs font-medium text-muted sm:min-h-0">Thời điểm xảy ra</dt>
+                      <dd className="mt-1 text-sm font-semibold text-foreground">{selectedFields.occurredAtLabel}</dd>
+                    </div>
+                  </>}
+                  <div className={selectedFields ? "min-w-0" : "col-span-2 min-w-0"}>
                     <dt className="min-h-8 text-xs font-medium text-muted sm:min-h-0">Thời gian nhận thông báo</dt>
-                    <dd className="mt-1 text-sm font-semibold text-foreground"><time dateTime={selected.createdAtUtc}>{timeFormatter.format(new Date(selected.createdAtUtc))} · {dayFormatter.format(new Date(selected.createdAtUtc))}</time></dd>
+                    <dd className="mt-1 text-sm font-semibold text-foreground"><time dateTime={selected.createdAtUtc}>{timeFormatter.format(new Date(selected.createdAtUtc))} - {dayFormatter.format(new Date(selected.createdAtUtc))}</time></dd>
                   </div>
                 </dl>
-                <div className="space-y-3 p-4 sm:p-5">
-                  <h3 className="text-sm font-semibold text-foreground">{selectedFields ? "Mô tả sự cố" : "Nội dung thông báo sự cố"}</h3>
-                  <p data-testid="incident-description" className="select-text whitespace-pre-wrap break-words rounded-xl border border-warning-border bg-warning-bg/60 p-4 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">{selectedFields ? selectedFields.description : notificationPlainText(selected.message)}</p>
+                <div className="space-y-2 p-4 sm:p-5">
+                  <h3 className="text-base font-semibold text-foreground">{selectedFields ? "Mô tả sự cố" : "Nội dung thông báo sự cố"}</h3>
+                  <p data-testid="incident-description" className="select-text whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">{selectedFields?.description ?? selected.message}</p>
                 </div>
                 </div>
                 <div className="flex shrink-0 justify-end border-t border-border bg-card p-4 sm:p-5">
                       <Button size="sm" className="min-h-10 whitespace-nowrap" aria-label="Xem lịch sử sức khỏe" title="Xem lịch sử sức khỏe"
-                        onClick={() => router.push(selected.childId
-                          ? `/medical/health-history?studentId=${encodeURIComponent(selected.childId)}`
-                          : "/medical/health-history")}>
+                        onClick={() => router.push("/medical/health-history")}>
                         Xem lịch sử sức khỏe <span aria-hidden="true">→</span>
                       </Button>
                 </div>

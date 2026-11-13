@@ -5,8 +5,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { StatusMessage } from "@/components/ui/StatusMessage";
-import { formatIncidentNotification, notificationPlainText } from "./_lib/formatIncidentNotification";
-import { useNotifications } from "./_lib/useNotifications";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface PanelPosition {
   left: number;
@@ -18,8 +17,8 @@ interface PanelPosition {
 
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit", month: "2-digit", year: "numeric",
-  hour: "2-digit", minute: "2-digit", hourCycle: "h23",
 });
+const timeFormatter = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 function getPanelPosition(trigger: HTMLButtonElement): PanelPosition | null {
   if (!trigger.getClientRects().length) return null;
@@ -50,7 +49,7 @@ export function MedicalNotificationBell() {
   const [position, setPosition] = useState<PanelPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
-  const query = useNotifications(1, 10, isOpen);
+  const query = useNotifications({ page: 1, pageSize: 10 });
   const data = query.data;
 
   const closePanel = useCallback((restoreFocus: boolean) => {
@@ -134,21 +133,19 @@ export function MedicalNotificationBell() {
                 </div>}
                 <ol className="divide-y divide-border">
                   {data.items.map((item) => {
-                    const fields = formatIncidentNotification(item.message);
                     return <li key={item.id}>
                       <Link href={`/medical/notifications?notificationId=${encodeURIComponent(item.id)}`} onClick={() => closePanel(false)}
-                        aria-label={fields ? `Xem chi tiết thông báo của ${fields.childName}` : "Xem chi tiết thông báo sự cố"}
                         className="block min-w-0 space-y-2 px-4 py-3 transition-colors hover:bg-background focus-visible:bg-brand-subtle focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand">
-                        <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
                           <div className="flex min-w-0 items-center gap-2">
                             <svg aria-hidden="true" className="h-4 w-4 shrink-0 text-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 4h.01M10.3 3.9 2.6 17.2A2 2 0 004.3 20h15.4a2 2 0 001.7-2.8L13.7 3.9a2 2 0 00-3.4 0z" />
                             </svg>
-                            <span className="line-clamp-1 break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">{fields?.childName ?? "Thông báo sự cố"}</span>
+                            <span className="line-clamp-1 break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">Thông báo sự cố</span>
                           </div>
-                          <span className="shrink-0 pt-0.5 text-xs text-muted">{fields?.occurredAtLabel ?? dateFormatter.format(new Date(item.createdAtUtc))}</span>
+                          <span className="pt-0.5 text-xs text-muted"><time dateTime={item.createdAtUtc}>{timeFormatter.format(new Date(item.createdAtUtc))} - {dateFormatter.format(new Date(item.createdAtUtc))}</time></span>
                         </div>
-                        <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">{fields?.description ?? notificationPlainText(item.message)}</p>
+                        <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">{item.message}</p>
                       </Link>
                     </li>;
                   })}
