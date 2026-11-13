@@ -1,9 +1,9 @@
 import { NotificationsScreen } from "./NotificationsScreen";
+import { Suspense } from "react";
+import { StatusMessage } from "@/components/ui/StatusMessage";
 
-export default async function MedicalNotificationsPage({ searchParams }: {
-  searchParams: Promise<{ notificationId?: string | string[] }>;
-}) {
-  const { notificationId } = await searchParams;
-  return <NotificationsScreen key={typeof notificationId === "string" ? notificationId : ""}
-    initialNotificationId={typeof notificationId === "string" ? notificationId : ""} />;
+export default function MedicalNotificationsPage() {
+  return <Suspense fallback={<StatusMessage status="loading" title="Đang tải hộp thư..." />}>
+    <NotificationsScreen />
+  </Suspense>;
 }

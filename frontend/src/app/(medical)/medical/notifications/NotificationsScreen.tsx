@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -28,10 +28,12 @@ function searchable(value: string) {
   return value.toLocaleLowerCase("vi-VN").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
 }
 
-export function NotificationsScreen({ initialNotificationId = "" }: { initialNotificationId?: string }) {
+export function NotificationsScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedId, setSelectedId] = useState<string | null>(initialNotificationId || null);
+  const selectedId = searchParams.get("notificationId");
+  const [lookupId, setLookupId] = useState(selectedId);
   const detailRef = useRef<HTMLElement>(null);
   const selectedButtonRef = useRef<HTMLButtonElement | null>(null);
   const { control, register, setValue } = useForm<InboxFormValues>({
@@ -60,17 +62,43 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
   const hasFilters = Boolean(search.trim() || receivedDate);
   const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / data.pageSize)) : 1;
 
+  useEffect(() => {
+    if (selectedId === lookupId) return;
+    const frame = requestAnimationFrame(() => {
+      setLookupId(selectedId);
+      setCurrentPage(1);
+      setValue("search", "");
+      setValue("receivedDate", "");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedId, lookupId, setValue]);
+
+  // Liên kết cũ có thể trỏ tới thông báo đã bị đẩy sang trang sau bởi sự cố mới.
+  useEffect(() => {
+    if (!lookupId || lookupId !== selectedId || selected || !data || query.isFetching || query.isError || currentPage >= totalPages) return;
+    const frame = requestAnimationFrame(() => setCurrentPage((page) => page + 1));
+    return () => cancelAnimationFrame(frame);
+  }, [lookupId, selectedId, selected, data, query.isFetching, query.isError, currentPage, totalPages]);
+
+  function selectNotification(id: string | null) {
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set("notificationId", id);
+    else url.searchParams.delete("notificationId");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    setLookupId(id);
+  }
+
   function clearFilters() {
     setValue("search", "");
     setValue("receivedDate", "");
-    setSelectedId(null);
+    selectNotification(null);
   }
   function changePage(page: number) {
     setCurrentPage(page);
     clearFilters();
   }
   function closeDetail() {
-    setSelectedId(null);
+    selectNotification(null);
     requestAnimationFrame(() => selectedButtonRef.current?.focus());
   }
 
@@ -87,11 +115,11 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
         <form onSubmit={(event) => event.preventDefault()} className="grid min-w-0 grid-cols-[minmax(0,1fr)_8.5rem] items-end gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,15rem)_auto]">
           <FormField id="inbox-search" label="Tìm thông báo" className="min-w-0">
             <Input id="inbox-search" type="search" className="min-h-10" placeholder="Tìm..."
-              {...searchField} onChange={(event) => { void searchField.onChange(event); setSelectedId(null); }} />
+              {...searchField} onChange={(event) => { void searchField.onChange(event); selectNotification(null); }} />
           </FormField>
           <FormField id="inbox-date" label="Ngày nhận" className="min-w-0">
             <Select id="inbox-date" className="min-h-10 pl-2! pr-8! sm:pl-3.5! sm:pr-10!" placeholder="Tất cả các ngày" options={dateOptions}
-              {...dateField} onChange={(event) => { void dateField.onChange(event); setSelectedId(null); }} />
+              {...dateField} onChange={(event) => { void dateField.onChange(event); selectNotification(null); }} />
           </FormField>
           <Button variant="ghost" className="col-span-2 min-h-10 justify-self-end sm:col-span-1" disabled={!hasFilters} onClick={clearFilters}>Xóa bộ lọc</Button>
         </form>
@@ -105,6 +133,12 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
               <p className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">Chưa thể làm mới danh sách thông báo: {query.error.message}</p>
               <Button variant="secondary" size="sm" disabled={query.isFetching} onClick={() => { void query.refetch(); }}>Thử lại</Button>
             </div>}
+
+            {selectedId && !selected && !query.isError && <StatusMessage
+              status={lookupId === selectedId && (query.isFetching || currentPage < totalPages) ? "loading" : "empty"}
+              title={lookupId === selectedId && (query.isFetching || currentPage < totalPages) ? "Đang tìm thông báo được liên kết..." : "Không tìm thấy thông báo được liên kết"}
+              message="Thông báo có thể đã không còn trong danh sách. Bạn có thể quay lại hộp thư."
+              action={<Button variant="secondary" onClick={closeDetail}>Về hộp thư</Button>} />}
 
             <div className={`grid min-w-0 items-start gap-4 lg:gap-5 ${selected ? "lg:grid-cols-[minmax(0,21fr)_minmax(0,29fr)]" : ""}`}>
               <section aria-label="Danh sách thông báo sự cố" className={`min-w-0 space-y-3 ${selected ? "hidden lg:block lg:h-[max(32rem,calc(100dvh-17rem))] lg:overflow-y-auto" : ""}`}>
@@ -125,7 +159,7 @@ export function NotificationsScreen({ initialNotificationId = "" }: { initialNot
                             data-notification-id={item.id} aria-pressed={selectedId === item.id}
                             onClick={(event) => {
                               selectedButtonRef.current = event.currentTarget;
-                              setSelectedId(item.id);
+                              selectNotification(item.id);
                               requestAnimationFrame(() => {
                                 const detail = detailRef.current;
                                 detail?.focus({ preventScroll: true });
