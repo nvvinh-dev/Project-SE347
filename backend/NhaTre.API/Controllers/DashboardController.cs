@@ -38,4 +38,16 @@ public class DashboardController : ControllerBase
         var result = await _dashboardService.GetAttendanceStatisticsAsync();
         return Ok(ApiResponse<AttendanceStatisticsResponse>.Ok(result));
     }
+
+    // FR-DASH-04, AC-DASH-04: Thống kê doanh thu tháng hiện tại cho Admin (D39 mục 12)
+    // Lấy nguồn từ ITuitionService.GetRevenueReportAsync() (FR-TUITION-03), không tự tính lại
+    // AC-DASH-05: Chỉ Admin được phép truy cập; các vai trò khác nhận 403 Forbidden
+    // AC-DASH-06, D40 mục 3, D45: Toàn bộ phản hồi là số liệu tổng hợp, tuyệt đối không có dữ liệu mức từng trẻ/hóa đơn
+    // D39 mục 8: Không có nút xuất file trên Dashboard Admin
+    [HttpGet("revenue-statistics")]
+    public async Task<ActionResult<ApiResponse<RevenueStatisticsResponse>>> GetRevenueStatistics()
+    {
+        var result = await _dashboardService.GetRevenueStatisticsAsync();
+        return Ok(ApiResponse<RevenueStatisticsResponse>.Ok(result));
+    }
 }
