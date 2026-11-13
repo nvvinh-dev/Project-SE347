@@ -12,7 +12,7 @@ import { StatusMessage } from "@/components/ui/StatusMessage";
 import { Textarea } from "@/components/ui/Textarea";
 import { useSchoolChildren } from "@/hooks/useSchoolChildren";
 import { formatDateOfBirth } from "@/lib/growth-measurements";
-import { useHealthNotes } from "./_lib/useHealthNotes";
+import { useSaveHealthNotes } from "./_lib/useSaveHealthNotes";
 
 interface NotesFormValues { healthNotes: string }
 interface DirectoryFormValues { search: string; notesFilter: string }
@@ -24,11 +24,12 @@ function searchable(value: string) {
 export function HealthNotesScreen() {
   const formId = useId();
   const childrenQuery = useSchoolChildren();
-  const mutation = useHealthNotes();
+  const mutation = useSaveHealthNotes();
   const [childId, setChildId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [pendingChildId, setPendingChildId] = useState<string | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const submitLock = useRef(false);
   const detailRef = useRef<HTMLElement>(null);
@@ -87,6 +88,15 @@ export function HealthNotesScreen() {
       directoryRef.current?.focus({ preventScroll: true });
       if (window.innerWidth < 1024) directoryRef.current?.scrollIntoView({ block: "start" });
     });
+  }
+
+  function cancelEdit() {
+    reset({ healthNotes: selectedChild?.healthNotes ?? "" });
+    mutation.reset();
+    setSuccessMessage(null);
+    setIsCancelOpen(false);
+    setIsEditing(false);
+    requestAnimationFrame(() => editButtonRef.current?.focus());
   }
 
   const saveNotes = async (healthNotes: string) => {
@@ -158,7 +168,7 @@ export function HealthNotesScreen() {
                         if (child.id === childId && isEditing) { setFocus("healthNotes"); return; }
                         if (isDirty) setPendingChildId(child.id); else selectChild(child.id);
                       }}
-                      className={`h-full w-full min-w-0 items-start rounded-xl border bg-card p-3 text-left shadow-xs sm:p-4 lg:p-3 xl:p-4 ${child.id === childId ? "border-brand-border ring-1 ring-brand-border" : "border-border"}`}>
+                      className={`h-full w-full min-w-0 items-start rounded-xl border p-3 text-left shadow-xs active:bg-card focus:ring-0! focus-visible:ring-2! focus-visible:ring-border-hover sm:p-4 lg:p-3 xl:p-4 ${child.id === childId ? "border-muted-light bg-border hover:border-muted-light hover:bg-border" : "border-border bg-card hover:border-border-hover hover:bg-background"}`}>
                       <span className="block w-full min-w-0 space-y-2.5">
                         <span className="flex min-w-0 flex-wrap items-start justify-between gap-2">
                           <span className="block min-w-0 flex-[1_1_9rem]">
@@ -235,6 +245,8 @@ export function HealthNotesScreen() {
                     {selectedChild.healthNotes?.trim() && <Button variant="secondary" className="min-h-10 border-danger-border bg-danger-bg text-danger hover:bg-danger-bg"
                       disabled={mutation.isPending} onClick={() => setIsDeleteOpen(true)}>Xóa lưu ý</Button>}
                     <div className="ml-auto flex w-full flex-wrap gap-2 sm:w-auto">
+                      <Button variant="secondary" className="min-h-10 flex-1 sm:flex-none" disabled={mutation.isPending}
+                        onClick={() => { if (isDirty) setIsCancelOpen(true); else cancelEdit(); }}>Hủy</Button>
                       <Button type="submit" className="min-h-10 flex-1 sm:flex-none" isLoading={mutation.isPending} disabled={!isDirty || isOverLimit}>Lưu lưu ý</Button>
                     </div>
                   </div>
@@ -248,9 +260,10 @@ export function HealthNotesScreen() {
         description={`Lưu ý sức khỏe của ${selectedChild?.fullName ?? "trẻ"} sẽ được xóa sau khi xác nhận.`}
         confirmText="Xóa lưu ý" cancelText="Hủy" isLoading={mutation.isPending}
         onClose={() => setIsDeleteOpen(false)} onConfirm={() => { void saveNotes(""); }} />
-      <ConfirmDialog isOpen={pendingChildId !== null} title="Bỏ thay đổi chưa lưu?" layout="stacked" compactHeader
-        description="Nội dung lưu ý sức khỏe vừa nhập chưa được lưu. Đóng hồ sơ hoặc chuyển trẻ sẽ làm mất những thay đổi này."
-        confirmText="Bỏ thay đổi" cancelText="Tiếp tục sửa" onClose={() => setPendingChildId(null)} onConfirm={() => { if (pendingChildId === "") closeProfile(); else if (pendingChildId) selectChild(pendingChildId); }} />
+      <ConfirmDialog isOpen={pendingChildId !== null || isCancelOpen} title="Bỏ thay đổi chưa lưu?" layout="stacked" compactHeader
+        description="Nội dung lưu ý sức khỏe vừa nhập chưa được lưu. Bỏ thay đổi sẽ làm mất nội dung vừa nhập."
+        confirmText="Bỏ thay đổi" cancelText="Tiếp tục sửa" onClose={() => { setPendingChildId(null); setIsCancelOpen(false); }}
+        onConfirm={() => { if (isCancelOpen) cancelEdit(); else if (pendingChildId === "") closeProfile(); else if (pendingChildId) selectChild(pendingChildId); }} />
     </div>
   );
 }

@@ -10,7 +10,7 @@ import type { SchoolChild } from "@/types/health";
 import { healthHistoryQueryKey } from "../../health-history/_lib/useHealthHistory";
 import type { HealthHistoryData } from "../../health-history/_lib/types";
 
-export function useHealthNotes() {
+export function useSaveHealthNotes() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   return useApiMutation<SchoolChild, { childId: string; healthNotes: string }>({
