@@ -10,6 +10,7 @@ import {
 } from "@/hooks/useDashboard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusMessage } from "@/components/ui/StatusMessage";
+import { formatCurrency } from "@/lib/tuition";
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
@@ -438,7 +439,7 @@ export default function AdminDashboardPage() {
             {/* KPI 3: Peach Pastel - Tỷ lệ trẻ đã xếp lớp */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-[#FDF2EC] text-[#D96B43] flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-peach-bg text-peach flex items-center justify-center">
                   <svg
                     className="w-5 h-5"
                     viewBox="0 0 24 24"
@@ -452,7 +453,7 @@ export default function AdminDashboardPage() {
                     <path d="m9 12 2 2 4-4" />
                   </svg>
                 </div>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FDF2EC] text-foreground border border-[#F8D4C8]">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-peach-bg text-foreground border border-peach-border">
                   {isLoadingChildren || isErrorChildren
                     ? "—"
                     : `${stats?.assignedStudents}/${stats?.totalStudents} học sinh`}
@@ -479,7 +480,7 @@ export default function AdminDashboardPage() {
               <div className="space-y-1 pt-1 border-t border-border">
                 <div className="w-full h-1.5 rounded-full bg-background overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[#D96B43] transition-all duration-500"
+                    className="h-full rounded-full bg-peach transition-all duration-500"
                     style={{ width: `${isLoadingChildren || isErrorChildren ? 0 : assignedRatio}%` }}
                   />
                 </div>
@@ -538,7 +539,7 @@ export default function AdminDashboardPage() {
                   <span className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight whitespace-nowrap">
                     {isLoadingRevenue || isErrorRevenue
                       ? "—"
-                      : new Intl.NumberFormat("vi-VN").format(revenueStats?.totalCollected ?? 0) + " đ"}
+                      : formatCurrency(revenueStats?.totalCollected ?? 0)}
                   </span>
                 </div>
               </div>
@@ -554,7 +555,7 @@ export default function AdminDashboardPage() {
                     : (revenueStats?.unpaidInvoiceCount ?? 0) > 0
                       ? `${revenueStats?.unpaidInvoiceCount} hóa đơn còn chưa thanh toán (mọi kỳ)`
                       : (revenueStats?.totalCollected ?? 0) === 0
-                        ? "Chưa phát sinh hóa đơn học phí"
+                        ? "Chưa có khoản thu trong tháng"
                         : "Tất cả hóa đơn đã được thanh toán"}
                 </span>
               </p>
