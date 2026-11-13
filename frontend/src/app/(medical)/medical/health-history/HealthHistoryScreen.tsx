@@ -16,7 +16,7 @@ interface ChildSelectorFormValues {
   childId: string;
 }
 
-export function HealthHistoryScreen() {
+export function HealthHistoryScreen({ initialStudentId = "" }: { initialStudentId?: string }) {
   const {
     data: children,
     isLoading: isChildrenLoading,
@@ -27,11 +27,11 @@ export function HealthHistoryScreen() {
   } = useSchoolChildren();
 
   const { control, register } = useForm<ChildSelectorFormValues>({
-    defaultValues: { childId: "" },
+    defaultValues: { childId: initialStudentId },
   });
 
   const rawChildId = useWatch({ control, name: "childId" });
-  const selectedChildId = rawChildId || null;
+  const selectedChildId = children?.some((child) => child.id === rawChildId) ? rawChildId : null;
   const selectorRef = useRef<HTMLSelectElement | null>(null);
   const [showFullChildLabel, setShowFullChildLabel] = useState(false);
   const { ref: registerChildRef, ...childField } = register("childId");
@@ -125,6 +125,7 @@ export function HealthHistoryScreen() {
                 title={selectedChildLabel}
                 aria-describedby={showFullChildLabel && selectedChildLabel ? "selected-child-full-label" : undefined}
                 {...childField}
+                value={rawChildId ?? ""}
                 ref={(element) => {
                   registerChildRef(element);
                   selectorRef.current = element;
@@ -186,7 +187,11 @@ export function HealthHistoryScreen() {
         </section>
       )}
 
-      {!selectedChildId && (!isChildrenError || children) && (
+      {rawChildId && children && !selectedChildId && <StatusMessage status="error" title="Không tìm thấy trẻ trong danh sách"
+        message="Hồ sơ được liên kết hiện không có trong danh sách trẻ. Vui lòng chọn trẻ khác hoặc tải lại danh sách."
+        onRetry={() => { void refetchChildren(); }} />}
+
+      {!selectedChildId && !rawChildId && (!isChildrenError || children) && (
         isChildrenLoading ? (
           <StatusMessage status="loading" title="Đang tải danh sách trẻ..." message="Vui lòng chờ trong giây lát." />
         ) : children?.length === 0 ? (
