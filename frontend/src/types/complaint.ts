@@ -24,6 +24,24 @@ export interface ComplaintResponse {
   resolvedAtUtc?: string | null;
 }
 
+// Phụ huynh xem (FR-COMPLAINT-01): không kèm người gửi, người xử lý, họ tên trẻ hay lớp (D45).
+export interface ChildComplaintResponse {
+  id: string;
+  content: string;
+  status: ComplaintStatus;
+  resolution: string | null;
+  createdAtUtc: string;
+  resolvedAtUtc: string | null;
+}
+
+// Phụ huynh chỉ gửi nội dung; trạng thái, người gửi, thời điểm do server đặt (D44).
+export interface CreateComplaintRequest {
+  content: string;
+}
+
+// D39 mục 18: nội dung tối đa 2000 ký tự sau khi bỏ khoảng trắng hai đầu.
+export const COMPLAINT_CONTENT_MAX = 2000;
+
 export interface HandleComplaintRequest {
   status: "InProgress" | "Resolved";
   resolution?: string | null;
