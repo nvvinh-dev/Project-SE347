@@ -32,6 +32,7 @@ export const adminNav: NavItem[] = [
   { title: "Tổng quan", href: "/admin/dashboard", icon: "dashboard", exact: true },
   { title: "Quản lý tài khoản", href: "/admin/users", icon: "teachers" },
   { title: "Xếp lớp & Phân công", href: "/admin/classes", icon: "students" },
+  { title: "Xử lý phản ánh", href: "/admin/complaints", icon: "complaints" },
 ];
 
 export const teacherNav: NavItem[] = [

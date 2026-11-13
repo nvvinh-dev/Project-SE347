@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FormField } from "@/components/ui/FormField";
 import { Textarea } from "@/components/ui/Textarea";
 import { useCreateComplaint } from "@/hooks/useComplaints";
-import { COMPLAINT_CONTENT_MAX } from "@/types/complaints";
+import { COMPLAINT_CONTENT_MAX } from "@/types/complaint";
 import type { MyChildResponse } from "@/types/children";
 
 const CONTENT_ID = "complaint-content";
@@ -73,7 +73,11 @@ export function ComplaintForm({ child, onSent }: ComplaintFormProps) {
         setConfirming(null);
         setError("content", {
           type: "server",
-          message: error.errors?.length ? error.errors.join(" ") : error.message,
+          // 404: trẻ vừa bị gỡ liên kết, danh sách con đã được làm mới và ô chọn có thể đã sang trẻ khác,
+          // nên ghi rõ tên trẻ cũ để không hiểu nhầm là trẻ đang chọn.
+          message: error.status === 404
+            ? `Không còn liên kết với bé ${target.child.fullName}. Danh sách con đã được làm mới, vui lòng kiểm tra lại trước khi gửi.`
+            : error.errors?.length ? error.errors.join(" ") : error.message,
         });
         refocusRef.current = "content";
       },

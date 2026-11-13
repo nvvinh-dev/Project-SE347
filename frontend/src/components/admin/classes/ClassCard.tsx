@@ -7,7 +7,6 @@ interface ClassCardProps {
   classInfo: ClassResponse;
   studentCount?: number;
   isSelected: boolean;
-  inactiveTeacherIds?: Set<string>;
   invalidTeacherMap?: Map<string, string>;
   onSelect: () => void;
   onAssignTeacher: () => void;
@@ -19,7 +18,6 @@ export function ClassCard({
   classInfo,
   studentCount,
   isSelected,
-  inactiveTeacherIds,
   invalidTeacherMap,
   onSelect,
   onAssignTeacher,
@@ -257,13 +255,11 @@ export function ClassCard({
               </button>
             </div>
 
-            {/* Danh sách badge giáo viên phụ (Đánh dấu người bị vô hiệu hóa hoặc không còn là giáo viên theo review PR #72) */}
+            {/* Danh sách badge giáo viên phụ (Đánh dấu người bị vô hiệu hóa hoặc không còn là giáo viên) */}
             {assistantTeachers.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-[#ECEDEC]/60">
                 {assistantTeachers.map((teacher) => {
-                  const invalidReason =
-                    invalidTeacherMap?.get(teacher.userId) ||
-                    (inactiveTeacherIds?.has(teacher.userId) ? "Đã vô hiệu hóa" : undefined);
+                  const invalidReason = invalidTeacherMap?.get(teacher.userId);
                   const isInvalid = Boolean(invalidReason);
 
                   return (

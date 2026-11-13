@@ -33,7 +33,7 @@ export default function AdminClassesPage() {
   const { data: users = [] } = useUsers();
 
   // Bản đồ tài khoản người dùng không hợp lệ (vô hiệu hóa hoặc không còn vai trò Giáo viên)
-  // để hiển thị cảnh báo đồng bộ trên thẻ lớp (review PR #72 lượt 2)
+  // để hiển thị cảnh báo đồng bộ trên thẻ lớp
   const invalidTeacherMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const u of users) {
@@ -46,18 +46,13 @@ export default function AdminClassesPage() {
     return map;
   }, [users]);
 
-  // Giữ lại inactiveTeacherIds để tương thích
-  const inactiveTeacherIds = useMemo(() => {
-    return new Set(users.filter((u) => !u.isActive).map((u) => u.id));
-  }, [users]);
-
   const removeTeacherMutation = useAssignHomeroomTeacher();
 
   // State bộ lọc lớp đang chọn ở bảng và trang hiện tại
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Quản lý trạng thái các hộp thoại bằng classId (theo review PR #72 để luôn lấy dữ liệu mới nhất khi refetch)
+  // Quản lý trạng thái các hộp thoại bằng classId để luôn lấy dữ liệu lớp mới nhất khi refetch
   const [assigningTeacherClassId, setAssigningTeacherClassId] = useState<string | null>(null);
   const [assigningAssistantClassId, setAssigningAssistantClassId] = useState<string | null>(null);
   const [removingTeacherClassId, setRemovingTeacherClassId] = useState<string | null>(null);
@@ -270,7 +265,6 @@ export default function AdminClassesPage() {
                 classInfo={cls}
                 studentCount={studentCount}
                 isSelected={isSelected}
-                inactiveTeacherIds={inactiveTeacherIds}
                 invalidTeacherMap={invalidTeacherMap}
                 onSelect={() => {
                   setSelectedClassFilter(cls.id);

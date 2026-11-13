@@ -6,7 +6,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import type { useChildComplaints } from "@/hooks/useComplaints";
 import { cn } from "@/lib/utils";
-import { COMPLAINT_STATUS_LABELS, type ChildComplaintResponse, type ComplaintStatus } from "@/types/complaints";
+import { COMPLAINT_STATUS_LABELS, type ChildComplaintResponse, type ComplaintStatus } from "@/types/complaint";
 
 const PAGE_SIZE = 10;
 
