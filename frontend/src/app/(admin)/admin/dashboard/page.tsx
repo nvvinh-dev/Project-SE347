@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   useChildrenStatistics,
   useAttendanceStatistics,
+  useRevenueStatistics,
 } from "@/hooks/useDashboard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusMessage } from "@/components/ui/StatusMessage";
@@ -34,8 +35,22 @@ export default function AdminDashboardPage() {
     dataUpdatedAt: attendanceUpdatedAt,
   } = useAttendanceStatistics();
 
-  // Cập nhật mốc thời gian động theo thời điểm đồng bộ dữ liệu mới nhất
-  const latestUpdatedAt = Math.max(childrenUpdatedAt || 0, attendanceUpdatedAt || 0);
+  // FR-DASH-04: Thống kê doanh thu học phí tháng hiện tại
+  const {
+    data: revenueStats,
+    isLoading: isLoadingRevenue,
+    isError: isErrorRevenue,
+    error: errorRevenue,
+    refetch: refetchRevenue,
+    dataUpdatedAt: revenueUpdatedAt,
+  } = useRevenueStatistics();
+
+  // Cập nhật mốc thời gian động theo thời điểm đồng bộ dữ liệu mới nhất giữa các truy vấn
+  const latestUpdatedAt = Math.max(
+    childrenUpdatedAt || 0,
+    attendanceUpdatedAt || 0,
+    revenueUpdatedAt || 0
+  );
   const now = React.useMemo(() => {
     return latestUpdatedAt > 0 ? new Date(latestUpdatedAt) : new Date();
   }, [latestUpdatedAt]);
@@ -104,17 +119,18 @@ export default function AdminDashboardPage() {
   const handleRefetchAll = () => {
     refetchChildren();
     refetchAttendance();
+    refetchRevenue();
   };
 
-  const isInitialLoading = isLoadingChildren && isLoadingAttendance;
-  const hasOverallError = isErrorChildren && isErrorAttendance;
+  const isInitialLoading = isLoadingChildren && isLoadingAttendance && isLoadingRevenue;
+  const hasOverallError = isErrorChildren && isErrorAttendance && isErrorRevenue;
 
   return (
     <div className="space-y-6">
       {/* 1. Header chuẩn đồng bộ với các trang Admin khác */}
       <PageHeader
         title="Tổng quan"
-        description="Tổng quan tình hình học sinh, chuyên cần và phân bổ các khối lớp học"
+        description="Tổng quan tình hình học sinh, chuyên cần, phân bổ lớp và doanh thu học phí"
       >
         <div className="flex items-center gap-2 flex-wrap">
           <Link
@@ -194,7 +210,7 @@ export default function AdminDashboardPage() {
             {greeting}, {displayName}! {greetingIcon}
           </h2>
           <p className="text-xs text-muted">
-            Theo dõi sĩ số học sinh, chuyên cần điểm danh và tiến độ phân bổ vào các khối lớp mầm non.
+            Theo dõi sĩ số học sinh, chuyên cần điểm danh, tiến độ phân bổ lớp học và doanh thu học phí tháng hiện tại.
           </p>
         </div>
       </div>
@@ -209,7 +225,7 @@ export default function AdminDashboardPage() {
           <div className="p-4 rounded-xl bg-danger-bg border border-danger-border text-danger text-xs font-medium inline-block max-w-lg">
             <p className="font-bold">Không thể tải dữ liệu dashboard</p>
             <p className="mt-1">
-              {errorChildren?.message ?? errorAttendance?.message ?? "Đã xảy ra lỗi khi kết nối máy chủ."}
+              {errorChildren?.message ?? errorAttendance?.message ?? errorRevenue?.message ?? "Đã xảy ra lỗi khi kết nối máy chủ."}
             </p>
           </div>
           <div>
@@ -276,7 +292,7 @@ export default function AdminDashboardPage() {
           ) : null}
 
           {/* 5. Bộ 4 Thẻ KPI Pastel Đa tầng Ngữ nghĩa */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
             {/* KPI 1: Mint Pastel - Sĩ số học sinh toàn trường (FR-DASH-02) */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between">
@@ -316,8 +332,9 @@ export default function AdminDashboardPage() {
                     ✓ 100% đã xếp lớp
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-warning border border-warning-border">
-                    ⚠ {stats?.unassignedStudents} chờ xếp
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-foreground border border-warning-border">
+                    <span className="text-warning mr-1">⚠</span>
+                    {stats?.unassignedStudents} chờ xếp
                   </span>
                 )}
               </div>
@@ -418,10 +435,10 @@ export default function AdminDashboardPage() {
               </p>
             </div>
 
-            {/* KPI 3: Warm Pastel - Tỷ lệ trẻ đã xếp lớp */}
+            {/* KPI 3: Peach Pastel - Tỷ lệ trẻ đã xếp lớp */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-warning-bg text-warning flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-[#FDF2EC] text-[#D96B43] flex items-center justify-center">
                   <svg
                     className="w-5 h-5"
                     viewBox="0 0 24 24"
@@ -435,7 +452,7 @@ export default function AdminDashboardPage() {
                     <path d="m9 12 2 2 4-4" />
                   </svg>
                 </div>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-warning border border-warning-border">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FDF2EC] text-foreground border border-[#F8D4C8]">
                   {isLoadingChildren || isErrorChildren
                     ? "—"
                     : `${stats?.assignedStudents}/${stats?.totalStudents} học sinh`}
@@ -462,17 +479,17 @@ export default function AdminDashboardPage() {
               <div className="space-y-1 pt-1 border-t border-border">
                 <div className="w-full h-1.5 rounded-full bg-background overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-warning transition-all duration-500"
+                    className="h-full rounded-full bg-[#D96B43] transition-all duration-500"
                     style={{ width: `${isLoadingChildren || isErrorChildren ? 0 : assignedRatio}%` }}
                   />
                 </div>
               </div>
             </div>
 
-            {/* KPI 4: Peach Pastel - Học sinh chờ phân lớp */}
+            {/* KPI 4: Warm Yellow / Cream Pastel - Doanh thu học phí tháng hiện tại (FR-DASH-04, AC-DASH-04, D39 mục 12) */}
             <div className="p-5 rounded-2xl bg-card border border-border shadow-2xs space-y-3.5 hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-danger-bg text-danger flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-warning-bg text-warning flex items-center justify-center">
                   <svg
                     className="w-5 h-5"
                     viewBox="0 0 24 24"
@@ -482,57 +499,63 @@ export default function AdminDashboardPage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                   </svg>
                 </div>
-                <span
-                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                    isLoadingChildren || isErrorChildren
-                      ? "bg-background text-muted border-border"
-                      : stats?.totalStudents === 0
-                        ? "bg-background text-muted border-border"
-                        : stats?.unassignedStudents === 0
-                          ? "bg-brand-subtle text-brand-text border-brand-border"
-                          : "bg-danger-bg text-danger border-danger-border"
-                  }`}
-                >
-                  {isLoadingChildren || isErrorChildren
-                    ? "—"
-                    : stats?.totalStudents === 0
-                      ? "Chưa có học sinh"
-                      : stats?.unassignedStudents === 0
-                        ? "✓ Hoàn tất"
-                        : "Cần xếp lớp"}
-                </span>
+                {isLoadingRevenue ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-background text-muted border border-border">
+                    Đang tải...
+                  </span>
+                ) : isErrorRevenue ? (
+                  <button
+                    type="button"
+                    onClick={() => refetchRevenue()}
+                    title={errorRevenue?.message ?? "Lỗi tải dữ liệu. Bấm để thử lại"}
+                    className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-danger-bg text-danger border border-danger-border hover:bg-danger-bg/80 cursor-pointer transition-all min-h-[32px] flex items-center"
+                  >
+                    Lỗi tải • Thử lại
+                  </button>
+                ) : (revenueStats?.totalCollected ?? 0) === 0 && (revenueStats?.unpaidInvoiceCount ?? 0) === 0 ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-background text-muted border border-border">
+                    Chưa có khoản thu
+                  </span>
+                ) : (revenueStats?.unpaidInvoiceCount ?? 0) === 0 ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand-subtle text-brand-text border border-brand-border">
+                    ✓ Đã thu đủ
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning-bg text-foreground border border-warning-border">
+                    <span className="text-warning mr-1">⚠</span>
+                    {revenueStats?.unpaidInvoiceCount} chưa thu
+                  </span>
+                )}
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                  Học sinh chờ xếp lớp
+                  Doanh thu tháng {revenueStats ? `${revenueStats.month}/${revenueStats.year}` : `${currentMonth}/${currentYear}`}
                 </p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="text-2xl font-extrabold text-foreground">
-                    {isLoadingChildren || isErrorChildren ? "—" : stats?.unassignedStudents}
+                  <span className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight whitespace-nowrap">
+                    {isLoadingRevenue || isErrorRevenue
+                      ? "—"
+                      : new Intl.NumberFormat("vi-VN").format(revenueStats?.totalCollected ?? 0) + " đ"}
                   </span>
-                  <span className="text-xs text-muted">học sinh</span>
                 </div>
               </div>
               <p className="text-[11px] text-muted flex items-center gap-1.5 pt-1 border-t border-border">
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    (stats?.unassignedStudents ?? 0) > 0 ? "bg-danger" : "bg-brand"
+                    (revenueStats?.unpaidInvoiceCount ?? 0) > 0 ? "bg-warning" : "bg-brand"
                   }`}
                 />
                 <span>
-                  {isLoadingChildren || isErrorChildren
+                  {isLoadingRevenue || isErrorRevenue
                     ? "—"
-                    : stats?.totalStudents === 0
-                      ? "Hệ thống chưa có hồ sơ học sinh"
-                      : stats?.unassignedStudents === 0
-                        ? "Toàn bộ học sinh đã được xếp lớp"
-                        : stats?.totalClasses
-                          ? `Cần phân bổ vào ${stats.totalClasses} khối lớp cố định`
-                          : "Cần phân bổ vào các khối lớp cố định"}
+                    : (revenueStats?.unpaidInvoiceCount ?? 0) > 0
+                      ? `${revenueStats?.unpaidInvoiceCount} hóa đơn còn chưa thanh toán (mọi kỳ)`
+                      : (revenueStats?.totalCollected ?? 0) === 0
+                        ? "Chưa phát sinh hóa đơn học phí"
+                        : "Tất cả hóa đơn đã được thanh toán"}
                 </span>
               </p>
             </div>
