@@ -225,6 +225,10 @@ export function NotificationsScreen() {
                 <div className="space-y-2 p-4 sm:p-5">
                   <h3 className="text-base font-semibold text-foreground">{selectedFields ? "Mô tả sự cố" : "Nội dung thông báo sự cố"}</h3>
                   <p data-testid="incident-description" className="select-text whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">{selectedFields?.description ?? selected.message}</p>
+                  {selectedFields && <details className="min-w-0 text-xs text-muted">
+                    <summary className="ml-auto w-fit cursor-pointer rounded hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-hover">Xem thông báo gốc</summary>
+                    <p data-testid="notification-original-message" className="mt-2 select-text whitespace-pre-wrap break-words leading-relaxed [overflow-wrap:anywhere]">{selected.message}</p>
+                  </details>}
                 </div>
                 </div>
                 <div className="flex shrink-0 justify-end border-t border-border bg-card p-4 sm:p-5">
