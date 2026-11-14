@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignHomeroomTeacher } from "@/hooks/useClasses";
@@ -65,6 +65,13 @@ export function AssignHomeroomTeacherModal({
     onClose: handleClose,
     initialFocusRef: selectRef,
   });
+
+  // Tự động focus vào ô chọn giáo viên ngay khi mở hoặc khi danh sách tải xong (chuẩn a11y)
+  useEffect(() => {
+    if (isOpen && !isLoadingUsers && selectRef.current) {
+      selectRef.current.focus();
+    }
+  }, [isOpen, isLoadingUsers]);
 
   if (!isOpen || !classInfo) return null;
 
