@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignHomeroomTeacher } from "@/hooks/useClasses";
@@ -44,8 +44,6 @@ export function AssignHomeroomTeacherModal({
     control,
     register,
     handleSubmit,
-    reset,
-    formState: { errors },
   } = useForm<AssignHomeroomTeacherFormValues>({
     defaultValues: {
       teacherId: classInfo?.homeroomTeacher?.userId ?? "",
@@ -61,16 +59,9 @@ export function AssignHomeroomTeacherModal({
     onClose();
   }, [assignMutation.isPending, onClose]);
 
-  // Cập nhật lại giá trị mặc định khi classInfo thay đổi hoặc mở modal
-  useEffect(() => {
-    if (isOpen && classInfo) {
-      reset({ teacherId: classInfo.homeroomTeacher?.userId ?? "" });
-    }
-  }, [isOpen, classInfo, reset]);
-
   const { containerRef } = useFocusTrap({
     isOpen,
-    isLoading: assignMutation.isPending,
+    isLoading: assignMutation.isPending || isLoadingUsers,
     onClose: handleClose,
     initialFocusRef: selectRef,
   });
@@ -111,14 +102,7 @@ export function AssignHomeroomTeacherModal({
     }
   };
 
-  const { ref: registerSelectRef, ...restSelectRegister } = register("teacherId", {
-    required: "Vui lòng chọn giáo viên để phân công làm chủ nhiệm.",
-    validate: (val) => {
-      if (!val) return "Vui lòng chọn giáo viên để phân công làm chủ nhiệm.";
-      if (val === currentTeacherId) return "Giáo viên này đã là giáo viên chủ nhiệm của lớp.";
-      return true;
-    },
-  });
+  const { ref: registerSelectRef, ...restSelectRegister } = register("teacherId");
 
   return (
     <div
@@ -237,12 +221,6 @@ export function AssignHomeroomTeacherModal({
                     );
                   })}
                 </select>
-
-                {errors.teacherId && (
-                  <p className="text-[11px] text-danger font-medium mt-1">
-                    {errors.teacherId.message}
-                  </p>
-                )}
 
                 {!isLoadingUsers && activeTeachers.length === 0 && (
                   <p className="text-[11px] text-muted italic">

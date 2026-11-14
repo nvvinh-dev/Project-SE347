@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignClass } from "@/hooks/useClasses";
@@ -20,6 +20,10 @@ interface AssignClassFormValues {
   classSelection: string; // cls.id | "__REMOVE__" | ""
 }
 
+function toClassId(selection: string): string | null {
+  return selection === "__REMOVE__" || selection === "" ? null : selection;
+}
+
 export function AssignClassModal({
   placement,
   classes,
@@ -35,7 +39,6 @@ export function AssignClassModal({
     control,
     register,
     handleSubmit,
-    reset,
   } = useForm<AssignClassFormValues>({
     defaultValues: {
       classSelection: placement?.classId ?? "",
@@ -49,13 +52,6 @@ export function AssignClassModal({
     setServerError(null);
     onClose();
   }, [assignMutation.isPending, onClose]);
-
-  // Đồng bộ lại form khi placement hoặc isOpen thay đổi
-  useEffect(() => {
-    if (isOpen && placement) {
-      reset({ classSelection: placement.classId ?? "" });
-    }
-  }, [isOpen, placement, reset]);
 
   const { containerRef } = useFocusTrap({
     isOpen,
@@ -73,19 +69,12 @@ export function AssignClassModal({
     fitsAgeRange(ageInMonths, c.minAgeMonths, c.maxAgeMonths)
   );
 
-  const targetClassId =
-    selectedSelection === "__REMOVE__" || selectedSelection === ""
-      ? null
-      : selectedSelection;
-
+  const targetClassId = toClassId(selectedSelection);
   const isNoChange = targetClassId === currentClassId;
 
   const onSubmit = async (values: AssignClassFormValues) => {
     setServerError(null);
-    const resolvedClassId =
-      values.classSelection === "__REMOVE__" || values.classSelection === ""
-        ? null
-        : values.classSelection;
+    const resolvedClassId = toClassId(values.classSelection);
 
     if (resolvedClassId === currentClassId) {
       if (resolvedClassId === null) {
@@ -118,7 +107,7 @@ export function AssignClassModal({
   };
 
   const isRemoving = targetClassId === null && placement.classId !== null;
-  const isClassSelectionRegister = register("classSelection");
+  const classSelectionField = register("classSelection");
 
   return (
     <div
@@ -224,10 +213,9 @@ export function AssignClassModal({
                           id={`class-radio-${cls.id}`}
                           type="radio"
                           value={cls.id}
-                          {...isClassSelectionRegister}
-                          checked={isSelected}
+                          {...classSelectionField}
                           onChange={(e) => {
-                            isClassSelectionRegister.onChange(e);
+                            classSelectionField.onChange(e);
                             setServerError(null);
                           }}
                           className="w-4 h-4 text-brand focus:ring-brand"
@@ -279,10 +267,9 @@ export function AssignClassModal({
                       id="class-radio-remove"
                       type="radio"
                       value="__REMOVE__"
-                      {...isClassSelectionRegister}
-                      checked={isRemoving}
+                      {...classSelectionField}
                       onChange={(e) => {
-                        isClassSelectionRegister.onChange(e);
+                        classSelectionField.onChange(e);
                         setServerError(null);
                       }}
                       className="w-4 h-4 text-danger focus:ring-danger"

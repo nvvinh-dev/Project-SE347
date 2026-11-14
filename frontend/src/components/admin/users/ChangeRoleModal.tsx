@@ -181,7 +181,7 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
                     type="button"
                     disabled={isCurrent || changeRole.isPending}
                     onClick={() => {
-                      setValue("role", r.value, { shouldValidate: true, shouldDirty: true });
+                      setValue("role", r.value, { shouldDirty: true });
                       setServerError(null);
                     }}
                     className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ${
