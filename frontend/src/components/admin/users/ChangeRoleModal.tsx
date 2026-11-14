@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useChangeRole } from "@/hooks/useUsers";
 import { toApiError } from "@/lib/axios";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -17,17 +18,33 @@ interface ChangeRoleModalProps {
   onSuccess: (message: string) => void;
 }
 
+interface ChangeRoleFormValues {
+  role: Role | "";
+}
+
 export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRoleModalProps) {
-  const [selectedRole, setSelectedRole] = useState<Role | "">("");
   const [serverError, setServerError] = useState<string | null>(null);
   const changeRole = useChangeRole();
 
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    reset,
+  } = useForm<ChangeRoleFormValues>({
+    defaultValues: {
+      role: "",
+    },
+  });
+
+  const selectedRole = useWatch({ control, name: "role" });
+
   const handleClose = useCallback(() => {
     if (changeRole.isPending) return;
-    setSelectedRole("");
+    reset({ role: "" });
     setServerError(null);
     onClose();
-  }, [changeRole.isPending, onClose]);
+  }, [changeRole.isPending, reset, onClose]);
 
   const { containerRef } = useFocusTrap({
     isOpen: isOpen && user !== null,
@@ -37,13 +54,12 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
 
   if (!isOpen || !user) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRole) {
+  const onSubmit = async (values: ChangeRoleFormValues) => {
+    if (!values.role) {
       setServerError("Vui lòng chọn vai trò mới cho tài khoản.");
       return;
     }
-    if (selectedRole === user.role) {
+    if (values.role === user.role) {
       setServerError("Tài khoản này đã có vai trò này.");
       return;
     }
@@ -51,14 +67,14 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
     try {
       await changeRole.mutateAsync({
         id: user.id,
-        data: { role: selectedRole },
+        data: { role: values.role },
       });
 
-      const roleObj = USER_ROLES.find((r) => r.value === selectedRole);
-      setSelectedRole("");
+      const roleObj = USER_ROLES.find((r) => r.value === values.role);
+      reset({ role: "" });
       setServerError(null);
       onSuccess(
-        `Đã đổi vai trò của "${user.fullName}" thành [${roleObj?.label ?? selectedRole}]. Mọi phiên đăng nhập cũ đã được thu hồi bảo mật tự động.`
+        `Đã đổi vai trò của "${user.fullName}" thành [${roleObj?.label ?? values.role}]. Mọi phiên đăng nhập cũ đã được thu hồi bảo mật tự động.`
       );
       onClose();
     } catch (err) {
@@ -150,7 +166,7 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
         </div>
 
         {/* Role Selection Form: 2 cột ngay từ màn nhỏ */}
-        <form onSubmit={handleSubmit} className="mt-3 sm:mt-5 space-y-3 sm:space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-3 sm:mt-5 space-y-3 sm:space-y-4">
           <div>
             <label className="text-xs font-bold text-foreground block mb-1.5">
               Chọn vai trò công tác mới: <span className="text-danger">*</span>
@@ -165,7 +181,7 @@ export function ChangeRoleModal({ user, isOpen, onClose, onSuccess }: ChangeRole
                     type="button"
                     disabled={isCurrent || changeRole.isPending}
                     onClick={() => {
-                      setSelectedRole(r.value);
+                      setValue("role", r.value, { shouldDirty: true });
                       setServerError(null);
                     }}
                     className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ${

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignClass } from "@/hooks/useClasses";
 import { calculateAgeInMonths, fitsAgeRange, formatDate, formatAgeFriendly } from "@/lib/classAge";
@@ -15,6 +16,14 @@ interface AssignClassModalProps {
   onSuccess: (message: string) => void;
 }
 
+interface AssignClassFormValues {
+  classSelection: string; // cls.id | "__REMOVE__" | ""
+}
+
+function toClassId(selection: string): string | null {
+  return selection === "__REMOVE__" || selection === "" ? null : selection;
+}
+
 export function AssignClassModal({
   placement,
   classes,
@@ -22,18 +31,32 @@ export function AssignClassModal({
   onClose,
   onSuccess,
 }: AssignClassModalProps) {
-  // classId được chọn; null biểu thị hành động gỡ trẻ khỏi lớp
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(
-    placement?.classId ?? null
-  );
   const [serverError, setServerError] = useState<string | null>(null);
 
   const assignMutation = useAssignClass();
 
+  const {
+    control,
+    register,
+    handleSubmit,
+  } = useForm<AssignClassFormValues>({
+    defaultValues: {
+      classSelection: placement?.classId ?? "",
+    },
+  });
+
+  const selectedSelection = useWatch({ control, name: "classSelection" });
+
+  const handleClose = useCallback(() => {
+    if (assignMutation.isPending) return;
+    setServerError(null);
+    onClose();
+  }, [assignMutation.isPending, onClose]);
+
   const { containerRef } = useFocusTrap({
     isOpen,
     isLoading: assignMutation.isPending,
-    onClose,
+    onClose: handleClose,
   });
 
   if (!isOpen || !placement) return null;
@@ -46,14 +69,15 @@ export function AssignClassModal({
     fitsAgeRange(ageInMonths, c.minAgeMonths, c.maxAgeMonths)
   );
 
-  const isNoChange = selectedClassId === currentClassId;
+  const targetClassId = toClassId(selectedSelection);
+  const isNoChange = targetClassId === currentClassId;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: AssignClassFormValues) => {
     setServerError(null);
+    const resolvedClassId = toClassId(values.classSelection);
 
-    if (isNoChange) {
-      if (selectedClassId === null) {
+    if (resolvedClassId === currentClassId) {
+      if (resolvedClassId === null) {
         setServerError("Trẻ chưa được xếp lớp.");
       } else {
         setServerError("Trẻ đã ở lớp này.");
@@ -65,7 +89,7 @@ export function AssignClassModal({
       const updatedPlacement = await assignMutation.mutateAsync({
         childId: placement.childId,
         data: {
-          classId: selectedClassId,
+          classId: resolvedClassId,
         },
       });
 
@@ -75,12 +99,15 @@ export function AssignClassModal({
         onSuccess(`Đã gỡ bé ${updatedPlacement.fullName} khỏi lớp học thành công.`);
       }
 
-      onClose();
+      handleClose();
     } catch (err) {
       const apiErr = toApiError(err);
       setServerError(apiErr.message);
     }
   };
+
+  const isRemoving = targetClassId === null && placement.classId !== null;
+  const classSelectionField = register("classSelection");
 
   return (
     <div
@@ -94,9 +121,7 @@ export function AssignClassModal({
       {/* Lớp nền mờ */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
-        onClick={() => {
-          if (!assignMutation.isPending) onClose();
-        }}
+        onClick={handleClose}
       />
 
       {/* Khối hộp thoại xếp lớp */}
@@ -111,7 +136,7 @@ export function AssignClassModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={assignMutation.isPending}
             className="p-1.5 rounded-full text-muted hover:text-foreground hover:bg-black/5 transition-all"
             aria-label="Đóng hộp thoại"
@@ -123,7 +148,7 @@ export function AssignClassModal({
         </div>
 
         {/* Thân biểu mẫu cuộn được */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Thông tin trẻ (Tối thiểu theo AC-CLASS-04) */}
           <div className="p-4 rounded-2xl bg-[#F8F8F9] border border-border space-y-2.5 text-xs">
             <div className="flex items-center justify-between">
@@ -166,7 +191,7 @@ export function AssignClassModal({
                 </div>
               ) : (
                 classes.map((cls) => {
-                  const isSelected = selectedClassId === cls.id;
+                  const isSelected = targetClassId === cls.id;
                   const isCurrent = placement.classId === cls.id;
                   const fits = fitsAgeRange(ageInMonths, cls.minAgeMonths, cls.maxAgeMonths);
 
@@ -187,10 +212,10 @@ export function AssignClassModal({
                         <input
                           id={`class-radio-${cls.id}`}
                           type="radio"
-                          name="class-selection"
-                          checked={isSelected}
-                          onChange={() => {
-                            setSelectedClassId(cls.id);
+                          value={cls.id}
+                          {...classSelectionField}
+                          onChange={(e) => {
+                            classSelectionField.onChange(e);
                             setServerError(null);
                           }}
                           className="w-4 h-4 text-brand focus:ring-brand"
@@ -232,7 +257,7 @@ export function AssignClassModal({
               {placement.classId && (
                 <label
                   htmlFor="class-radio-remove"
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${selectedClassId === null
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${isRemoving
                     ? "border-danger bg-danger-bg ring-1 ring-danger"
                     : "border-dashed border-border hover:border-danger/40 bg-card hover:bg-danger-bg/20"
                     }`}
@@ -241,10 +266,10 @@ export function AssignClassModal({
                     <input
                       id="class-radio-remove"
                       type="radio"
-                      name="class-selection"
-                      checked={selectedClassId === null}
-                      onChange={() => {
-                        setSelectedClassId(null);
+                      value="__REMOVE__"
+                      {...classSelectionField}
+                      onChange={(e) => {
+                        classSelectionField.onChange(e);
                         setServerError(null);
                       }}
                       className="w-4 h-4 text-danger focus:ring-danger"
@@ -262,11 +287,11 @@ export function AssignClassModal({
           </div>
 
           {/* Gợi ý nếu chọn lớp không khớp độ tuổi */}
-          {selectedClassId !== null &&
+          {targetClassId !== null &&
             !fitsAgeRange(
               ageInMonths,
-              classes.find((c) => c.id === selectedClassId)?.minAgeMonths ?? null,
-              classes.find((c) => c.id === selectedClassId)?.maxAgeMonths ?? null
+              classes.find((c) => c.id === targetClassId)?.minAgeMonths ?? null,
+              classes.find((c) => c.id === targetClassId)?.maxAgeMonths ?? null
             ) && (
               <div className="p-3 rounded-xl bg-[#FFF9E6] border border-[#FFF3DD] text-[11px] text-[#7A5B00] flex items-start gap-2">
                 <span className="shrink-0 mt-0.5">💡</span>
@@ -291,7 +316,7 @@ export function AssignClassModal({
           <div className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={assignMutation.isPending}
               className="px-4 py-2 rounded-full text-xs font-semibold text-muted hover:text-foreground hover:bg-black/5 transition-all"
             >
@@ -302,10 +327,10 @@ export function AssignClassModal({
               disabled={
                 assignMutation.isPending ||
                 isNoChange ||
-                (placement.classId === null && selectedClassId === null)
+                (placement.classId === null && targetClassId === null)
               }
               className={`px-5 py-2 rounded-full text-xs font-bold text-white shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 ${
-                selectedClassId === null && placement.classId !== null
+                isRemoving
                   ? "bg-danger hover:bg-danger-hover"
                   : "bg-brand hover:bg-brand-hover"
               }`}
@@ -315,7 +340,7 @@ export function AssignClassModal({
                   <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   <span>Đang xử lý...</span>
                 </>
-              ) : selectedClassId === null && placement.classId !== null ? (
+              ) : isRemoving ? (
                 <span>Xác nhận gỡ lớp</span>
               ) : (
                 <span>Xác nhận xếp lớp</span>

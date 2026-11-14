@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignHomeroomTeacher } from "@/hooks/useClasses";
 import { useUsers } from "@/hooks/useUsers";
@@ -14,18 +15,19 @@ interface AssignHomeroomTeacherModalProps {
   onSuccess: (message: string) => void;
 }
 
+interface AssignHomeroomTeacherFormValues {
+  teacherId: string;
+}
+
 export function AssignHomeroomTeacherModal({
   classInfo,
   isOpen,
   onClose,
   onSuccess,
 }: AssignHomeroomTeacherModalProps) {
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(
-    classInfo?.homeroomTeacher?.userId ?? ""
-  );
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const selectRef = useRef<HTMLSelectElement>(null);
+  const selectRef = useRef<HTMLSelectElement | null>(null);
   const assignMutation = useAssignHomeroomTeacher();
   const {
     data: users = [],
@@ -38,27 +40,50 @@ export function AssignHomeroomTeacherModal({
   // Lọc danh sách giáo viên đang hoạt động (role === "Teacher" và isActive === true)
   const activeTeachers = users.filter((u) => u.role === "Teacher" && u.isActive);
 
+  const {
+    control,
+    register,
+    handleSubmit,
+  } = useForm<AssignHomeroomTeacherFormValues>({
+    defaultValues: {
+      teacherId: classInfo?.homeroomTeacher?.userId ?? "",
+    },
+  });
+
+  const selectedTeacherId = useWatch({ control, name: "teacherId" });
+  const currentTeacherId = classInfo?.homeroomTeacher?.userId;
+
+  const handleClose = useCallback(() => {
+    if (assignMutation.isPending) return;
+    setServerError(null);
+    onClose();
+  }, [assignMutation.isPending, onClose]);
+
   const { containerRef } = useFocusTrap({
     isOpen,
-    isLoading: assignMutation.isPending,
-    onClose,
+    isLoading: assignMutation.isPending || isLoadingUsers,
+    onClose: handleClose,
     initialFocusRef: selectRef,
   });
 
+  // Tự động focus vào ô chọn giáo viên ngay khi mở hoặc khi danh sách tải xong (chuẩn a11y)
+  useEffect(() => {
+    if (isOpen && !isLoadingUsers && selectRef.current) {
+      selectRef.current.focus();
+    }
+  }, [isOpen, isLoadingUsers]);
+
   if (!isOpen || !classInfo) return null;
 
-  const currentTeacherId = classInfo.homeroomTeacher?.userId;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: AssignHomeroomTeacherFormValues) => {
     setServerError(null);
 
-    if (!selectedTeacherId) {
+    if (!values.teacherId) {
       setServerError("Vui lòng chọn giáo viên để phân công làm chủ nhiệm.");
       return;
     }
 
-    if (selectedTeacherId === currentTeacherId) {
+    if (values.teacherId === currentTeacherId) {
       setServerError("Giáo viên này đã là giáo viên chủ nhiệm của lớp.");
       return;
     }
@@ -67,22 +92,24 @@ export function AssignHomeroomTeacherModal({
       const updatedClass = await assignMutation.mutateAsync({
         classId: classInfo.id,
         data: {
-          teacherUserId: selectedTeacherId,
+          teacherUserId: values.teacherId,
         },
       });
 
       const teacherName =
         updatedClass.homeroomTeacher?.fullName ??
-        activeTeachers.find((t) => t.id === selectedTeacherId)?.fullName ??
+        activeTeachers.find((t) => t.id === values.teacherId)?.fullName ??
         "giáo viên";
 
       onSuccess(`Đã phân công ${teacherName} làm chủ nhiệm ${classInfo.name} thành công.`);
-      onClose();
+      handleClose();
     } catch (err) {
       const apiErr = toApiError(err);
       setServerError(apiErr.message);
     }
   };
+
+  const { ref: registerSelectRef, ...restSelectRegister } = register("teacherId");
 
   return (
     <div
@@ -96,9 +123,7 @@ export function AssignHomeroomTeacherModal({
       {/* Lớp nền mờ */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
-        onClick={() => {
-          if (!assignMutation.isPending) onClose();
-        }}
+        onClick={handleClose}
       />
 
       {/* Khối hộp thoại phân công */}
@@ -113,7 +138,7 @@ export function AssignHomeroomTeacherModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={assignMutation.isPending}
             className="p-1.5 rounded-full text-muted hover:text-foreground hover:bg-black/5 transition-all"
             aria-label="Đóng hộp thoại"
@@ -125,7 +150,7 @@ export function AssignHomeroomTeacherModal({
         </div>
 
         {/* Thân biểu mẫu cuộn được */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Thông tin lớp học hiện tại */}
           <div className="p-3.5 rounded-2xl bg-[#F8F8F9] border border-border space-y-2 text-xs">
             <div className="flex justify-between items-center">
@@ -167,10 +192,13 @@ export function AssignHomeroomTeacherModal({
               <>
                 <select
                   id="teacher-select"
-                  ref={selectRef}
-                  value={selectedTeacherId}
+                  {...restSelectRegister}
+                  ref={(e) => {
+                    registerSelectRef(e);
+                    selectRef.current = e;
+                  }}
                   onChange={(e) => {
-                    setSelectedTeacherId(e.target.value);
+                    restSelectRegister.onChange(e);
                     setServerError(null);
                   }}
                   disabled={assignMutation.isPending || isLoadingUsers}
@@ -222,7 +250,7 @@ export function AssignHomeroomTeacherModal({
           <div className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={assignMutation.isPending}
               className="px-4 py-2 rounded-full text-xs font-semibold text-muted hover:text-foreground hover:bg-black/5 transition-all"
             >

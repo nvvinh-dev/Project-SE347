@@ -6,7 +6,11 @@ import { StatusMessage } from "@/components/ui/StatusMessage";
 import { Pagination } from "@/components/ui/Pagination";
 import { ComplaintHandlingModal } from "@/components/admin/complaints/ComplaintHandlingModal";
 import { useComplaints } from "@/hooks/useComplaints";
-import type { ComplaintResponse, ComplaintStatus } from "@/types/complaint";
+import {
+  type ComplaintResponse,
+  type ComplaintStatus,
+  COMPLAINT_STATUS_LABELS,
+} from "@/types/complaint";
 
 type FilterTab = "New" | "InProgress" | "Resolved" | "All";
 
@@ -27,28 +31,29 @@ function formatVietnamTime(utcString: string) {
 }
 
 function getStatusBadge(status: ComplaintStatus) {
+  const label = COMPLAINT_STATUS_LABELS[status] ?? status;
   switch (status) {
     case "New":
       return {
-        label: "Mới gửi",
+        label,
         badgeClass: "bg-warning-bg text-warning border-warning-border",
         dotColor: "bg-warning",
       };
     case "InProgress":
       return {
-        label: "Đang xử lý",
+        label,
         badgeClass: "bg-info-bg text-info border-info-border",
         dotColor: "bg-info",
       };
     case "Resolved":
       return {
-        label: "Đã xử lý xong",
+        label,
         badgeClass: "bg-brand-subtle text-brand-text border-brand-border",
         dotColor: "bg-brand",
       };
     default:
       return {
-        label: status,
+        label,
         badgeClass: "bg-muted/10 text-muted border-border",
         dotColor: "bg-muted",
       };
@@ -94,9 +99,9 @@ export default function AdminComplaintsPage() {
   };
 
   const tabs: { key: FilterTab; label: string }[] = [
-    { key: "New", label: "Mới" },
-    { key: "InProgress", label: "Đang xử lý" },
-    { key: "Resolved", label: "Đã xử lý" },
+    { key: "New", label: COMPLAINT_STATUS_LABELS.New },
+    { key: "InProgress", label: COMPLAINT_STATUS_LABELS.InProgress },
+    { key: "Resolved", label: COMPLAINT_STATUS_LABELS.Resolved },
     { key: "All", label: "Tất cả" },
   ];
 
@@ -116,6 +121,7 @@ export default function AdminComplaintsPage() {
             <button
               key={tab.key}
               type="button"
+              aria-pressed={isActive}
               onClick={() => handleTabChange(tab.key)}
               className={`px-4 py-2.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer min-h-11 ${
                 isActive

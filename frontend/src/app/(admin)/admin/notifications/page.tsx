@@ -40,10 +40,10 @@ export default function AdminNotificationsPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Header trang thông báo */}
+      {/* 1. Header trang thông báo (FR-NOTI-04) */}
       <PageHeader
         title="Thông báo hệ thống"
-        description="Danh sách thông báo in-app gửi đến Ban giám hiệu (FR-NOTI-04)"
+        description="Danh sách thông báo in-app gửi đến Ban giám hiệu"
       />
 
       {/* 2. Nội dung danh sách thông báo */}

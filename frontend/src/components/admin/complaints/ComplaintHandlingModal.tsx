@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useUpdateComplaintHandling } from "@/hooks/useComplaints";
 import { toApiError } from "@/lib/axios";
-import type { ComplaintResponse } from "@/types/complaint";
+import { type ComplaintResponse, COMPLAINT_STATUS_LABELS } from "@/types/complaint";
 
 interface ComplaintHandlingModalProps {
   complaint: ComplaintResponse;
@@ -41,7 +41,7 @@ export function ComplaintHandlingModal({
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
-      status: complaint.status === "Resolved" ? "Resolved" : "InProgress",
+      status: complaint.status === "New" ? "InProgress" : "Resolved",
       resolution: complaint.resolution ?? "",
     },
   });
@@ -191,7 +191,7 @@ export function ComplaintHandlingModal({
                     {...register("status")}
                     className="w-4 h-4 accent-info shrink-0 cursor-pointer"
                   />
-                  <span className="font-medium text-foreground">Đang xử lý</span>
+                  <span className="font-medium text-foreground">{COMPLAINT_STATUS_LABELS.InProgress}</span>
                 </label>
                 <label className="flex items-center gap-2.5 p-3 min-h-11 rounded-xl border border-border bg-background cursor-pointer hover:border-brand transition-all text-xs select-none">
                   <input
@@ -200,7 +200,7 @@ export function ComplaintHandlingModal({
                     {...register("status")}
                     className="w-4 h-4 accent-brand shrink-0 cursor-pointer"
                   />
-                  <span className="font-medium text-foreground">Đã xử lý xong</span>
+                  <span className="font-medium text-foreground">{COMPLAINT_STATUS_LABELS.Resolved}</span>
                 </label>
               </div>
             </fieldset>
@@ -248,7 +248,7 @@ export function ComplaintHandlingModal({
               ) : (
                 <div className="p-3 rounded-xl border border-dashed border-border bg-muted/10 text-xs text-muted">
                   <p>
-                    Chỉ nhập kết quả khi chuyển sang <strong>Đã xử lý xong</strong> (backend không lưu kết quả ở bước Đang xử lý).
+                    Kết quả chỉ được ghi khi phản ánh đã xử lý xong.
                   </p>
                 </div>
               )}

@@ -36,6 +36,11 @@
   --color-info-bg: #F0F9FF;
   --color-info-border: #BAE6FD;
   --color-info-text: #0369A1;
+
+  /* Peach Pastel - Tỷ lệ đã xếp lớp */
+  --color-peach: #D96B43;
+  --color-peach-bg: #FDF2EC;
+  --color-peach-border: #F8D4C8;
 }
 
 :root {
