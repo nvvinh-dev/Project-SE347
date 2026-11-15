@@ -166,6 +166,13 @@ builder.Services.AddScoped<ISecurityEventRepository, SecurityEventRepository>();
 builder.Services.AddScoped<ISecurityEventService, SecurityEventService>(); // D50
 builder.Services.AddScoped<ITuitionRepository, TuitionRepository>();
 builder.Services.AddScoped<ITuitionService, TuitionService>();
+// D21 mục 1: tài khoản nhận học phí của trường, thiếu trường nào thì dừng lúc khởi động như Jwt:Key
+var paymentAccount = builder.Configuration.GetSection("PaymentAccount").Get<PaymentAccountSettings>();
+if (paymentAccount is null
+    || new[] { paymentAccount.BankBin, paymentAccount.BankName, paymentAccount.AccountNumber, paymentAccount.AccountName }
+        .Any(string.IsNullOrWhiteSpace))
+    throw new InvalidOperationException("Thiếu cấu hình PaymentAccount (BankBin, BankName, AccountNumber, AccountName).");
+builder.Services.AddSingleton(paymentAccount);
 builder.Services.AddScoped<IValidator<TuitionFeeRequest>, TuitionFeeRequestValidator>();
 builder.Services.AddScoped<IValidator<InvoiceRequest>, InvoiceRequestValidator>();
 builder.Services.AddScoped<IValidator<RecordPaymentRequest>, RecordPaymentRequestValidator>();

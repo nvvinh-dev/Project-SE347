@@ -21,19 +21,22 @@ public class TuitionService : ITuitionService
     private readonly IChildGuardianRepository _childGuardianRepository;
     private readonly INotificationService _notificationService;
     private readonly ISecurityEventService _securityEventService;
+    private readonly PaymentAccountSettings _paymentAccount;
 
     public TuitionService(
         ITuitionRepository tuitionRepository,
         IChildRepository childRepository,
         IChildGuardianRepository childGuardianRepository,
         INotificationService notificationService,
-        ISecurityEventService securityEventService)
+        ISecurityEventService securityEventService,
+        PaymentAccountSettings paymentAccount)
     {
         _tuitionRepository = tuitionRepository;
         _childRepository = childRepository;
         _childGuardianRepository = childGuardianRepository;
         _notificationService = notificationService;
         _securityEventService = securityEventService;
+        _paymentAccount = paymentAccount;
     }
 
     public async Task<IReadOnlyList<TuitionFeeResponse>> GetFeesAsync()
@@ -173,7 +176,7 @@ public class TuitionService : ITuitionService
         }
 
         return new InvoiceResult(InvoiceOutcome.Success, new InvoiceResponse(invoice.Id, child.Id, child.FullName,
-            request.Amount, description, InvoiceStatuses.Unpaid, invoice.IssuedAt));
+            request.Amount, description, InvoiceStatuses.Unpaid, invoice.IssuedAt, invoice.PaymentCode));
     }
 
     // FR-TUITION-06, D21: đường duy nhất để hóa đơn sang paid. Số tiền, thời điểm và người ghi nhận do
@@ -223,6 +226,27 @@ public class TuitionService : ITuitionService
         return invoice is null ? null : ToChildInvoiceResponse(invoice);
     }
 
+    // FR-TUITION-07, D21 mục 1: phạm vi như FR-TUITION-05 — hóa đơn không tồn tại, thuộc trẻ khác hoặc trẻ
+    // không liên kết với mình đều 404. Hóa đơn đã paid không còn thông tin chuyển khoản → 409 (BR-TUITION-14)
+    public async Task<PaymentInstructionResult> GetPaymentInstructionForGuardianAsync(
+        Guid childId, Guid invoiceId, Guid parentUserId)
+    {
+        var invoice = await _tuitionRepository.FindInvoiceOfChildForGuardianAsync(childId, invoiceId, parentUserId);
+        if (invoice is null)
+            return new PaymentInstructionResult(PaymentInstructionOutcome.InvoiceNotFound);
+
+        if (invoice.Status == InvoiceStatuses.Paid)
+            return new PaymentInstructionResult(PaymentInstructionOutcome.InvoicePaid);
+
+        return new PaymentInstructionResult(PaymentInstructionOutcome.Success, new PaymentInstructionResponse(
+            _paymentAccount.BankName,
+            _paymentAccount.AccountNumber,
+            _paymentAccount.AccountName,
+            invoice.Amount,
+            invoice.PaymentCode,
+            BuildQrImageUrl(invoice.Amount, invoice.PaymentCode)));
+    }
+
     // FR-TUITION-03, D39 mục 12: kỳ báo cáo là tháng hiện tại, không có bộ lọc khoảng ngày.
     // Tổng thu tính theo thời điểm thanh toán (D39 mục 4), không theo kỳ thu ghi trong mô tả hóa đơn.
     // Số hóa đơn chưa thanh toán đếm mọi hóa đơn còn unpaid lúc sinh báo cáo: hóa đơn không có cột kỳ,
@@ -242,6 +266,20 @@ public class TuitionService : ITuitionService
     private static string NewInvoiceMessage(string childFullName, string description, decimal amount)
         => $"Có hóa đơn mới cho bé {childFullName}: {description}, số tiền {FormatAmount(amount)} đồng.";
 
+    // Ảnh VietQR từ img.vietqr.io (ngoại lệ D11, D17). URL chỉ chứa tài khoản của trường, số tiền và mã
+    // thanh toán, không chứa dữ liệu trẻ hay phụ huynh. Số tiền ghi kiểu invariant (1500000, 1500000.5),
+    // không có dấu phân cách hàng nghìn
+    private string BuildQrImageUrl(decimal amount, string paymentCode)
+    {
+        var amountText = amount.ToString("0.##", CultureInfo.InvariantCulture);
+        return "https://img.vietqr.io/image/"
+            + $"{Uri.EscapeDataString(_paymentAccount.BankBin)}-{Uri.EscapeDataString(_paymentAccount.AccountNumber)}"
+            + "-compact2.png"
+            + $"?amount={Uri.EscapeDataString(amountText)}"
+            + $"&addInfo={Uri.EscapeDataString(paymentCode)}"
+            + $"&accountName={Uri.EscapeDataString(_paymentAccount.AccountName)}";
+    }
+
     private static string FormatAmount(decimal amount)
         => amount.ToString("#,##0.##", VietnameseNumberFormat);
 
@@ -250,7 +288,7 @@ public class TuitionService : ITuitionService
 
     private static InvoiceResponse ToResponse(Invoice invoice)
         => new(invoice.Id, invoice.ChildId, invoice.Child.FullName, invoice.Amount,
-            invoice.Description, invoice.Status, invoice.IssuedAt);
+            invoice.Description, invoice.Status, invoice.IssuedAt, invoice.PaymentCode);
 
     private static ChildInvoiceResponse ToChildInvoiceResponse(Invoice invoice)
         => new(invoice.Id, invoice.Amount, invoice.Description, invoice.Status, invoice.IssuedAt);
