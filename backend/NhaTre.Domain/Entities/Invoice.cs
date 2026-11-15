@@ -9,6 +9,7 @@ public class Invoice
     public string Description { get; set; } = null!; // chép từ biểu phí lúc tạo, Kế toán ghi kỳ thu vào đây (D39 mục 4)
     public DateTime IssuedAt { get; set; }
     public string Status { get; set; } = null!; // InvoiceStatuses — check constraint ở DB (D51)
+    public string PaymentCode { get; set; } = null!; // PaymentCodes.Generate() lúc tạo, không đổi, không nhận từ client (D21 mục 1)
 
     public Child Child { get; set; } = null!;
     public TuitionFee? TuitionFee { get; set; }

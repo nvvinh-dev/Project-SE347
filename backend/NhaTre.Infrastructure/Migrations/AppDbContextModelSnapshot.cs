@@ -102,6 +102,106 @@ namespace NhaTre.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.BankTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("account_number");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("content");
+
+                    b.Property<Guid?>("InvoiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invoice_id");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("ResolutionNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("resolution_note");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<Guid?>("ResolvedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("resolved_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("TransactionAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("transaction_at");
+
+                    b.Property<string>("TransactionId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("transaction_id");
+
+                    b.Property<string>("UnmatchedReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("unmatched_reason");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bank_transactions");
+
+                    b.HasIndex("InvoiceId")
+                        .HasDatabaseName("ix_bank_transactions_invoice_id");
+
+                    b.HasIndex("ResolvedByUserId")
+                        .HasDatabaseName("ix_bank_transactions_resolved_by_user_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_bank_transactions_status");
+
+                    b.HasIndex("TransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_bank_transactions_transaction_id");
+
+                    b.ToTable("bank_transactions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BankTransaction_AmountPositive", "amount > 0");
+
+                            t.HasCheckConstraint("CK_BankTransaction_DismissedHasResolution", "status <> 'Dismissed' OR (resolution_note IS NOT NULL AND resolved_by_user_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_BankTransaction_MatchedHasInvoice", "(status = 'Matched') = (invoice_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_BankTransaction_Status", "status IN ('Matched', 'Unmatched', 'Dismissed')");
+
+                            t.HasCheckConstraint("CK_BankTransaction_UnmatchedHasReason", "status <> 'Unmatched' OR unmatched_reason IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_BankTransaction_UnmatchedReason", "unmatched_reason IS NULL OR unmatched_reason IN ('NoInvoiceCode', 'AmbiguousInvoiceCode', 'AmountMismatch', 'InvoiceAlreadyPaid')");
+                        });
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.Child", b =>
                 {
                     b.Property<Guid>("Id")
@@ -440,6 +540,12 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("issued_at");
 
+                    b.Property<string>("PaymentCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("payment_code");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
@@ -455,6 +561,10 @@ namespace NhaTre.Infrastructure.Migrations
                     b.HasIndex("ChildId")
                         .HasDatabaseName("ix_invoices_child_id");
 
+                    b.HasIndex("PaymentCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_invoices_payment_code");
+
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_invoices_status");
 
@@ -464,6 +574,8 @@ namespace NhaTre.Infrastructure.Migrations
                     b.ToTable("invoices", null, t =>
                         {
                             t.HasCheckConstraint("CK_Invoice_AmountPositive", "amount > 0");
+
+                            t.HasCheckConstraint("CK_Invoice_PaymentCode", "payment_code ~ '^HP[A-HJ-NP-Z2-9]{8}$'");
 
                             t.HasCheckConstraint("CK_Invoice_Status", "status IN ('unpaid', 'paid')");
                         });
@@ -540,6 +652,10 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("amount");
 
+                    b.Property<Guid?>("BankTransactionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bank_transaction_id");
+
                     b.Property<string>("ExternalReference")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -559,12 +675,16 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("payment_method");
 
-                    b.Property<Guid>("RecordedByUserId")
+                    b.Property<Guid?>("RecordedByUserId")
                         .HasColumnType("uuid")
                         .HasColumnName("recorded_by_user_id");
 
                     b.HasKey("Id")
                         .HasName("pk_payments");
+
+                    b.HasIndex("BankTransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_payments_bank_transaction_id");
 
                     b.HasIndex("InvoiceId")
                         .HasDatabaseName("ix_payments_invoice_id");
@@ -576,7 +696,11 @@ namespace NhaTre.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_Payment_AmountPositive", "amount > 0");
 
+                            t.HasCheckConstraint("CK_Payment_BankTransactionIsTransfer", "bank_transaction_id IS NULL OR payment_method = 'BankTransfer'");
+
                             t.HasCheckConstraint("CK_Payment_Method", "payment_method IN ('Cash', 'BankTransfer')");
+
+                            t.HasCheckConstraint("CK_Payment_RecordedOrBankTransaction", "recorded_by_user_id IS NOT NULL OR bank_transaction_id IS NOT NULL");
                         });
                 });
 
@@ -1026,6 +1150,23 @@ namespace NhaTre.Infrastructure.Migrations
                     b.Navigation("RecordedByTeacher");
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.BankTransaction", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Invoice", "Invoice")
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_bank_transactions_invoices_invoice_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ResolvedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_bank_transactions_users_resolved_by_user_id");
+
+                    b.Navigation("Invoice");
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.Child", b =>
                 {
                     b.HasOne("NhaTre.Domain.Entities.Class", "Class")
@@ -1217,6 +1358,12 @@ namespace NhaTre.Infrastructure.Migrations
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Payment", b =>
                 {
+                    b.HasOne("NhaTre.Domain.Entities.BankTransaction", "BankTransaction")
+                        .WithOne()
+                        .HasForeignKey("NhaTre.Domain.Entities.Payment", "BankTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payments_bank_transactions_bank_transaction_id");
+
                     b.HasOne("NhaTre.Domain.Entities.Invoice", "Invoice")
                         .WithMany("Payments")
                         .HasForeignKey("InvoiceId")
@@ -1228,8 +1375,9 @@ namespace NhaTre.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("RecordedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_payments_users_recorded_by_user_id");
+
+                    b.Navigation("BankTransaction");
 
                     b.Navigation("Invoice");
                 });

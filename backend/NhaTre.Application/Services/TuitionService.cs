@@ -113,7 +113,10 @@ public class TuitionService : ITuitionService
             Amount = request.Amount,
             Description = request.Description.Trim(),
             IssuedAt = DateTime.UtcNow,
-            Status = InvoiceStatuses.Unpaid
+            Status = InvoiceStatuses.Unpaid,
+            // D21 mục 1: server sinh, không đổi khi sửa. Không thử lại khi trùng: không gian mã 32^8,
+            // UNIQUE ở DB vẫn chặn nếu trùng thật
+            PaymentCode = PaymentCodes.Generate()
         };
 
         _tuitionRepository.AddInvoice(invoice);
