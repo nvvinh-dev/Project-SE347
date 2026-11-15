@@ -31,3 +31,37 @@ export interface GrowthMeasurementPayload {
   heightCm: number | null;
   weightKg: number | null;
 }
+
+// DTO phía phụ huynh (FR-HEALTH-05, FR-INCIDENT-03): không có childId, không có người ghi nhận.
+export interface ParentQuickHealthStatus {
+  id: string;
+  recordedAtUtc: string;
+  mood: HealthMood;
+  temperatureCelsius: number | null;
+  notes: string;
+}
+
+export interface ParentGrowthMeasurement {
+  id: string;
+  measuredAtUtc: string;
+  heightCm: number | null;
+  weightKg: number | null;
+}
+
+export interface ParentHealthResponse {
+  healthNotes: string | null;
+  quickHealthStatuses: ParentQuickHealthStatus[];
+  growthMeasurements: ParentGrowthMeasurement[];
+}
+
+export interface ParentIncident {
+  id: string;
+  occurredAtUtc: string;
+  description: string;
+  photoCount: number;
+}
+
+export interface ParentIncidentDetail extends Omit<ParentIncident, "photoCount"> {
+  /** URL ký hạn 60 phút (D53) — không lưu lâu, hết hạn thì gọi lại route chi tiết. */
+  photos: { id: string; url: string }[];
+}
