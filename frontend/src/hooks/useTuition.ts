@@ -6,6 +6,7 @@ import type {
   InvoiceResponse,
   PaymentResponse,
   RecordPaymentRequest,
+  RevenueReportResponse,
   TuitionFeeRequest,
   TuitionFeeResponse,
 } from "@/types/tuition";
@@ -13,6 +14,7 @@ import { useApiMutation, useApiQuery } from "./useApiQuery";
 
 export const TUITION_FEES_QUERY_KEY = ["tuition-fees"] as const;
 export const INVOICES_QUERY_KEY = ["invoices"] as const;
+export const REVENUE_REPORT_QUERY_KEY = ["revenue-report"] as const;
 
 function readData<T>(response: ApiResponse<T>, status: number, fallbackMessage: string): T {
   if (!response.success || response.data == null) {
@@ -82,6 +84,7 @@ export function useSaveInvoice() {
           : [saved, ...invoices]
       ));
       void queryClient.invalidateQueries({ queryKey: INVOICES_QUERY_KEY, exact: true });
+      void queryClient.invalidateQueries({ queryKey: REVENUE_REPORT_QUERY_KEY, exact: true });
     },
     onError: (error, { id }) => {
       // Sửa: hóa đơn vừa được ghi nhận thu (409) hoặc không còn (404) → tải lại để khóa nút sửa.
@@ -113,11 +116,23 @@ export function useRecordPayment() {
       ));
       // Không chờ tải lại: hóa đơn đã khóa trên danh sách, popup đóng ngay.
       void queryClient.invalidateQueries({ queryKey: INVOICES_QUERY_KEY, exact: true });
+      void queryClient.invalidateQueries({ queryKey: REVENUE_REPORT_QUERY_KEY, exact: true });
     },
     onError: (error) => {
       if (error.status === 409 || error.status === 404) {
         return queryClient.invalidateQueries({ queryKey: INVOICES_QUERY_KEY, exact: true });
       }
+    },
+  });
+}
+
+// FR-TUITION-03: báo cáo không lưu, server tính lại cho tháng hiện tại mỗi lần gọi (D39 mục 12).
+export function useRevenueReport() {
+  return useApiQuery<RevenueReportResponse>({
+    queryKey: REVENUE_REPORT_QUERY_KEY,
+    queryFn: async ({ signal }) => {
+      const response = await apiClient.get<ApiResponse<RevenueReportResponse>>("/api/revenue-reports/current", { signal });
+      return readData(response.data, response.status, "Không thể tải báo cáo doanh thu.");
     },
   });
 }
