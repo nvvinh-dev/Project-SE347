@@ -1,22 +1,81 @@
+"use client";
+
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ChildSelect } from "@/components/parent/ChildSelect";
+import { HealthSummary } from "@/components/parent/health/HealthSummary";
+import { IncidentList } from "@/components/parent/health/IncidentList";
+import { RefreshErrorNotice } from "@/components/parent/RefreshErrorNotice";
+import { FormField } from "@/components/ui/FormField";
+import { StatusMessage } from "@/components/ui/StatusMessage";
+import { useMyChildren } from "@/hooks/useMyChildren";
+import type { MyChildResponse } from "@/types/children";
+
+function ChildHealthViewer({ childOptions }: { childOptions: MyChildResponse[] }) {
+  const { control } = useForm<{ childId: string }>({
+    defaultValues: { childId: childOptions[0].id },
+  });
+  const childId = useWatch({ control, name: "childId" });
+  // Nếu liên kết bị gỡ khi tải lại danh sách, không tiếp tục hiển thị trẻ đã bị loại.
+  const child = childOptions.find((item) => item.id === childId) ?? childOptions[0];
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:px-6 sm:py-5">
+        <div className="w-full min-w-0 sm:max-w-sm">
+          <FormField id="health-child" label="Chọn con" className="[&_label]:text-sm">
+            <Controller
+              name="childId"
+              control={control}
+              render={({ field }) => (
+                <ChildSelect {...field} id="health-child" value={child.id} options={childOptions} />
+              )}
+            />
+          </FormField>
+        </div>
+      </div>
+      {/* Đổi trẻ thì đặt lại phân trang và các phần ảnh đang mở; ô chọn con vẫn giữ focus. */}
+      <HealthSummary key={`health-${child.id}`} childId={child.id} />
+      <IncidentList key={`incident-${child.id}`} childId={child.id} />
+    </div>
+  );
+}
 
 export default function ParentHealthPage() {
+  const children = useMyChildren();
+  const records = children.data ?? [];
+  const hasVisibleData = children.data !== undefined
+    && children.error?.status !== 403 && children.error?.status !== 404;
+
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-5">
       <PageHeader
         title="Sức khỏe & Sự cố"
-        description="Theo dõi chỉ số phát triển, lịch sử y tế và các sự cố trong ngày của bé"
+        description="Theo dõi sức khỏe, số đo phát triển và các sự cố của bé"
       />
-      <div className="rounded-xl border border-border bg-card p-12 text-center shadow-xs">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand mb-4">
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
+      {children.isError && hasVisibleData && (
+        <div className="overflow-hidden rounded-xl border border-warning-border">
+          <RefreshErrorNotice className="px-4 py-3 sm:px-6" message={children.error.message}
+            isFetching={children.isFetching} onRetry={() => { void children.refetch(); }} />
         </div>
-        <h3 className="text-base font-semibold text-foreground">Chức năng đang được xây dựng</h3>
-        <p className="mt-1 text-sm text-muted">
-          Tính năng theo dõi hồ sơ sức khỏe và các sự cố trong ngày của bé sẽ được hoàn thiện trong các thẻ nghiệp vụ tiếp theo.
-        </p>
+      )}
+      <div aria-busy={children.isFetching}>
+        {children.isLoading ? (
+          <div role="status"><StatusMessage status="loading" title="Đang tải danh sách con…" /></div>
+        ) : children.isError && !hasVisibleData ? (
+          <div role="alert">
+            <StatusMessage status="error" title="Không thể tải danh sách con" message={children.error.message}
+              onRetry={() => { void children.refetch(); }} />
+          </div>
+        ) : records.length === 0 ? (
+          <StatusMessage
+            status="empty"
+            title="Chưa có hồ sơ trẻ được liên kết"
+            message="Vui lòng liên hệ nhà trường để liên kết tài khoản với hồ sơ của con."
+          />
+        ) : (
+          <ChildHealthViewer childOptions={records} />
+        )}
       </div>
     </div>
   );
