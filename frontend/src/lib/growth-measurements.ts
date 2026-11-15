@@ -104,6 +104,11 @@ export function formatMeasurementDateTime(utcString: string): string {
   return `${dateFormatter.format(date)} ${timeFormatter.format(date)}`;
 }
 
+export function formatMeasurementDate(utcString: string): string {
+  const date = new Date(utcString);
+  return Number.isNaN(date.getTime()) ? "—" : dateFormatter.format(date);
+}
+
 export function formatMeasurementNumber(value: number | null | undefined): string {
   if (value == null) return "—";
   return numberFormatter.format(value);

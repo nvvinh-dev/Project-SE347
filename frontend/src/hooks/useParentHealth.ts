@@ -25,8 +25,8 @@ function useChildQuery<T>(path: string, fallbackMessage: string, enabled: boolea
     queryKey: [...PARENT_HEALTH_QUERY_KEY, user?.userId, path],
     enabled: user?.role === "Parent" && enabled,
     retry: (count, error) => count < 1 && error.status !== 403 && error.status !== 404,
-    // fresh: không giữ lại dữ liệu có URL ảnh ký để dùng lại sau khi đóng (D53).
-    ...(fresh && { staleTime: 0, gcTime: 0 }),
+    // fresh: xóa dữ liệu có URL ảnh ký ngay khi không còn component nào dùng (D53).
+    ...(fresh && { gcTime: 0 }),
     queryFn: async ({ signal }) => {
       try {
         return await getData<T>(path, fallbackMessage, signal);
@@ -52,9 +52,10 @@ export function useParentIncidents(childId: string) {
     `/api/children/${childId}/incidents`, "Không thể tải danh sách sự cố. Vui lòng thử lại.", !!childId);
 }
 
-export function useParentIncidentDetail(childId: string, incidentId: string, enabled: boolean) {
+/** Chỉ gọi hook này trong component được dựng khi mở ảnh; gỡ component thì gcTime 0 xóa URL cũ. */
+export function useParentIncidentDetail(childId: string, incidentId: string) {
   const path = `/api/children/${childId}/incidents/${incidentId}`;
-  const query = useChildQuery<ParentIncidentDetail>(path, "Không thể tải ảnh của sự cố. Vui lòng thử lại.", enabled, true);
+  const query = useChildQuery<ParentIncidentDetail>(path, "Không thể tải ảnh của sự cố. Vui lòng thử lại.", true, true);
 
   // URL hết hạn → xin lại qua route chi tiết; ảnh cùng hết hạn thì dùng chung một request.
   const getFreshPhotoUrl = async (photoId: string) => {

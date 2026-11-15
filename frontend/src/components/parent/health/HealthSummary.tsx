@@ -7,7 +7,7 @@ import { DataTable, type Column } from "@/components/ui/DataTable";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import { useParentHealth } from "@/hooks/useParentHealth";
 import { formatTemperatureCelsius } from "@/lib/health";
-import { formatMeasurementDateTime, formatMeasurementNumber } from "@/lib/growth-measurements";
+import { formatMeasurementDate, formatMeasurementDateTime, formatMeasurementNumber } from "@/lib/growth-measurements";
 import { cn } from "@/lib/utils";
 import { MOOD_LABELS, type HealthMood, type ParentGrowthMeasurement } from "@/types/health";
 
@@ -47,7 +47,7 @@ function LatestTile({ label, value, at }: { label: string; value: string; at?: s
     <div className="min-w-0 rounded-xl border border-brand-border bg-brand-subtle px-4 py-3">
       <p className="text-xs font-medium text-brand-text">{label}</p>
       <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</p>
-      <p className="mt-0.5 text-xs text-muted">{at ? `Đo ngày ${formatMeasurementDateTime(at).slice(0, 10)}` : "Chưa có số đo"}</p>
+      <p className="mt-0.5 text-xs text-muted">{at ? `Đo ngày ${formatMeasurementDate(at)}` : "Chưa có số đo"}</p>
     </div>
   );
 }
