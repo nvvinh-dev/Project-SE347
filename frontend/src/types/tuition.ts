@@ -46,6 +46,15 @@ export interface PaymentResponse {
   paidAtUtc: string;
 }
 
+// FR-TUITION-05: phụ huynh xem hóa đơn của con; không kèm id/họ tên trẻ (D45). Mới lập trước.
+export interface ChildInvoiceResponse {
+  id: string;
+  amount: number;
+  description: string;
+  status: InvoiceStatus;
+  issuedAtUtc: string;
+}
+
 export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   unpaid: "Chưa thanh toán",
   paid: "Đã thanh toán",
