@@ -55,3 +55,14 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   Cash: "Tiền mặt",
   BankTransfer: "Chuyển khoản",
 };
+
+// Kỳ báo cáo là tháng hiện tại giờ Việt Nam: [periodStartUtc, periodEndUtc). Hiển thị kỳ bằng year/month.
+export interface RevenueReportResponse {
+  year: number;
+  month: number;
+  periodStartUtc: string;
+  periodEndUtc: string;
+  generatedAtUtc: string;
+  totalCollected: number;
+  unpaidInvoiceCount: number;
+}
