@@ -99,6 +99,8 @@ export default function MediaScreen() {
   }, [share.isError]);
 
   const updatePhotos = (next: File[]) => {
+    // Giáo viên đã đổi ảnh để gửi lại nên khung lỗi của lượt trước không còn giá trị; cờ uncertain vẫn giữ để lần xác nhận sau còn nhắc.
+    if (share.isError) share.reset();
     form.setValue("photos", next, { shouldValidate: true, shouldDirty: true });
   };
 

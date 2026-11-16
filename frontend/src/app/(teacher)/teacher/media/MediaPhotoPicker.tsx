@@ -75,6 +75,9 @@ export default function MediaPhotoPicker({ files, error, disabled, fieldRef, onC
           <Button
             variant="ghost"
             size="sm"
+            // Khi đủ 5 ảnh ô "Thêm ảnh" biến mất, nút này nhận focus để lỗi quá số ảnh vẫn có chỗ đưa focus tới.
+            ref={files.length >= 5 ? fieldRef : undefined}
+            aria-describedby={files.length >= 5 ? describedBy : undefined}
             disabled={disabled}
             onClick={() => onChange([])}
             className="h-auto shrink-0 p-0 text-xs text-muted hover:text-danger"
