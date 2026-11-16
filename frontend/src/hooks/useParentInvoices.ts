@@ -22,7 +22,7 @@ export function useParentInvoices(childId: string) {
       try {
         const response = await apiClient.get<ApiResponse<ChildInvoiceResponse[]>>(
           `/api/children/${childId}/invoices`,
-          { signal },
+          { signal, timeout: 20_000 },
         );
         if (!response.data.success) {
           throw new ApiError(

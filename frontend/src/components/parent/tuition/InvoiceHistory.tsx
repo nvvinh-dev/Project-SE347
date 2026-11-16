@@ -73,7 +73,7 @@ export function InvoiceHistory({ invoices }: { invoices: ReturnType<typeof usePa
     {
       key: "issuedAtUtc",
       header: "Ngày lập",
-      className: "hidden whitespace-nowrap text-center sm:table-cell sm:w-36",
+      className: "hidden whitespace-nowrap text-center sm:table-cell",
       render: (invoice) => (
         <time dateTime={invoice.issuedAtUtc} className="tabular-nums">{formatIssuedDate(invoice.issuedAtUtc)}</time>
       ),
@@ -81,13 +81,13 @@ export function InvoiceHistory({ invoices }: { invoices: ReturnType<typeof usePa
     {
       key: "amount",
       header: "Số tiền",
-      className: "hidden whitespace-nowrap text-right sm:table-cell sm:w-40",
+      className: "hidden whitespace-nowrap text-right sm:table-cell",
       render: (invoice) => <span className="font-semibold tabular-nums">{formatCurrency(invoice.amount)}</span>,
     },
     {
       key: "status",
       header: "Trạng thái",
-      className: "w-36 text-center sm:w-48",
+      className: "w-36 text-center sm:w-auto",
       render: (invoice) => <InvoiceBadge status={invoice.status} />,
     },
   ];

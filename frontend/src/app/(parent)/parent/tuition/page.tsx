@@ -58,8 +58,8 @@ export default function ParentTuitionPage() {
       />
       {/* D21: phụ huynh không thanh toán trên hệ thống; chỉ xem, Kế toán ghi nhận sau khi nhận tiền. */}
       <p className="rounded-xl border border-brand-border bg-brand-subtle px-4 py-3 text-sm text-brand-text">
-        Phụ huynh nộp học phí bằng tiền mặt tại trường hoặc chuyển khoản vào tài khoản của nhà trường
-        (hướng dẫn chuyển khoản sẽ được bổ sung sau). Trạng thái hóa đơn sẽ chuyển sang{" "}
+        Phụ huynh nộp học phí bằng tiền mặt tại trường hoặc chuyển khoản vào tài khoản của nhà trường.
+        Trạng thái hóa đơn sẽ chuyển sang{" "}
         <strong className="font-semibold">Đã thanh toán</strong>{" "}
         sau khi nhà trường ghi nhận khoản đã nộp.
       </p>
