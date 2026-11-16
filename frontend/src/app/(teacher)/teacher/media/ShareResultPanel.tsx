@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { SignedImage } from "@/components/ui/SignedImage";
 import { formatRecordTime } from "../incidents/_lib/health-incidents";
 import type { SharedPhoto } from "./_lib/activity-photos";
@@ -9,13 +10,17 @@ export interface ShareResult {
 
 interface ShareResultPanelProps {
   result: ShareResult;
+  ref?: Ref<HTMLElement>;
 }
 
-export default function ShareResultPanel({ result }: ShareResultPanelProps) {
+// Khung có tabIndex -1 để màn hình đưa focus vào đây khi chia sẻ thành công.
+export default function ShareResultPanel({ result, ref }: ShareResultPanelProps) {
   return (
     <section
+      ref={ref}
       role="status"
-      className="min-w-0 space-y-4 rounded-xl border border-success-border bg-card p-4 shadow-xs sm:p-6"
+      tabIndex={-1}
+      className="min-w-0 space-y-4 rounded-xl border border-success-border bg-card p-4 shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 sm:p-6"
     >
       <div className="flex min-w-0 items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-success-border bg-success-bg text-success">

@@ -26,6 +26,9 @@ export default function MediaScreen() {
   const { user } = useAuth();
   // Khóa đồng bộ chống chạm hai lần liên tiếp khi gửi dữ liệu multipart.
   const sending = useRef(false);
+  const submitButton = useRef<HTMLButtonElement>(null);
+  const feedback = useRef<HTMLDivElement>(null);
+  const resultPanel = useRef<HTMLElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const [result, setResult] = useState<ShareResult | null>(null);
@@ -86,6 +89,15 @@ export default function MediaScreen() {
     },
   });
 
+  // Hộp xác nhận đóng xong thì focus rơi về body, nên đưa focus tới kết quả hoặc khung lỗi vừa hiện.
+  useEffect(() => {
+    if (result) resultPanel.current?.focus();
+  }, [result]);
+
+  useEffect(() => {
+    if (share.isError) feedback.current?.focus();
+  }, [share.isError]);
+
   const updatePhotos = (next: File[]) => {
     form.setValue("photos", next, { shouldValidate: true, shouldDirty: true });
   };
@@ -95,6 +107,12 @@ export default function MediaScreen() {
     sending.current = true;
     share.reset();
     share.mutate({ ...form.getValues(), className });
+  };
+
+  const cancelConfirm = () => {
+    if (share.isPending) return;
+    setConfirming(false);
+    submitButton.current?.focus();
   };
 
   return (
@@ -187,14 +205,16 @@ export default function MediaScreen() {
                 files={files}
                 error={form.formState.errors.photos?.message}
                 disabled={share.isPending}
+                fieldRef={photoField.field.ref}
                 onChange={updatePhotos}
               />
 
-              {share.isError && <ShareFeedback error={share.error} uncertain={uncertain} />}
+              {share.isError && <ShareFeedback ref={feedback} error={share.error} uncertain={uncertain} />}
 
               {/* Dưới lg cố định ở đáy màn hình để luôn với tới được; từ lg nằm ngay dưới khung ảnh. */}
               <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-end border-t border-border bg-card/95 p-3.5 backdrop-blur-xs lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:pt-1">
                 <Button
+                  ref={submitButton}
                   type="submit"
                   className="min-h-11 w-full font-semibold shadow-xs sm:w-auto sm:min-w-40"
                   isLoading={share.isPending}
@@ -207,7 +227,7 @@ export default function MediaScreen() {
         </form>
       )}
 
-      {result && <ShareResultPanel result={result} />}
+      {result && <ShareResultPanel ref={resultPanel} result={result} />}
 
       <ConfirmDialog
         isOpen={confirming}
@@ -236,7 +256,7 @@ export default function MediaScreen() {
         cancelText="Hủy bỏ"
         isLoading={share.isPending}
         onConfirm={confirmShare}
-        onClose={() => !share.isPending && setConfirming(false)}
+        onClose={cancelConfirm}
       />
     </div>
   );

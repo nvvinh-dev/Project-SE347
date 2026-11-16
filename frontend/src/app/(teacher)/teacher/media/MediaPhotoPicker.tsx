@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type Ref } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
@@ -6,16 +6,20 @@ import InvalidPhotoPreview from "../incidents/InvalidPhotoPreview";
 import { validateSinglePhoto } from "../incidents/_lib/health-incidents";
 
 const PICKER_ID = "media-photos-picker";
+const ERROR_ID = "media-photos-error";
 
 interface MediaPhotoPickerProps {
   files: File[];
   error?: string;
   disabled: boolean;
+  /** Ref của React Hook Form, gắn vào nút mở hộp chọn ảnh để lỗi ảnh đưa focus về đúng nút này. */
+  fieldRef: Ref<HTMLButtonElement>;
   onChange: (files: File[]) => void;
 }
 
-export default function MediaPhotoPicker({ files, error, disabled, onChange }: MediaPhotoPickerProps) {
+export default function MediaPhotoPicker({ files, error, disabled, fieldRef, onChange }: MediaPhotoPickerProps) {
   const input = useRef<HTMLInputElement>(null);
+  const describedBy = error ? ERROR_ID : undefined;
 
   // Trình duyệt mặc định mở tệp ảnh khi thả trượt ra ngoài vùng tải, làm mất các ảnh đã chọn.
   useEffect(() => {
@@ -85,7 +89,7 @@ export default function MediaPhotoPicker({ files, error, disabled, onChange }: M
       </div>
 
       {error && (
-        <p className="text-xs text-danger">
+        <p id={ERROR_ID} className="text-xs text-danger">
           {error}
         </p>
       )}
@@ -136,9 +140,11 @@ export default function MediaPhotoPicker({ files, error, disabled, onChange }: M
             </p>
             <p className="mb-4 text-xs font-normal text-muted">JPEG hoặc PNG, tối đa 5 ảnh, mỗi ảnh ≤ 5 MB</p>
             <Button
+              ref={fieldRef}
               variant="secondary"
               className="min-h-10 cursor-pointer border-brand-border px-6 text-xs font-medium text-brand-text shadow-2xs hover:bg-brand-subtle sm:text-sm"
               disabled={disabled}
+              aria-describedby={describedBy}
               onClick={openPicker}
             >
               Chọn ảnh
@@ -212,8 +218,10 @@ export default function MediaPhotoPicker({ files, error, disabled, onChange }: M
               {files.length < 5 && (
                 <li className="flex min-w-0 flex-col">
                   <Button
+                    ref={fieldRef}
                     variant="ghost"
                     disabled={disabled}
+                    aria-describedby={describedBy}
                     onClick={openPicker}
                     className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-card/60 p-2 text-center shadow-2xs transition-all hover:border-brand hover:bg-brand-subtle/20"
                   >

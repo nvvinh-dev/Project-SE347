@@ -1,11 +1,14 @@
+import type { Ref } from "react";
 import type { ApiError } from "@/lib/axios";
 
 interface ShareFeedbackProps {
   error: ApiError;
   uncertain: boolean;
+  ref?: Ref<HTMLDivElement>;
 }
 
-export default function ShareFeedback({ error, uncertain }: ShareFeedbackProps) {
+// Khung có tabIndex -1 để màn hình đưa focus vào đây sau khi hộp xác nhận đóng.
+export default function ShareFeedback({ error, uncertain, ref }: ShareFeedbackProps) {
   const details = error.errors?.filter((item) => item && item !== error.message) ?? [];
   const tone = uncertain
     ? "border-warning-border bg-warning-bg text-warning"
@@ -13,8 +16,10 @@ export default function ShareFeedback({ error, uncertain }: ShareFeedbackProps) 
 
   return (
     <div
+      ref={ref}
       role="alert"
-      className={`flex items-start gap-3 rounded-xl border p-4 text-sm shadow-xs ${tone}`}
+      tabIndex={-1}
+      className={`flex items-start gap-3 rounded-xl border p-4 text-sm shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 ${tone}`}
     >
       <svg
         aria-hidden="true"
