@@ -125,7 +125,7 @@ export function InvoiceHistory({ invoices }: { invoices: ReturnType<typeof usePa
             errorMessage={invoices.error?.message}
             onRetry={() => { void invoices.refetch(); }}
             emptyMessage="Chưa có hóa đơn học phí nào cho bé."
-            className="rounded-none! border-0! shadow-none! [&_td]:px-3 [&_td]:py-4 [&_th]:px-3 [&_thead]:bg-brand-subtle/50 sm:[&_td]:px-6 sm:[&_th]:px-6"
+            className="rounded-none! border-0! shadow-none! [&_td]:px-3 [&_td]:py-4 [&_th]:px-3 [&_thead]:bg-brand-subtle/50 sm:[&_td]:px-4 sm:[&_th]:px-4 xl:[&_td]:px-6 xl:[&_th]:px-6"
           />
         </div>
       </div>
