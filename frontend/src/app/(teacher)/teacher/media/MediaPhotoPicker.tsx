@@ -153,7 +153,8 @@ export default function MediaPhotoPicker({ files, error, disabled, onChange }: M
               <span className="shrink-0 text-[11px] text-muted-light">Tối đa 5 ảnh (≤ 5 MB)</span>
             </div>
 
-            <ul className="grid min-w-0 grid-cols-2 gap-3 min-[420px]:grid-cols-3 md:grid-cols-5">
+            {/* Chỉ chia hai cột từ xl nên đến lg lưới còn đủ rộng để ảnh và nút bỏ ảnh không đè lên nhau. */}
+            <ul className="grid min-w-0 grid-cols-2 gap-3 min-[420px]:grid-cols-3 md:grid-cols-5 xl:grid-cols-4 2xl:grid-cols-5">
               {previews.map((item, index) => (
                 <li key={item.url ?? `${item.file.name}-${index}`} className="flex min-w-0 flex-col">
                   <div

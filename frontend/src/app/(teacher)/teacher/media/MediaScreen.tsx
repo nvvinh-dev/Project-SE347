@@ -55,6 +55,7 @@ export default function MediaScreen() {
   const files = photoField.field.value;
   const className = classes.data?.find((item) => item.id === classId)?.name ?? "";
   const hasSelectedClass = Boolean(classId);
+  const showForm = classes.isSuccess && classes.data.length > 0;
 
   // Chọn sẵn khi giáo viên chỉ phụ trách một lớp để giảm bớt thao tác.
   useEffect(() => {
@@ -97,7 +98,8 @@ export default function MediaScreen() {
   };
 
   return (
-    <div className="w-full min-w-0 space-y-5">
+    // Thanh chia sẻ cố định ở đáy điện thoại, chừa chỗ để không che phần cuối trang (kể cả khối kết quả).
+    <div className={cn("w-full min-w-0 space-y-5", showForm && "pb-20 lg:pb-0")}>
       <PageHeader
         title="Ảnh hoạt động lớp"
         description="Chia sẻ ảnh hoạt động cho lớp mình phụ trách"
@@ -144,14 +146,15 @@ export default function MediaScreen() {
             </FormField>
           </div>
 
+          {/* Chỉ chia hai cột từ xl: ở lg khu vực sidebar đã chiếm chỗ, chia tiếp sẽ làm ảnh xem trước quá nhỏ. */}
           <div
             className={cn(
-              "min-w-0 p-4 pb-20 sm:p-6 sm:pb-24 lg:pb-6",
-              hasSelectedClass ? "grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]" : "space-y-6"
+              "min-w-0 p-4 sm:p-6",
+              hasSelectedClass ? "grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]" : "space-y-6"
             )}
           >
             {hasSelectedClass && (
-              <div className="min-w-0 space-y-4 lg:border-r lg:border-border lg:pr-6">
+              <div className="min-w-0 space-y-4 xl:border-r xl:border-border xl:pr-6">
                 <div className="min-w-0 space-y-3 rounded-xl border border-border/80 bg-background/50 p-4">
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted">
                     Thông tin chia sẻ
