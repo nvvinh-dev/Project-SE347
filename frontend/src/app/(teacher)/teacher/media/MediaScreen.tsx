@@ -106,6 +106,8 @@ export default function MediaScreen() {
     if (sending.current) return;
     sending.current = true;
     share.reset();
+    // Ẩn kết quả của lượt trước để không lẫn với lỗi của lượt này.
+    setResult(null);
     share.mutate({ ...form.getValues(), className });
   };
 
