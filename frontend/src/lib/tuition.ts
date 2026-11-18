@@ -5,10 +5,14 @@ export const MAX_TUITION_AMOUNT = 9_999_999_999;
 export const FEE_DESCRIPTION_MAX = 500;
 export const INVOICE_DESCRIPTION_MAX = 1000;
 export const EXTERNAL_REFERENCE_MAX = 100;
+export const RESOLUTION_NOTE_MAX = 500;
 
 const currencyFormatter = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   timeZone: VN_TIME_ZONE, day: "2-digit", month: "2-digit", year: "numeric",
+});
+const dateTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
+  timeZone: VN_TIME_ZONE, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
 });
 const monthFormatter = new Intl.DateTimeFormat("vi-VN", {
   timeZone: VN_TIME_ZONE, month: "2-digit", year: "numeric",
@@ -49,6 +53,12 @@ export function validateAmountInput(value: string) {
 export function formatIssuedDate(utc: string) {
   const time = Date.parse(utc);
   return Number.isFinite(time) ? dateFormatter.format(time) : "—";
+}
+
+/** Thời điểm theo giờ Việt Nam, ví dụ "18/11/2026, 09:30". */
+export function formatDateTime(utc: string) {
+  const time = Date.parse(utc);
+  return Number.isFinite(time) ? dateTimeFormatter.format(time) : "—";
 }
 
 /**

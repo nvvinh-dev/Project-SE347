@@ -22,6 +22,8 @@ export interface InvoiceResponse {
   description: string;
   status: InvoiceStatus;
   issuedAtUtc: string;
+  // FR-TUITION-07: mã chuyển khoản do server sinh (D21 mục 1); thiếu khi backend chưa có trường này.
+  paymentCode?: string | null;
 }
 
 // Không có status: hóa đơn mới luôn unpaid do server đặt (BR-TUITION-09).
@@ -75,3 +77,42 @@ export interface RevenueReportResponse {
   totalCollected: number;
   unpaidInvoiceCount: number;
 }
+
+// FR-TUITION-09: giao dịch ngân hàng của tài khoản trường (D21 mục 2, 3; D45).
+export type BankTransactionStatus = "Matched" | "Unmatched" | "Dismissed";
+export type UnmatchedReason = "NoInvoiceCode" | "AmbiguousInvoiceCode" | "AmountMismatch" | "InvoiceAlreadyPaid";
+
+export interface BankTransactionResponse {
+  id: string;
+  transactionId: string;
+  amount: number;
+  content: string;
+  transactionAtUtc: string;
+  status: BankTransactionStatus;
+  // Giữ lý do ban đầu kể cả khi đã được gán hoặc bỏ qua.
+  unmatchedReason: UnmatchedReason | null;
+  resolutionNote: string | null;
+  resolvedAtUtc: string | null;
+  // Chỉ có khi giao dịch đã khớp: hóa đơn nối với giao dịch.
+  invoiceId?: string | null;
+  invoicePaymentCode?: string | null;
+  invoiceDescription?: string | null;
+  invoiceChildFullName?: string | null;
+}
+
+export interface DismissBankTransactionRequest {
+  note: string;
+}
+
+export const BANK_TRANSACTION_STATUS_LABELS: Record<BankTransactionStatus, string> = {
+  Unmatched: "Chưa khớp",
+  Matched: "Đã khớp",
+  Dismissed: "Đã bỏ qua",
+};
+
+export const UNMATCHED_REASON_LABELS: Record<UnmatchedReason, string> = {
+  NoInvoiceCode: "Nội dung không có mã thanh toán",
+  AmbiguousInvoiceCode: "Nội dung có nhiều mã thanh toán",
+  AmountMismatch: "Số tiền lệch so với hóa đơn",
+  InvoiceAlreadyPaid: "Hóa đơn đã được thanh toán",
+};
