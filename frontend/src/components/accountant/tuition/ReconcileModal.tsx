@@ -248,7 +248,7 @@ export function ReconcileModal({ mode, transaction, onClose, onSuccess }: Reconc
             Giao dịch này đã được xử lý, không xử lý lại được.
           </p>
         ) : (
-          <form id={formId} noValidate onSubmit={handleSubmit(review)} className="space-y-4">
+          <form id={formId} noValidate onSubmit={handleSubmit(review)} onChange={() => setServerError(null)} className="space-y-4">
             {isMatch ? (
               <fieldset className="space-y-3" disabled={isPending}>
                 <legend className="mb-1 text-xs font-semibold text-foreground">

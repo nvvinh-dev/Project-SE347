@@ -66,7 +66,7 @@ function Resolution({ transaction }: { transaction: BankTransactionResponse }) {
     ) : null;
   }
   return transaction.resolutionNote
-    ? <p className="mt-1.5 line-clamp-2 text-xs text-muted [overflow-wrap:anywhere]" title={transaction.resolutionNote}>{transaction.resolutionNote}</p>
+    ? <p className="mt-1.5 whitespace-pre-line text-xs text-muted [overflow-wrap:anywhere]">{transaction.resolutionNote}</p>
     : null;
 }
 
@@ -114,12 +114,13 @@ export default function AccountantReconciliationPage() {
         <div className="min-w-0 [overflow-wrap:anywhere]">
           <p className="line-clamp-2 font-medium text-foreground" title={item.content}>{item.content}</p>
           <p className="mt-0.5 font-mono text-xs text-muted">{item.transactionId}</p>
-          <dl className="mt-2 space-y-1 text-xs text-muted md:hidden">
-            <div>
+          {/* Dưới xl cột "Thời điểm" ẩn nên thời điểm nằm ở đây; số tiền chỉ cần ở đây dưới md vì từ md đã có cột riêng. */}
+          <dl className="mt-2 space-y-1 text-xs text-muted xl:hidden">
+            <div className="md:hidden">
               <dt className="inline">Số tiền: </dt>
               <dd className="inline font-semibold tabular-nums text-foreground">{formatCurrency(item.amount)}</dd>
             </div>
-            <div className="xl:hidden">
+            <div>
               <dt className="inline">Thời điểm: </dt>
               <dd className="inline tabular-nums">{formatDateTime(item.transactionAtUtc)}</dd>
             </div>
