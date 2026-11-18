@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
@@ -43,6 +44,12 @@ function InvoiceSummary({ invoice }: { invoice: InvoiceResponse }) {
         <dt className="text-xs font-medium text-brand-text">Hóa đơn</dt>
         <dd className="mt-0.5 text-foreground [overflow-wrap:anywhere] whitespace-pre-line">{invoice.description}</dd>
       </div>
+      {invoice.paymentCode && (
+        <div className="min-w-0 sm:col-span-2">
+          <dt className="text-xs font-medium text-brand-text">Mã thanh toán</dt>
+          <dd className="mt-0.5 font-mono text-foreground">{invoice.paymentCode}</dd>
+        </div>
+      )}
       <div className="sm:col-span-2">
         <dt className="text-xs font-medium text-brand-text">Số tiền phải thu</dt>
         <dd className="mt-0.5 text-xl font-semibold tabular-nums text-brand-text">{formatCurrency(invoice.amount)}</dd>
@@ -211,6 +218,18 @@ export function RecordPaymentModal({ invoice, onClose, onSuccess }: RecordPaymen
                 <p role="alert" className="mt-1.5 text-xs text-danger">{errors.paymentMethod.message}</p>
               )}
             </fieldset>
+
+            {method === "BankTransfer" && (
+              <p role="note" className="rounded-xl border border-info-border bg-info-bg p-3 text-xs leading-relaxed text-info-text">
+                <strong className="font-semibold">Kiểm tra đối soát trước khi ghi nhận.</strong>{" "}
+                Khoản chuyển vào tài khoản của trường có thể đã được hệ thống tự gạch nợ hoặc đang nằm ở danh sách giao dịch chưa khớp.{" "}
+                <Link href="/accountant/reconciliation" target="_blank" rel="noopener"
+                  className="font-medium underline underline-offset-2 hover:no-underline">
+                  Mở Đối soát chuyển khoản
+                </Link>
+                {" "}để tránh ghi nhận trùng.
+              </p>
+            )}
 
             {method === "BankTransfer" && (
               <FormField id="payment-reference" label="Mã giao dịch" required error={errors.externalReference?.message}>

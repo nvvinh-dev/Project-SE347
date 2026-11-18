@@ -69,7 +69,7 @@ export default function AccountantTuitionPage() {
   const records = useMemo(() => {
     const term = normalize(search);
     return all.filter((invoice) => (statusFilter === "all" || invoice.status === statusFilter)
-      && (!term || normalize(`${invoice.childFullName} ${invoice.description}`).includes(term)));
+      && (!term || normalize(`${invoice.childFullName} ${invoice.description} ${invoice.paymentCode ?? ""}`).includes(term)));
   }, [all, search, statusFilter]);
 
   const safePage = Math.min(page, Math.max(1, Math.ceil(records.length / PAGE_SIZE)));
@@ -89,6 +89,11 @@ export default function AccountantTuitionPage() {
         <div className="min-w-0 [overflow-wrap:anywhere]">
           <p className="font-medium text-foreground">{invoice.childFullName}</p>
           <p className="mt-0.5 line-clamp-2 text-xs text-muted" title={invoice.description}>{invoice.description}</p>
+          {invoice.paymentCode && (
+            <p className="mt-1 text-xs text-muted 2xl:hidden">
+              Mã thanh toán: <span className="font-mono text-foreground">{invoice.paymentCode}</span>
+            </p>
+          )}
           <dl className="mt-2 space-y-1 text-xs text-muted md:hidden">
             <div>
               <dt className="inline">Số tiền: </dt>
@@ -102,6 +107,12 @@ export default function AccountantTuitionPage() {
           <div className="mt-2 sm:hidden"><InvoiceStatusBadge status={invoice.status} /></div>
         </div>
       ),
+    },
+    {
+      key: "paymentCode", header: "Mã thanh toán", className: "hidden w-36 2xl:table-cell",
+      render: (invoice) => invoice.paymentCode
+        ? <span className="font-mono text-xs text-foreground">{invoice.paymentCode}</span>
+        : <span className="text-muted">—</span>,
     },
     {
       key: "amount", header: "Số tiền", className: "hidden w-32 text-right md:table-cell",
@@ -198,12 +209,12 @@ export default function AccountantTuitionPage() {
             ))}
           </div>
           <form role="search" className="w-full xl:w-80" onSubmit={(event) => event.preventDefault()}>
-            <label htmlFor="invoice-search" className="sr-only">Tìm hóa đơn theo tên trẻ hoặc mô tả</label>
+            <label htmlFor="invoice-search" className="sr-only">Tìm hóa đơn theo tên trẻ, mô tả hoặc mã thanh toán</label>
             <Input
               id="invoice-search"
               type="search"
               autoComplete="off"
-              placeholder="Tìm theo tên trẻ hoặc mô tả"
+              placeholder="Tìm theo tên trẻ, mô tả hoặc mã"
               leftIcon={(
                 <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeWidth={1.75} d="m21 21-4.35-4.35M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z" />
