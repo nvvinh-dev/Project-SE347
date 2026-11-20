@@ -25,11 +25,17 @@ public class AppDbContext : DbContext
     public DbSet<TuitionFee> TuitionFees => Set<TuitionFee>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<BankTransaction> BankTransactions => Set<BankTransaction>();
     public DbSet<WeeklyMenu> WeeklyMenus => Set<WeeklyMenu>();
     public DbSet<MenuEntry> MenuEntries => Set<MenuEntry>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<SecurityEvent> SecurityEvents => Set<SecurityEvent>();
     public DbSet<Complaint> Complaints => Set<Complaint>();
+    public DbSet<Allergen> Allergens => Set<Allergen>();
+    public DbSet<ChildAllergen> ChildAllergens => Set<ChildAllergen>();
+    public DbSet<MenuEntryAllergen> MenuEntryAllergens => Set<MenuEntryAllergen>();
+    public DbSet<AllergyAcknowledgement> AllergyAcknowledgements => Set<AllergyAcknowledgement>();
+    public DbSet<AbsenceFollowUp> AbsenceFollowUps => Set<AbsenceFollowUp>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -19,6 +19,7 @@ namespace NhaTre.API.Controllers;
 // FR-TUITION-05: Phụ huynh chỉ xem hóa đơn của con mình (child_guardians, D39 mục 10), không thanh
 // toán trong hệ thống (D21)
 // FR-TUITION-06: chỉ Kế toán ghi nhận khoản phụ huynh đã nộp, là đường duy nhất để hóa đơn sang paid (D21)
+// FR-TUITION-07: chỉ Phụ huynh xem thông tin chuyển khoản theo mã thanh toán của hóa đơn con mình (D21 mục 1)
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -224,6 +225,25 @@ public class TuitionController : ControllerBase
             return NotFound(ApiResponse<ChildInvoiceResponse>.Fail("Không tìm thấy hóa đơn."));
 
         return Ok(ApiResponse<ChildInvoiceResponse>.Ok(result));
+    }
+
+    // Phạm vi như xem một hóa đơn: ngoài phạm vi → 404 (AC-TUITION-19). Hóa đơn đã paid → 409 (AC-TUITION-18)
+    [HttpGet("children/{childId:guid}/invoices/{invoiceId:guid}/payment-instruction")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<PaymentInstructionResponse>>> GetPaymentInstruction(
+        Guid childId, Guid invoiceId)
+    {
+        var result = await _tuitionService.GetPaymentInstructionForGuardianAsync(childId, invoiceId, CurrentUserId());
+
+        return result.Outcome switch
+        {
+            PaymentInstructionOutcome.Success => Ok(ApiResponse<PaymentInstructionResponse>.Ok(result.Instruction!)),
+            PaymentInstructionOutcome.InvoiceNotFound => NotFound(ApiResponse<PaymentInstructionResponse>.Fail(
+                "Không tìm thấy hóa đơn.")),
+            PaymentInstructionOutcome.InvoicePaid => Conflict(ApiResponse<PaymentInstructionResponse>.Fail(
+                "Hóa đơn đã được thanh toán, không còn thông tin chuyển khoản.")),
+            _ => throw new InvalidOperationException($"Kết quả xem thông tin chuyển khoản không xử lý: {result.Outcome}")
+        };
     }
 
     // Báo cáo không lưu vào bảng nào, mỗi lần gọi tính lại cho tháng hiện tại (D39 mục 12)
