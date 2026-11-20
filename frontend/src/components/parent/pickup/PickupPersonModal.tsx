@@ -89,9 +89,8 @@ export function PickupPersonModal({ childId, person, priority, onClose, onSaved 
 
   const id = (name: string) => `${uid}-${name}`;
   const formId = id("form");
-  const serverMessage = save.error
-    ? (save.error.errors?.length ? save.error.errors.join(" ") : save.error.message)
-    : null;
+  // 400 có thể trả nhiều lỗi cùng lúc: hiện từng dòng thay vì nối thành một đoạn.
+  const serverErrors = save.error ? (save.error.errors?.length ? save.error.errors : [save.error.message]) : [];
   const busy = save.isPending;
 
   return (
@@ -175,10 +174,14 @@ export function PickupPersonModal({ childId, person, priority, onClose, onSaved 
           </label>
         </div>
 
-        {serverMessage && (
-          <p role="alert" className="rounded-lg border border-danger-border bg-danger-bg px-3 py-2.5 text-sm text-danger [overflow-wrap:anywhere]">
-            {serverMessage}
-          </p>
+        {serverErrors.length > 0 && (
+          <div role="alert" className="rounded-lg border border-danger-border bg-danger-bg px-3 py-2.5 text-sm text-danger [overflow-wrap:anywhere]">
+            {serverErrors.length === 1 ? serverErrors[0] : (
+              <ul className="list-disc space-y-1 pl-5">
+                {serverErrors.map((message, index) => <li key={index}>{message}</li>)}
+              </ul>
+            )}
+          </div>
         )}
       </form>
     </TuitionModal>

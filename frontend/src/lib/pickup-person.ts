@@ -4,11 +4,11 @@ export const PICKUP_NAME_MAX = 100;
 export const PICKUP_RELATIONSHIP_MAX = 50;
 export const PICKUP_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
-/** Câu xác nhận đồng ý (D24), đã viết lại theo yêu cầu nhưng giữ đủ ý: ai đồng ý, 4 thông tin, mục đích, ai xem được, khi nào xóa. */
+/** Câu xác nhận đồng ý, đúng từng chữ với D24 (DECISIONS.md): đây là bằng chứng đồng ý nên không tự viết lại. */
 export const PICKUP_CONSENT_TEXT =
-  "Tôi cam kết người được đăng ký (hoặc chính tôi, nếu tôi tự đăng ký) đã đồng ý cung cấp họ tên, "
-  + "số điện thoại, số CCCD và ảnh khuôn mặt cho nhà trường, chỉ để xác minh khi đón bé. Chỉ phụ huynh "
-  + "của bé và giáo viên phụ trách lớp mới xem được thông tin này; thông tin sẽ bị xóa khi người này không còn được đăng ký.";
+  "Tôi xác nhận người được đăng ký (hoặc chính tôi, nếu tôi tự đăng ký) đồng ý cung cấp họ tên, "
+  + "số điện thoại, số CCCD và ảnh khuôn mặt để nhà trường xác minh khi đón trẻ. Thông tin chỉ phụ huynh "
+  + "của trẻ và giáo viên phụ trách lớp của trẻ xem được, và bị xóa khi người này không còn được đăng ký.";
 
 export function validatePickupName(value: string): true | string {
   const text = value.trim();
