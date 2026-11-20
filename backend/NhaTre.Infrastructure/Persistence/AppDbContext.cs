@@ -31,6 +31,11 @@ public class AppDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<SecurityEvent> SecurityEvents => Set<SecurityEvent>();
     public DbSet<Complaint> Complaints => Set<Complaint>();
+    public DbSet<Allergen> Allergens => Set<Allergen>();
+    public DbSet<ChildAllergen> ChildAllergens => Set<ChildAllergen>();
+    public DbSet<MenuEntryAllergen> MenuEntryAllergens => Set<MenuEntryAllergen>();
+    public DbSet<AllergyAcknowledgement> AllergyAcknowledgements => Set<AllergyAcknowledgement>();
+    public DbSet<AbsenceFollowUp> AbsenceFollowUps => Set<AbsenceFollowUp>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

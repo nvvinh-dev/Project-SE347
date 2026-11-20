@@ -22,6 +22,53 @@ namespace NhaTre.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.AbsenceFollowUp", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AttendanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("attendance_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("outcome");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at");
+
+                    b.Property<Guid>("RecordedByTeacherId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recorded_by_teacher_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_absence_follow_ups");
+
+                    b.HasIndex("AttendanceId")
+                        .HasDatabaseName("ix_absence_follow_ups_attendance_id");
+
+                    b.HasIndex("RecordedByTeacherId")
+                        .HasDatabaseName("ix_absence_follow_ups_recorded_by_teacher_id");
+
+                    b.ToTable("absence_follow_ups", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AbsenceFollowUp_Outcome", "outcome IN ('Reached', 'Unreachable')");
+
+                            t.HasCheckConstraint("CK_AbsenceFollowUp_ReachedNote", "outcome <> 'Reached' OR note IS NOT NULL");
+                        });
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.ActivityPhoto", b =>
                 {
                     b.Property<Guid>("Id")
@@ -56,6 +103,149 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasDatabaseName("ix_activity_photos_uploaded_by_teacher_id");
 
                     b.ToTable("activity_photos", (string)null);
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.Allergen", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_allergens");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_allergens_code");
+
+                    b.ToTable("allergens", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = (short)1,
+                            Code = "Milk",
+                            Name = "Sữa bò và sản phẩm từ sữa",
+                            SortOrder = (short)1
+                        },
+                        new
+                        {
+                            Id = (short)2,
+                            Code = "Egg",
+                            Name = "Trứng",
+                            SortOrder = (short)2
+                        },
+                        new
+                        {
+                            Id = (short)3,
+                            Code = "Peanut",
+                            Name = "Đậu phộng",
+                            SortOrder = (short)3
+                        },
+                        new
+                        {
+                            Id = (short)4,
+                            Code = "TreeNut",
+                            Name = "Hạt cây (điều, óc chó, hạnh nhân...)",
+                            SortOrder = (short)4
+                        },
+                        new
+                        {
+                            Id = (short)5,
+                            Code = "Soy",
+                            Name = "Đậu nành",
+                            SortOrder = (short)5
+                        },
+                        new
+                        {
+                            Id = (short)6,
+                            Code = "Wheat",
+                            Name = "Lúa mì, gluten",
+                            SortOrder = (short)6
+                        },
+                        new
+                        {
+                            Id = (short)7,
+                            Code = "Fish",
+                            Name = "Cá",
+                            SortOrder = (short)7
+                        },
+                        new
+                        {
+                            Id = (short)8,
+                            Code = "Crustacean",
+                            Name = "Giáp xác (tôm, cua)",
+                            SortOrder = (short)8
+                        },
+                        new
+                        {
+                            Id = (short)9,
+                            Code = "Mollusc",
+                            Name = "Nhuyễn thể (mực, nghêu, sò)",
+                            SortOrder = (short)9
+                        },
+                        new
+                        {
+                            Id = (short)10,
+                            Code = "Sesame",
+                            Name = "Mè",
+                            SortOrder = (short)10
+                        });
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.AllergyAcknowledgement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("AckDate")
+                        .HasColumnType("date")
+                        .HasColumnName("ack_date");
+
+                    b.Property<DateTime>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acknowledged_at");
+
+                    b.Property<Guid>("AcknowledgedByTeacherId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("acknowledged_by_teacher_id");
+
+                    b.PrimitiveCollection<string[]>("AllergenCodes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("allergen_codes");
+
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_allergy_acknowledgements");
+
+                    b.HasIndex("AcknowledgedByTeacherId")
+                        .HasDatabaseName("ix_allergy_acknowledgements_acknowledged_by_teacher_id");
+
+                    b.HasIndex("ChildId", "AckDate")
+                        .HasDatabaseName("ix_allergy_acknowledgements_child_id_ack_date");
+
+                    b.ToTable("allergy_acknowledgements", (string)null);
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Attendance", b =>
@@ -238,6 +428,25 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasDatabaseName("ix_children_class_id");
 
                     b.ToTable("children", (string)null);
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.ChildAllergen", b =>
+                {
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.Property<short>("AllergenId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("allergen_id");
+
+                    b.HasKey("ChildId", "AllergenId")
+                        .HasName("pk_child_allergens");
+
+                    b.HasIndex("AllergenId")
+                        .HasDatabaseName("ix_child_allergens_allergen_id");
+
+                    b.ToTable("child_allergens", (string)null);
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.ChildGuardian", b =>
@@ -597,6 +806,12 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
                     b.Property<Guid>("WeeklyMenuId")
                         .HasColumnType("uuid")
                         .HasColumnName("weekly_menu_id");
@@ -609,6 +824,25 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasDatabaseName("ix_menu_entries_weekly_menu_id_day_of_week");
 
                     b.ToTable("menu_entries", (string)null);
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.MenuEntryAllergen", b =>
+                {
+                    b.Property<Guid>("MenuEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("menu_entry_id");
+
+                    b.Property<short>("AllergenId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("allergen_id");
+
+                    b.HasKey("MenuEntryId", "AllergenId")
+                        .HasName("pk_menu_entry_allergens");
+
+                    b.HasIndex("AllergenId")
+                        .HasDatabaseName("ix_menu_entry_allergens_allergen_id");
+
+                    b.ToTable("menu_entry_allergens", (string)null);
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Notification", b =>
@@ -1108,6 +1342,27 @@ namespace NhaTre.Infrastructure.Migrations
                     b.ToTable("weekly_menus", (string)null);
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.AbsenceFollowUp", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Attendance", "Attendance")
+                        .WithMany()
+                        .HasForeignKey("AttendanceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_absence_follow_ups_attendances_attendance_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.Teacher", "RecordedByTeacher")
+                        .WithMany()
+                        .HasForeignKey("RecordedByTeacherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_absence_follow_ups_teachers_recorded_by_teacher_id");
+
+                    b.Navigation("Attendance");
+
+                    b.Navigation("RecordedByTeacher");
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.ActivityPhoto", b =>
                 {
                     b.HasOne("NhaTre.Domain.Entities.Class", "Class")
@@ -1127,6 +1382,27 @@ namespace NhaTre.Infrastructure.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("UploadedByTeacher");
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.AllergyAcknowledgement", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Teacher", "AcknowledgedByTeacher")
+                        .WithMany()
+                        .HasForeignKey("AcknowledgedByTeacherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_allergy_acknowledgements_teachers_acknowledged_by_teacher_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.Child", "Child")
+                        .WithMany()
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_allergy_acknowledgements_children_child_id");
+
+                    b.Navigation("AcknowledgedByTeacher");
+
+                    b.Navigation("Child");
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Attendance", b =>
@@ -1175,6 +1451,27 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasConstraintName("fk_children_classes_class_id");
 
                     b.Navigation("Class");
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.ChildAllergen", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Allergen", "Allergen")
+                        .WithMany()
+                        .HasForeignKey("AllergenId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_child_allergens_allergens_allergen_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.Child", "Child")
+                        .WithMany()
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_child_allergens_children_child_id");
+
+                    b.Navigation("Allergen");
+
+                    b.Navigation("Child");
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.ChildGuardian", b =>
@@ -1342,6 +1639,27 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasConstraintName("fk_menu_entries_weekly_menus_weekly_menu_id");
 
                     b.Navigation("WeeklyMenu");
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.MenuEntryAllergen", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Allergen", "Allergen")
+                        .WithMany()
+                        .HasForeignKey("AllergenId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_menu_entry_allergens_allergens_allergen_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.MenuEntry", "MenuEntry")
+                        .WithMany()
+                        .HasForeignKey("MenuEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_menu_entry_allergens_menu_entries_menu_entry_id");
+
+                    b.Navigation("Allergen");
+
+                    b.Navigation("MenuEntry");
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Notification", b =>
