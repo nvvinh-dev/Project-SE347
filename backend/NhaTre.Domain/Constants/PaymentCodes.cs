@@ -6,6 +6,10 @@ namespace NhaTre.Domain.Constants;
 /// và 2–9 (không có 0, 1, I, O để khỏi đọc nhầm). Khớp CHECK CK_Invoice_PaymentCode (D51).
 /// Đây là chỗ duy nhất định nghĩa mã: tạo hóa đơn gọi Generate(), migration sinh mã cho hóa
 /// đơn đã có dựng SQL từ chính Prefix, Alphabet và RandomLength.
+/// CHECK CK_Invoice_PaymentCode thì chép cứng định dạng. Đổi Prefix, Alphabet hay RandomLength phải
+/// tạo migration mới đổi CHECK (và Length nếu đổi độ dài), không sửa migration
+/// AddBankTransactionsAndPaymentCode: migration đó đọc giá trị mới khi dựng DB mới, sẽ sinh mã trái
+/// CHECK cũ.
 public static class PaymentCodes
 {
     public const string Prefix = "HP";
