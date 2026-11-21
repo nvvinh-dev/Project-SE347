@@ -10,11 +10,12 @@ namespace NhaTre.Application.Interfaces;
 public interface INotificationService
 {
     // Hóa đơn mới hoặc hóa đơn unpaid được sửa (FR-TUITION-02); sự cố (FR-INCIDENT-01) hoặc sức khỏe nhanh (FR-HEALTH-01) mới;
-    // trẻ bị điểm danh vắng không phép (FR-ATT-01)
+    // trẻ bị điểm danh vắng không phép (FR-ATT-01); thực đơn tuần trùng dị nguyên của trẻ (FR-MENU-03)
     Task NotifyParentsOfChildAsync(Guid childId, string message);
     // Ảnh hoạt động mới của lớp (FR-MEDIA-01)
     Task NotifyParentsOfClassAsync(Guid classId, string message);
-    // Chỉ sự cố mới (FR-INCIDENT-01, FR-NOTI-02); sức khỏe nhanh không gửi Y tế
+    // Sự cố mới (FR-INCIDENT-01, FR-NOTI-02) và thực đơn tuần trùng dị nguyên của trẻ (FR-MENU-03); sức khỏe
+    // nhanh không gửi Y tế
     Task NotifyActiveMedicalUsersAsync(string message);
     // Thông báo nghỉ học (FR-NOTI-03); trả số phụ huynh đã nhận
     Task<int> NotifyActiveParentsAsync(string message);
