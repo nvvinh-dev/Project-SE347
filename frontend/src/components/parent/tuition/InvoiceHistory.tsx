@@ -4,10 +4,12 @@ import { useState } from "react";
 import { RefreshErrorNotice } from "@/components/parent/RefreshErrorNotice";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
 import type { useParentInvoices } from "@/hooks/useParentInvoices";
 import { formatCurrency, formatIssuedDate } from "@/lib/tuition";
 import { cn } from "@/lib/utils";
 import { INVOICE_STATUS_LABELS, type ChildInvoiceResponse, type InvoiceStatus } from "@/types/tuition";
+import { PaymentInstructionModal } from "./PaymentInstructionModal";
 
 const PAGE_SIZE = 10;
 const STATUS_CLASSES: Record<InvoiceStatus, string> = {
@@ -40,8 +42,25 @@ function SummaryTile({ label, value, hint, accent }: { label: string; value: str
   );
 }
 
-export function InvoiceHistory({ invoices }: { invoices: ReturnType<typeof useParentInvoices> }) {
+function TransferButton({ invoice, onOpen, className }: {
+  invoice: ChildInvoiceResponse; onOpen: (invoice: ChildInvoiceResponse) => void; className?: string;
+}) {
+  // D21: chỉ xem thông tin để tự chuyển khoản; không có nút "đã thanh toán", hóa đơn sang paid qua đối soát.
+  return (
+    <Button
+      variant="outline" size="sm" className={className}
+      aria-label={`Xem thông tin chuyển khoản: ${invoice.description}`}
+      onClick={() => onOpen(invoice)}
+    >
+      Chuyển khoản
+    </Button>
+  );
+}
+
+export function InvoiceHistory({ childId, invoices }: { childId: string; invoices: ReturnType<typeof useParentInvoices> }) {
   const [page, setPage] = useState(1);
+  // Lưu id để hộp thoại luôn lấy hóa đơn mới nhất từ danh sách; hóa đơn đã paid thì tự đóng.
+  const [transferInvoiceId, setTransferInvoiceId] = useState<string | null>(null);
   const records = invoices.data ?? [];
   // Lỗi tạm thời giữ dữ liệu cũ; lỗi ngoài phạm vi phải ẩn toàn bộ dữ liệu đã lưu.
   const hasVisibleData = invoices.data !== undefined
@@ -50,6 +69,8 @@ export function InvoiceHistory({ invoices }: { invoices: ReturnType<typeof usePa
   const safePage = Math.min(page, Math.max(1, Math.ceil(records.length / PAGE_SIZE)));
   const start = (safePage - 1) * PAGE_SIZE;
 
+  const transferInvoice = hasVisibleData
+    ? records.find((invoice) => invoice.id === transferInvoiceId) : undefined;
   const unpaid = records.filter((invoice) => invoice.status === "unpaid");
   const unpaidTotal = unpaid.reduce((sum, invoice) => sum + invoice.amount, 0);
 
@@ -67,13 +88,20 @@ export function InvoiceHistory({ invoices }: { invoices: ReturnType<typeof usePa
             {" · "}
             <span className="font-medium tabular-nums text-foreground">{formatCurrency(invoice.amount)}</span>
           </p>
+          {/* Từ sm đến dưới xl cột "Ngày lập" bị ẩn để bảng vừa khung có sidebar; ngày hiện dưới nội dung. */}
+          <p className="hidden text-xs text-muted sm:block xl:hidden">
+            <time dateTime={invoice.issuedAtUtc}>{formatIssuedDate(invoice.issuedAtUtc)}</time>
+          </p>
+          {invoice.status === "unpaid" && (
+            <TransferButton invoice={invoice} onOpen={(item) => setTransferInvoiceId(item.id)} className="mt-1 sm:hidden" />
+          )}
         </div>
       ),
     },
     {
       key: "issuedAtUtc",
       header: "Ngày lập",
-      className: "hidden whitespace-nowrap text-center sm:table-cell",
+      className: "hidden whitespace-nowrap text-center xl:table-cell",
       render: (invoice) => (
         <time dateTime={invoice.issuedAtUtc} className="tabular-nums">{formatIssuedDate(invoice.issuedAtUtc)}</time>
       ),
@@ -90,10 +118,21 @@ export function InvoiceHistory({ invoices }: { invoices: ReturnType<typeof usePa
       className: "w-36 text-center sm:w-auto",
       render: (invoice) => <InvoiceBadge status={invoice.status} />,
     },
+    {
+      key: "transfer",
+      header: "Thanh toán",
+      className: "hidden whitespace-nowrap text-center sm:table-cell",
+      render: (invoice) => invoice.status === "unpaid"
+        ? <TransferButton invoice={invoice} onOpen={(item) => setTransferInvoiceId(item.id)} />
+        : <span aria-hidden="true" className="text-muted-light">—</span>,
+    },
   ];
 
   return (
     <>
+      {transferInvoice && transferInvoice.status === "unpaid" && (
+        <PaymentInstructionModal childId={childId} invoice={transferInvoice} onClose={() => setTransferInvoiceId(null)} />
+      )}
       {invoices.isError && hasVisibleData && (
         <RefreshErrorNotice className="border-b border-warning-border px-4 py-3 sm:px-6" message={invoices.error.message}
           isFetching={invoices.isFetching} onRetry={() => { void invoices.refetch(); }} />

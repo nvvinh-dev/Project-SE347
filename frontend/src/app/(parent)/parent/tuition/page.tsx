@@ -38,7 +38,7 @@ function ChildInvoiceViewer({ childOptions }: { childOptions: MyChildResponse[] 
       </div>
       <div className="overflow-hidden rounded-b-2xl">
         {/* Chỉ đặt lại phần danh sách khi đổi trẻ để ô chọn vẫn giữ focus. */}
-        <InvoiceHistory key={child.id} invoices={invoices} />
+        <InvoiceHistory key={child.id} childId={child.id} invoices={invoices} />
       </div>
     </section>
   );
@@ -58,10 +58,11 @@ export default function ParentTuitionPage() {
       />
       {/* D21: phụ huynh không thanh toán trên hệ thống; chỉ xem, Kế toán ghi nhận sau khi nhận tiền. */}
       <p className="rounded-xl border border-brand-border bg-brand-subtle px-4 py-3 text-sm text-brand-text">
-        Phụ huynh nộp học phí bằng tiền mặt tại trường hoặc chuyển khoản vào tài khoản của nhà trường.
+        Phụ huynh nộp học phí bằng tiền mặt tại trường hoặc chuyển khoản vào tài khoản của nhà trường
+        (bấm <strong className="font-semibold">Chuyển khoản</strong> ở hóa đơn để xem số tài khoản, nội dung và mã QR).
         Trạng thái hóa đơn sẽ chuyển sang{" "}
         <strong className="font-semibold">Đã thanh toán</strong>{" "}
-        sau khi nhà trường ghi nhận khoản đã nộp.
+        sau khi nhà trường ghi nhận hoặc nhận được khoản chuyển khoản.
       </p>
       {children.isError && hasVisibleData && (
         <div className="overflow-hidden rounded-xl border border-warning-border">
