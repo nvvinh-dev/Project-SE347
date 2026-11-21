@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { RefreshErrorNotice } from "@/components/parent/RefreshErrorNotice";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
@@ -59,8 +59,9 @@ function TransferButton({ invoice, onOpen, className }: {
 
 export function InvoiceHistory({ childId, invoices }: { childId: string; invoices: ReturnType<typeof useParentInvoices> }) {
   const [page, setPage] = useState(1);
-  // Lưu id để hộp thoại luôn lấy hóa đơn mới nhất từ danh sách; hóa đơn đã paid thì tự đóng.
+  // Lưu id để hộp thoại luôn lấy hóa đơn mới nhất từ danh sách.
   const [transferInvoiceId, setTransferInvoiceId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const records = invoices.data ?? [];
   // Lỗi tạm thời giữ dữ liệu cũ; lỗi ngoài phạm vi phải ẩn toàn bộ dữ liệu đã lưu.
   const hasVisibleData = invoices.data !== undefined
@@ -71,6 +72,12 @@ export function InvoiceHistory({ childId, invoices }: { childId: string; invoice
 
   const transferInvoice = hasVisibleData
     ? records.find((invoice) => invoice.id === transferInvoiceId) : undefined;
+  // 409: hóa đơn sang paid nên nút mở hộp thoại biến mất; hộp thoại vẫn mở để phụ huynh đọc lý do rồi tự đóng.
+  const closeTransfer = () => {
+    setTransferInvoiceId(null);
+    // Không còn nút để trả focus thì đưa vào danh sách hóa đơn, tránh rơi về body.
+    if (transferInvoice?.status !== "unpaid") requestAnimationFrame(() => listRef.current?.focus());
+  };
   const unpaid = records.filter((invoice) => invoice.status === "unpaid");
   const unpaidTotal = unpaid.reduce((sum, invoice) => sum + invoice.amount, 0);
 
@@ -130,8 +137,8 @@ export function InvoiceHistory({ childId, invoices }: { childId: string; invoice
 
   return (
     <>
-      {transferInvoice && transferInvoice.status === "unpaid" && (
-        <PaymentInstructionModal childId={childId} invoice={transferInvoice} onClose={() => setTransferInvoiceId(null)} />
+      {transferInvoice && (
+        <PaymentInstructionModal childId={childId} invoice={transferInvoice} onClose={closeTransfer} />
       )}
       {invoices.isError && hasVisibleData && (
         <RefreshErrorNotice className="border-b border-warning-border px-4 py-3 sm:px-6" message={invoices.error.message}
@@ -153,7 +160,7 @@ export function InvoiceHistory({ childId, invoices }: { childId: string; invoice
           />
         </div>
       )}
-      <div aria-busy={invoices.isFetching}>
+      <div ref={listRef} tabIndex={-1} aria-busy={invoices.isFetching} className="outline-none">
         <div role={invoices.isLoading ? "status" : showError ? "alert" : undefined}>
           <DataTable
             columns={columns}

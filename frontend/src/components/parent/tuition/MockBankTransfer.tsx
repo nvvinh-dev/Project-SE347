@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
@@ -25,6 +26,10 @@ function ReceiptView({ receipt, onAnother }: { receipt: MockBankReceipt; onAnoth
     ["Thời điểm", formatDateTime(receipt.transactionAtUtc)],
   ];
 
+  // Form bị thay bằng biên lai nên focus phải chuyển vào tiêu đề, không để rơi về body.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { headingRef.current?.focus(); }, []);
+
   return (
     <div className="space-y-5" role="status">
       <div className="flex items-start gap-3">
@@ -34,7 +39,9 @@ function ReceiptView({ receipt, onAnother }: { receipt: MockBankReceipt; onAnoth
           </svg>
         </span>
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-foreground sm:text-lg">Đã gửi lệnh chuyển khoản</h2>
+          <h2 ref={headingRef} tabIndex={-1} className="text-base font-semibold text-foreground outline-none sm:text-lg">
+            Đã gửi lệnh chuyển khoản
+          </h2>
           <p className="mt-1 text-sm leading-relaxed text-muted">
             Giao dịch đã được gửi tới tài khoản của nhà trường. Ngân hàng không biết hóa đơn nào được trả,
             nên hóa đơn chỉ chuyển sang <strong className="font-semibold text-foreground">Đã thanh toán</strong> sau
@@ -75,7 +82,7 @@ export function MockBankTransfer() {
   };
 
   const transfer = useMockBankTransfer();
-  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<TransferFormValues>({ defaultValues });
+  const { register, handleSubmit, reset, setFocus, control, formState: { errors } } = useForm<TransferFormValues>({ defaultValues });
   const content = useWatch({ control, name: "content" });
   const contentLength = content?.length ?? 0;
 
@@ -89,14 +96,19 @@ export function MockBankTransfer() {
     return (
       <ReceiptView
         receipt={transfer.data}
-        onAnother={() => { transfer.reset(); reset(defaultValues); }}
+        onAnother={() => {
+          transfer.reset();
+          reset(defaultValues);
+          // Biên lai biến mất cùng nút vừa bấm; đưa focus vào ô đầu của form mới hiện lại.
+          requestAnimationFrame(() => setFocus("amount"));
+        }}
       />
     );
   }
 
   const serverError = transfer.error
     ? (transfer.error.status === 404
-      ? "Ngân hàng giả lập hiện không khả dụng (chỉ hoạt động khi backend chạy ở môi trường Development và đã bật cờ)."
+      ? "Ngân hàng giả lập hiện không khả dụng."
       : transfer.error.errors?.length ? transfer.error.errors.join(" ") : transfer.error.message)
     : null;
 

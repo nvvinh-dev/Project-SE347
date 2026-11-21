@@ -10,6 +10,7 @@ import { useParentPaymentInstruction } from "@/hooks/useParentPaymentInstruction
 import { formatCurrency, MOCK_BANK_ENABLED } from "@/lib/tuition";
 import { cn } from "@/lib/utils";
 import type { ChildInvoiceResponse, PaymentInstructionResponse } from "@/types/tuition";
+import { MockBankNotice } from "./MockBankNotice";
 
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
@@ -88,7 +89,7 @@ function QrImage({ url }: { url: string }) {
           className="h-auto w-48 max-w-full sm:w-56"
         />
       </div>
-      <figcaption className="text-xs text-muted">Quét mã bằng ứng dụng ngân hàng để chuyển khoản</figcaption>
+      <figcaption className="text-xs text-muted">Mã QR theo chuẩn VietQR của tài khoản giả lập</figcaption>
     </figure>
   );
 }
@@ -96,6 +97,8 @@ function QrImage({ url }: { url: string }) {
 function InstructionBody({ instruction }: { instruction: PaymentInstructionResponse }) {
   return (
     <div className="space-y-5">
+      {/* Luôn hiện, không phụ thuộc cờ: số tài khoản trong đồ án là tài khoản giả (D21 mục 1). */}
+      <MockBankNotice />
       <QrImage url={instruction.qrImageUrl} />
       <dl className="divide-y divide-border overflow-hidden rounded-xl border border-border">
         <DetailRow label="Ngân hàng" value={instruction.bankName} />
