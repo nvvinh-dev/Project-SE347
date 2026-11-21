@@ -1,5 +1,6 @@
 using FluentValidation;
 using NhaTre.Application.DTOs.Menu;
+using NhaTre.Domain.Constants;
 
 namespace NhaTre.Application.Validators.Menu;
 
@@ -8,8 +9,9 @@ internal static class MenuRuleExtensions
 {
     private const int MaxDescriptionLength = 1000;
 
-    // Chỉ số 0 bỏ trống để tra thẳng bằng DayOfWeek (ISO 8601: 1 = thứ Hai ... 7 = Chủ nhật)
-    private static readonly string[] DayNames =
+    // Chỉ số 0 bỏ trống để tra thẳng bằng DayOfWeek (ISO 8601: 1 = thứ Hai ... 7 = Chủ nhật). MenuService
+    // dùng lại để ghi ngày trong thông báo trùng dị ứng
+    internal static readonly string[] DayNames =
         { "", "thứ Hai", "thứ Ba", "thứ Tư", "thứ Năm", "thứ Sáu", "thứ Bảy", "Chủ nhật" };
 
     // Tuần bắt đầu từ thứ Hai, khớp ngày 1 của MenuEntryRequest.DayOfWeek
@@ -69,6 +71,24 @@ internal static class MenuRuleExtensions
                     context.AddFailure($"Thực đơn {dayLabel} không được để trống.");
                 else if (entry.Description.Trim().Length > MaxDescriptionLength)
                     context.AddFailure($"Thực đơn {dayLabel} không được dài quá {MaxDescriptionLength} ký tự.");
+
+                ValidateAllergenCodes(entry.AllergenCodes, dayLabel, context);
             }
         });
+
+    // FR-MENU-03: mã phải nằm trong danh mục cố định và không lặp trong một ngày (D39 mục 19). Không chép mã
+    // sai vào câu báo lỗi vì đó là chuỗi client tự gửi
+    private static void ValidateAllergenCodes<T>(
+        IReadOnlyList<string>? allergenCodes, string dayLabel, ValidationContext<T> context)
+    {
+        if (allergenCodes is null)
+            return;
+
+        if (allergenCodes.Any(code => !Allergens.IsValid(code)))
+            context.AddFailure($"Dị nguyên của thực đơn {dayLabel} có mã không nằm trong danh mục.");
+
+        var validCodes = allergenCodes.Where(Allergens.IsValid).ToList();
+        if (validCodes.Distinct().Count() != validCodes.Count)
+            context.AddFailure($"Dị nguyên của thực đơn {dayLabel} bị chọn hơn một lần.");
+    }
 }

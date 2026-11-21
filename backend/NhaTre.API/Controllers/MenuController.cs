@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FluentValidation;
@@ -12,6 +13,7 @@ namespace NhaTre.API.Controllers;
 // FR-MENU-01: chỉ Kế toán tạo và sửa thực đơn tuần, không xóa (D40 mục 1).
 // FR-MENU-02: Phụ huynh xem thực đơn tuần, chỉ đọc. Thực đơn áp dụng chung cho toàn trường nên không lọc
 // theo trẻ hay lớp (BR-MENU-02): Kế toán và Phụ huynh dùng chung route xem, cùng một DTO.
+// FR-MENU-03: mỗi ngày có thêm dị nguyên của món; Phụ huynh xem kèm childId thì biết ngày trùng dị ứng của con.
 // Roles gắn theo từng action; [Authorize] ở mức class để action nào quên gắn Roles vẫn bắt đăng nhập
 [ApiController]
 [Route("api/weekly-menus")]
@@ -32,10 +34,13 @@ public class MenuController : ControllerBase
         _updateWeeklyMenuValidator = updateWeeklyMenuValidator;
     }
 
-    // Tuần chưa có thực đơn thì 404, không tạo bản ghi rỗng (UC-MENU-02 E1)
+    // Tuần chưa có thực đơn thì 404, không tạo bản ghi rỗng (UC-MENU-02 E1).
+    // FR-MENU-03: Phụ huynh gửi thêm childId để biết ngày nào trùng dị nguyên của con; trẻ không phải con mình
+    // → 404 (BR-SCOPE-01). Kế toán không được nhận dị nguyên của trẻ (D39 mục 19) nên gửi childId → 403
     [HttpGet]
     [Authorize(Roles = $"{Roles.Accountant},{Roles.Parent}")]
-    public async Task<ActionResult<ApiResponse<WeeklyMenuResponse>>> GetByWeek([FromQuery] DateOnly? weekStartDate)
+    public async Task<ActionResult<ApiResponse<WeeklyMenuResponse>>> GetByWeek(
+        [FromQuery] DateOnly? weekStartDate, [FromQuery] Guid? childId)
     {
         if (weekStartDate is null)
             return BadRequest(ApiResponse<WeeklyMenuResponse>.Fail(
@@ -44,6 +49,25 @@ public class MenuController : ControllerBase
         if (weekStartDate.Value.DayOfWeek != DayOfWeek.Monday)
             return BadRequest(ApiResponse<WeeklyMenuResponse>.Fail(
                 new[] { "Ngày bắt đầu tuần phải là thứ Hai." }));
+
+        if (childId is not null)
+        {
+            // Forbid đi qua JwtBearerEvents.OnForbidden nên vẫn trả khuôn ApiResponse như mọi 403 khác
+            if (!User.IsInRole(Roles.Parent))
+                return Forbid();
+
+            var childResult = await _menuService.GetByWeekForChildAsync(
+                weekStartDate.Value, CurrentUserId(), childId.Value);
+
+            return childResult.Outcome switch
+            {
+                WeeklyMenuOutcome.ChildNotFound =>
+                    NotFound(ApiResponse<WeeklyMenuResponse>.Fail("Không tìm thấy trẻ.")),
+                WeeklyMenuOutcome.MenuNotFound =>
+                    NotFound(ApiResponse<WeeklyMenuResponse>.Fail("Chưa có thực đơn cho tuần này.")),
+                _ => Ok(ApiResponse<WeeklyMenuResponse>.Ok(childResult.Menu!))
+            };
+        }
 
         var result = await _menuService.GetByWeekAsync(weekStartDate.Value);
 
@@ -95,4 +119,6 @@ public class MenuController : ControllerBase
 
         return Ok(ApiResponse<WeeklyMenuResponse>.Ok(result));
     }
+
+    private Guid CurrentUserId() => Guid.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
 }
