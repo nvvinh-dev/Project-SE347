@@ -40,6 +40,8 @@ using NhaTre.Application.Validators.Menu;
 using NhaTre.Application.DTOs.Menu;
 using NhaTre.Application.Validators.Complaints;
 using NhaTre.Application.DTOs.Complaints;
+using NhaTre.Application.Validators.AbsenceFollowUps;
+using NhaTre.Application.DTOs.AbsenceFollowUps;
 using NhaTre.Application.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -223,6 +225,9 @@ builder.Services.AddScoped<IComplaintService, ComplaintService>();
 builder.Services.AddScoped<IValidator<CreateComplaintRequest>, CreateComplaintRequestValidator>();
 builder.Services.AddScoped<IValidator<ComplaintListQuery>, ComplaintListQueryValidator>();
 builder.Services.AddScoped<IValidator<HandleComplaintRequest>, HandleComplaintRequestValidator>();
+builder.Services.AddScoped<IAbsenceFollowUpRepository, AbsenceFollowUpRepository>();
+builder.Services.AddScoped<IAbsenceFollowUpService, AbsenceFollowUpService>();
+builder.Services.AddScoped<IValidator<CreateAbsenceFollowUpRequest>, CreateAbsenceFollowUpRequestValidator>();
 builder.Services.AddHttpClient<IFileStorageService, SupabaseFileStorageService>(); // D22, D53: Supabase:Url và Supabase:ServiceKey đọc lúc gọi, không chặn khởi động
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();

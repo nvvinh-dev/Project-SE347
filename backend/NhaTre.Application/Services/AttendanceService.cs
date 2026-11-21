@@ -1,6 +1,7 @@
 using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Attendance;
 using NhaTre.Application.Interfaces;
+using NhaTre.Domain.Constants;
 using NhaTre.Domain.Entities;
 
 namespace NhaTre.Application.Services;
@@ -8,10 +9,12 @@ namespace NhaTre.Application.Services;
 public class AttendanceService : IAttendanceService
 {
     private readonly IAttendanceRepository _attendanceRepository;
+    private readonly INotificationService _notificationService;
 
-    public AttendanceService(IAttendanceRepository attendanceRepository)
+    public AttendanceService(IAttendanceRepository attendanceRepository, INotificationService notificationService)
     {
         _attendanceRepository = attendanceRepository;
+        _notificationService = notificationService;
     }
 
     public async Task<AttendanceResponse?> GetByIdAsync(Guid id, Guid teacherUserId)
@@ -93,6 +96,15 @@ public class AttendanceService : IAttendanceService
         // chặn request đến sau, và request đó cũng nhận 409 chứ không phải 500
         if (!await _attendanceRepository.TryAddAsync(attendance))
             return new AttendanceResult(AttendanceOutcome.AlreadyCheckedIn);
+
+        // D39 mục 6 sự kiện 8, mục 20: lưu xong bản vắng không phép mới báo phụ huynh của trẻ (AC-ATT-12);
+        // trẻ cũng vào danh sách cần liên hệ của FR-ATT-04, danh sách đó đọc thẳng từ attendances
+        if (attendance.Status == AttendanceStatuses.AbsentUnexcused)
+        {
+            await _notificationService.NotifyParentsOfChildAsync(child.Id,
+                $"Bé {child.FullName} được điểm danh vắng không phép ngày {today:dd/MM/yyyy}. "
+                + "Nhà trường sẽ liên hệ người đón đã đăng ký; phụ huynh vui lòng báo lý do vắng cho giáo viên.");
+        }
 
         return new AttendanceResult(AttendanceOutcome.Success, ToResponse(attendance, child.FullName));
     }
