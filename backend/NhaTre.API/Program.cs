@@ -10,6 +10,7 @@ using NhaTre.Application.Services;
 using NhaTre.Infrastructure.Persistence.Repositories;
 using NhaTre.API.Middleware;
 using NhaTre.API.Services;
+using NhaTre.API.Filters;
 using Serilog;
 using FluentValidation;
 using NhaTre.Application.Validators.Auth;
@@ -179,6 +180,12 @@ builder.Services.AddScoped<IValidator<TuitionFeeRequest>, TuitionFeeRequestValid
 builder.Services.AddScoped<IValidator<InvoiceRequest>, InvoiceRequestValidator>();
 builder.Services.AddScoped<IValidator<RecordPaymentRequest>, RecordPaymentRequestValidator>();
 builder.Services.AddScoped<IValidator<BankTransactionNotification>, BankTransactionNotificationValidator>();
+// D21 mục 2, D46: khóa ký webhook ngân hàng (FR-TUITION-08), thiếu hoặc ngắn hơn 32 byte thì dừng lúc khởi
+// động như Jwt:Key. Bộ lọc BankWebhookSignatureFilter nhận khóa qua DI
+var bankWebhookKey = builder.Configuration["BankWebhook:SecretKey"];
+if (string.IsNullOrWhiteSpace(bankWebhookKey) || Encoding.UTF8.GetByteCount(bankWebhookKey) < 32)
+    throw new InvalidOperationException("Thiếu cấu hình BankWebhook:SecretKey trong user-secrets (tối thiểu 32 byte).");
+builder.Services.AddSingleton(new BankWebhookSettings(Encoding.UTF8.GetBytes(bankWebhookKey)));
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IValidator<CreateUserRequest>, CreateUserRequestValidator>();
@@ -306,6 +313,10 @@ var allowedOrigins = builder.Configuration
 // toàn hệ thống: giáo viên điểm danh cả lớp sẽ bắn nhiều request hợp lệ liên tiếp.
 const string LoginRateLimitPolicy = "LoginPolicy";
 
+// D54: webhook ngân hàng cũng gọi được khi chưa có JWT — chặn dội request để dò chữ ký hay làm đầy log.
+// Gắn bằng [EnableRateLimiting] ở BankWebhooksController.
+const string WebhookRateLimitPolicy = "WebhookPolicy";
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -321,13 +332,28 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0                    // vượt ngưỡng là từ chối ngay, không xếp hàng
             }));
 
-    // Giữ đúng khuôn ApiResponse<T> cho cả response 429 (D38).
+    options.AddPolicy(WebhookRateLimitPolicy, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    // Giữ đúng khuôn ApiResponse<T> cho cả response 429 (D38). Message theo policy của endpoint: câu
+    // "thử đăng nhập" chỉ đúng với LoginPolicy.
     options.OnRejected = async (context, cancellationToken) =>
     {
+        var policyName = context.HttpContext.GetEndpoint()?.Metadata
+            .GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
+        var message = policyName == WebhookRateLimitPolicy
+            ? "Gửi quá nhiều yêu cầu. Vui lòng đợi 1 phút rồi thử lại."
+            : "Bạn đã thử đăng nhập quá nhiều lần. Vui lòng đợi 1 phút rồi thử lại.";
+
         context.HttpContext.Response.ContentType = "application/json";
-        await context.HttpContext.Response.WriteAsJsonAsync(
-            ApiResponse<object>.Fail("Bạn đã thử đăng nhập quá nhiều lần. Vui lòng đợi 1 phút rồi thử lại."),
-            cancellationToken);
+        await context.HttpContext.Response.WriteAsJsonAsync(ApiResponse<object>.Fail(message), cancellationToken);
     };
 });
 
