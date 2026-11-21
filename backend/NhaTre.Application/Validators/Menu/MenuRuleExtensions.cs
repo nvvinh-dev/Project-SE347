@@ -1,4 +1,5 @@
 using FluentValidation;
+using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Menu;
 using NhaTre.Domain.Constants;
 
@@ -8,11 +9,6 @@ namespace NhaTre.Application.Validators.Menu;
 internal static class MenuRuleExtensions
 {
     private const int MaxDescriptionLength = 1000;
-
-    // Chỉ số 0 bỏ trống để tra thẳng bằng DayOfWeek (ISO 8601: 1 = thứ Hai ... 7 = Chủ nhật). MenuService
-    // dùng lại để ghi ngày trong thông báo trùng dị ứng
-    internal static readonly string[] DayNames =
-        { "", "thứ Hai", "thứ Ba", "thứ Tư", "thứ Năm", "thứ Sáu", "thứ Bảy", "Chủ nhật" };
 
     // Tuần bắt đầu từ thứ Hai, khớp ngày 1 của MenuEntryRequest.DayOfWeek
     public static IRuleBuilderOptions<T, DateOnly> WeekStartDate<T>(this IRuleBuilderInitial<T, DateOnly> rule)
@@ -62,7 +58,7 @@ internal static class MenuRuleExtensions
                 }
                 else
                 {
-                    dayLabel = DayNames[entry.DayOfWeek];
+                    dayLabel = DayNames.Of(entry.DayOfWeek);
                     if (!seenDays.Add(entry.DayOfWeek))
                         context.AddFailure($"Thực đơn {dayLabel} bị nhập hơn một lần.");
                 }

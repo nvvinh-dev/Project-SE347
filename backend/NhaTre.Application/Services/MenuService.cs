@@ -1,7 +1,7 @@
 using System.Globalization;
+using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Menu;
 using NhaTre.Application.Interfaces;
-using NhaTre.Application.Validators.Menu;
 using NhaTre.Domain.Constants;
 
 namespace NhaTre.Application.Services;
@@ -108,7 +108,8 @@ public class MenuService : IMenuService
             .ToHashSet();
 
     // Ví dụ: "Thực đơn tuần từ 23/11/2026 có món trùng dị ứng của bé Nguyễn Văn A: thứ Tư (Đậu phộng);
-    // thứ Sáu (Đậu phộng, Trứng)." Ghi họ tên trẻ, ngày và tên dị nguyên, không ghi lớp (D39 mục 6)
+    // thứ Sáu (Đậu phộng / Trứng)." Ghi họ tên trẻ, ngày và tên dị nguyên, không ghi lớp (D39 mục 6). Tên dị
+    // nguyên nối bằng " / " vì bản thân tên có dấu phẩy và ngoặc ("Lúa mì, gluten")
     private static string BuildConflictMessage(
         DateOnly weekStartDate,
         string childFullName,
@@ -124,7 +125,7 @@ public class MenuService : IMenuService
                     .Select(c => c.AllergenCode)
                     .OrderBy(AllergenOrder)
                     .Select(code => allergenNames.TryGetValue(code, out var name) ? name : code);
-                return $"{MenuRuleExtensions.DayNames[g.Key]} ({string.Join(", ", names)})";
+                return $"{DayNames.Of(g.Key)} ({string.Join(" / ", names)})";
             });
 
         var week = weekStartDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
