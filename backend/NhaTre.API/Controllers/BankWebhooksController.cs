@@ -34,6 +34,10 @@ public class BankWebhooksController : ControllerBase
     [HttpPost("transactions")]
     [AllowAnonymous]
     [EnableRateLimiting("WebhookPolicy")] // D54: 60 lần / 1 phút / 1 IP — cấu hình ở Program.cs
+    // Bộ lọc đọc hết body để tính HMAC trước khi biết chữ ký đúng, và endpoint gọi được khi chưa có JWT
+    // (D46 mục 2): mặc định 30 MB của Kestrel cho một IP dội tới 60 × 30 MB mỗi phút. Body hợp lệ chỉ vài KB
+    // (mã giao dịch ≤ 100, nội dung ≤ 500 ký tự). Quá giới hạn → 413 qua GlobalExceptionHandler
+    [RequestSizeLimit(16 * 1024)]
     [TypeFilter(typeof(BankWebhookSignatureFilter))]
     public async Task<ActionResult<ApiResponse<object?>>> ReceiveTransaction(
         [FromBody] BankTransactionNotification request)
