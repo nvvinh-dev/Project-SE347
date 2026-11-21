@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Tuition;
 using NhaTre.Application.Interfaces;
@@ -15,6 +16,11 @@ public class TuitionService : ITuitionService
         NumberGroupSeparator = ".",
         NumberDecimalSeparator = ","
     };
+
+    // Dạng mã thanh toán dựng từ chính PaymentCodes. Lookahead để các lần khớp được chồng lên nhau
+    private static readonly Regex PaymentCodeCandidate = new(
+        $"(?=({PaymentCodes.Prefix}[{PaymentCodes.Alphabet}]{{{PaymentCodes.RandomLength}}}))",
+        RegexOptions.CultureInvariant);
 
     private readonly ITuitionRepository _tuitionRepository;
     private readonly IChildRepository _childRepository;
@@ -204,6 +210,58 @@ public class TuitionService : ITuitionService
             targetReference: invoiceId.ToString());
 
         return new PaymentResult(PaymentOutcome.Success, ToResponse(payment));
+    }
+
+    // FR-TUITION-08, D21 mục 2 (bước 3–6). Gửi lại một transactionId đã có thì không xử lý lại: kiểm trước
+    // cho trường hợp thường gặp, còn hai lần gửi đồng thời do unique ở database chặn (repository trả null)
+    public async Task<BankReconcileOutcome> ReconcileBankTransactionAsync(BankTransactionNotification notification)
+    {
+        var accountNumber = notification.AccountNumber.Trim();
+        if (accountNumber != _paymentAccount.AccountNumber.Trim())
+            return BankReconcileOutcome.WrongAccount;
+
+        if (await _tuitionRepository.BankTransactionExistsAsync(notification.TransactionId))
+            return BankReconcileOutcome.Accepted;
+
+        var transaction = new BankTransaction
+        {
+            TransactionId = notification.TransactionId,
+            AccountNumber = accountNumber,
+            Amount = notification.Amount,
+            Content = notification.Content,
+            TransactionAt = notification.TransactionAtUtc.ToUniversalTime(),
+            ReceivedAt = DateTime.UtcNow
+        };
+
+        var saved = await _tuitionRepository.ReconcileBankTransactionAsync(
+            transaction, FindPaymentCodes(notification.Content));
+
+        // D50: ghi sau khi transaction đã commit; tự đối soát không có người thực hiện
+        if (saved?.Status == BankTransactionStatuses.Matched)
+            await _securityEventService.RecordAsync(
+                SecurityEventTypes.InvoiceMarkedPaid,
+                actorUserId: null,
+                targetUserId: null,
+                targetReference: saved.InvoiceId.ToString(),
+                detail: SecurityEventDetails.BankAuto);
+
+        return BankReconcileOutcome.Accepted;
+    }
+
+    // D21 mục 2: chuẩn hóa nội dung (chữ hoa; bỏ khoảng trắng, dấu chấm, gạch ngang) vì ngân hàng và người
+    // chuyển hay chèn các ký tự này, rồi lấy mọi chuỗi có dạng mã thanh toán. Quét chồng lấn: nội dung
+    // "HPHPK7M2Q9XA" có hai ứng viên HPHPK7M2Q9 và HPK7M2Q9XA, quét thường sẽ bỏ sót mã thật thứ hai
+    private static IReadOnlyCollection<string> FindPaymentCodes(string content)
+    {
+        var normalized = new string(content
+            .ToUpperInvariant()
+            .Where(c => !char.IsWhiteSpace(c) && c != '.' && c != '-')
+            .ToArray());
+
+        return PaymentCodeCandidate.Matches(normalized)
+            .Select(m => m.Groups[1].Value)
+            .Distinct()
+            .ToList();
     }
 
     // FR-TUITION-05: trẻ không tồn tại và trẻ không liên kết với mình cùng trả 404 (D39 mục 10).

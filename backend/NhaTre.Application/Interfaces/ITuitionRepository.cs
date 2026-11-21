@@ -27,6 +27,12 @@ public interface ITuitionRepository
         Guid recordedByUserId, DateTime paidAtUtc);
     Task<bool> InvoiceExistsAsync(Guid id);
 
+    // Tự đối soát giao dịch ngân hàng (D21 mục 2). Repository đặt trạng thái, lý do không khớp và hóa đơn
+    // của giao dịch theo các mã thanh toán tìm được trong nội dung; khớp thì chuyển hóa đơn sang paid và tạo
+    // thanh toán, cùng một transaction với việc lưu giao dịch. null khi transaction_id đã có
+    Task<bool> BankTransactionExistsAsync(string transactionId);
+    Task<BankTransaction?> ReconcileBankTransactionAsync(BankTransaction transaction, IReadOnlyCollection<string> paymentCodes);
+
     // Báo cáo doanh thu: tổng tiền các thanh toán có paid_at trong [fromUtc, toUtc), 0 khi không có
     Task<decimal> SumPaymentsAsync(DateTime fromUtc, DateTime toUtc);
     Task<int> CountUnpaidInvoicesAsync();

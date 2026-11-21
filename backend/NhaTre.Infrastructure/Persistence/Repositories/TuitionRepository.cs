@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using NhaTre.Application.Interfaces;
 using NhaTre.Domain.Constants;
 using NhaTre.Domain.Entities;
@@ -142,6 +143,105 @@ public class TuitionRepository : ITuitionRepository
     public async Task<bool> InvoiceExistsAsync(Guid id)
     {
         return await _dbContext.Invoices.AnyAsync(i => i.Id == id);
+    }
+
+    public async Task<bool> BankTransactionExistsAsync(string transactionId)
+    {
+        return await _dbContext.BankTransactions.AnyAsync(b => b.TransactionId == transactionId);
+    }
+
+    // D21 mục 2, bước 5: lưu giao dịch và đối soát trong cùng một transaction. Gạch nợ dùng cùng cách khóa
+    // của RecordPaymentAsync, thêm điều kiện amount = số tiền giao dịch: không gạch nợ một phần. Hai webhook
+    // cùng một giao dịch gửi đồng thời thì lần sau chờ khóa dòng hóa đơn (hoặc khóa của unique
+    // transaction_id) tới khi lần đầu commit, rồi vấp unique transaction_id: rollback cả câu UPDATE hóa đơn
+    // của lần đó và trả null như gửi lại. paid_at là lúc tiền vào tài khoản, không phải lúc đối soát
+    public async Task<BankTransaction?> ReconcileBankTransactionAsync(
+        BankTransaction transaction, IReadOnlyCollection<string> paymentCodes)
+    {
+        await using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
+
+        var invoiceIds = paymentCodes.Count == 0
+            ? new List<Guid>()
+            : await _dbContext.Invoices
+                .Where(i => paymentCodes.Contains(i.PaymentCode))
+                .Select(i => i.Id)
+                .ToListAsync();
+
+        Payment? payment = null;
+
+        if (invoiceIds.Count == 0)
+        {
+            MarkUnmatched(transaction, UnmatchedReasons.NoInvoiceCode);
+        }
+        else if (invoiceIds.Count > 1)
+        {
+            MarkUnmatched(transaction, UnmatchedReasons.AmbiguousInvoiceCode);
+        }
+        else
+        {
+            var invoiceId = invoiceIds[0];
+            var amounts = await _dbContext.Database
+                .SqlQuery<decimal>($"UPDATE invoices SET status = {InvoiceStatuses.Paid} WHERE id = {invoiceId} AND status = {InvoiceStatuses.Unpaid} AND amount = {transaction.Amount} RETURNING amount AS \"Value\"")
+                .ToListAsync();
+
+            if (amounts.Count == 1)
+            {
+                transaction.Status = BankTransactionStatuses.Matched;
+                transaction.InvoiceId = invoiceId;
+                payment = new Payment
+                {
+                    InvoiceId = invoiceId,
+                    Amount = amounts[0],
+                    PaidAt = transaction.TransactionAt,
+                    PaymentMethod = PaymentMethods.BankTransfer,
+                    ExternalReference = transaction.TransactionId,
+                    RecordedByUserId = null,
+                    BankTransaction = transaction
+                };
+            }
+            else
+            {
+                // Không có thao tác xóa hóa đơn nên hóa đơn vẫn còn: không khớp vì đã paid hoặc vì lệch số tiền
+                var status = await _dbContext.Invoices
+                    .Where(i => i.Id == invoiceId)
+                    .Select(i => i.Status)
+                    .FirstAsync();
+                MarkUnmatched(transaction, status == InvoiceStatuses.Paid
+                    ? UnmatchedReasons.InvoiceAlreadyPaid
+                    : UnmatchedReasons.AmountMismatch);
+            }
+        }
+
+        _dbContext.BankTransactions.Add(transaction);
+        if (payment is not null)
+            _dbContext.Payments.Add(payment);
+
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "ix_bank_transactions_transaction_id"
+        })
+        {
+            // Bỏ theo dõi để một SaveChanges khác trong cùng request không thử ghi lại; transaction chưa commit
+            // nên tự rollback khi thoát hàm
+            if (payment is not null)
+                _dbContext.Entry(payment).State = EntityState.Detached;
+            _dbContext.Entry(transaction).State = EntityState.Detached;
+            return null;
+        }
+
+        await dbTransaction.CommitAsync();
+        return transaction;
+    }
+
+    private static void MarkUnmatched(BankTransaction transaction, string reason)
+    {
+        transaction.Status = BankTransactionStatuses.Unmatched;
+        transaction.UnmatchedReason = reason;
     }
 
     // SUM của tháng chưa có thanh toán nào ra 0, không phải null (EF dịch thành COALESCE(SUM(...), 0))
