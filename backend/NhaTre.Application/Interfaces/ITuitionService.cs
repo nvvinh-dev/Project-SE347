@@ -15,6 +15,9 @@ public interface ITuitionService
     Task<InvoiceResult> UpdateInvoiceAsync(Guid id, InvoiceRequest request);
     Task<PaymentResult> RecordPaymentAsync(Guid invoiceId, RecordPaymentRequest request, Guid accountantUserId);
 
+    // Webhook ngân hàng gọi sau khi đã kiểm chữ ký và validator (FR-TUITION-08)
+    Task<BankReconcileOutcome> ReconcileBankTransactionAsync(BankTransactionNotification notification);
+
     // null khi trẻ không tồn tại hoặc không liên kết với phụ huynh (Controller trả 404)
     Task<IReadOnlyList<ChildInvoiceResponse>?> GetChildInvoicesForGuardianAsync(Guid childId, Guid parentUserId);
     Task<ChildInvoiceResponse?> GetChildInvoiceForGuardianAsync(Guid childId, Guid invoiceId, Guid parentUserId);
