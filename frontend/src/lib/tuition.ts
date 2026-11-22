@@ -78,3 +78,7 @@ export function currentBillingPeriod() {
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
   return `${part("month")}/${part("year")}`;
 }
+
+// D57: lối vào Ngân hàng giả lập chỉ hiện khi bật cờ (backend vẫn khóa lại ngoài Development).
+export const MOCK_BANK_ENABLED = process.env.NEXT_PUBLIC_MOCK_BANK_ENABLED === "true";
+export const MOCK_BANK_CONTENT_MAX = 500;

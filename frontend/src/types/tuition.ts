@@ -116,3 +116,28 @@ export const UNMATCHED_REASON_LABELS: Record<UnmatchedReason, string> = {
   AmountMismatch: "Số tiền lệch so với hóa đơn",
   InvoiceAlreadyPaid: "Hóa đơn đã được thanh toán",
 };
+
+// FR-TUITION-07: thông tin chuyển khoản của một hóa đơn unpaid (D45); không kèm id hay họ tên trẻ.
+// transferContent là mã thanh toán của hóa đơn; qrImageUrl thuộc img.vietqr.io.
+export interface PaymentInstructionResponse {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  amount: number;
+  transferContent: string;
+  qrImageUrl: string;
+}
+
+// D57: Ngân hàng giả lập; tài khoản nhận luôn là tài khoản của trường nên không có trong request.
+export interface MockBankTransferRequest {
+  amount: number;
+  content: string;
+}
+
+// Biên lai không kèm kết quả đối soát vì ngân hàng không biết hóa đơn (D57).
+export interface MockBankReceipt {
+  transactionId: string;
+  amount: number;
+  content: string;
+  transactionAtUtc: string;
+}
