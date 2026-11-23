@@ -48,3 +48,24 @@ export interface AttendanceHistoryFilter {
 export interface StudentAttendanceItem extends AttendanceChild {
   attendance: AttendanceResponse | null;
 }
+
+/**
+ * Một lần liên hệ của giáo viên khi trẻ vắng không phép (FR-ATT-04, D39 mục 20, D45)
+ */
+export interface AbsenceFollowUpResponse {
+  outcome: "Reached" | "Unreachable" | string;
+  note: string | null;
+  recordedByTeacherName: string;
+  recordedAtUtc: string;
+}
+
+/**
+ * Dòng thông tin trẻ vắng không phép cần Ban giám hiệu xử lý hôm nay (FR-ATT-04, D39 mục 20, D40 mục 3, D45)
+ * Chỉ có họ tên trẻ, lớp và các lần liên hệ; không kèm ID trẻ hay thông tin người đón.
+ */
+export interface AbsenceEscalationResponse {
+  childFullName: string;
+  className: string;
+  followUps: AbsenceFollowUpResponse[];
+}
+
