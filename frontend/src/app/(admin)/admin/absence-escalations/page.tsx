@@ -29,7 +29,7 @@ function formatVietnamDateTime(utcString: string): string {
 }
 
 /**
- * Lấy nhãn và lớp CSS pastel cho kết quả liên hệ (D39 mục 20, UI_DESIGN_GUIDELINES)
+ * Lấy nhãn và lớp CSS pastel cho kết quả liên hệ
  */
 function getOutcomeBadge(outcome: string) {
   switch (outcome) {
@@ -55,7 +55,7 @@ function getOutcomeBadge(outcome: string) {
 }
 
 /**
- * Lấy badge lớp học pastel theo khối (Mầm / Chồi / Lá)
+ * Lấy badge lớp học pastel theo khối
  */
 function getClassBadgeClass(className: string): string {
   const lower = className.toLowerCase();
@@ -77,7 +77,7 @@ function getClassBadgeClass(className: string): string {
 function getEscalationStatus(followUps: AbsenceFollowUpResponse[]) {
   if (followUps.length === 0) {
     return {
-      statusLabel: "Chưa liên hệ (quá 10:00)",
+      statusLabel: "Chưa liên hệ",
       badgeClass: "bg-amber-50 text-amber-800 border-amber-200",
       dotClass: "bg-amber-500",
     };
@@ -102,7 +102,7 @@ function getEscalationStatus(followUps: AbsenceFollowUpResponse[]) {
 export default function AdminAbsenceEscalationsPage() {
   const { data: escalations, isLoading, isError, error, refetch, isFetching } = useAbsenceEscalations();
 
-  // Thống kê nhanh số ca cần xử lý
+  // Thống kê số ca cần xử lý
   const summary = useMemo(() => {
     if (!escalations) return { total: 0, uncontacted: 0, unreachable: 0 };
     let uncontacted = 0;
@@ -138,7 +138,7 @@ export default function AdminAbsenceEscalationsPage() {
       {/* Tiêu đề trang */}
       <PageHeader
         title="Trẻ vắng không phép cần xử lý"
-        description="Danh sách trẻ vắng không phép hôm nay cần Ban giám hiệu theo dõi và phối hợp xử lý liên hệ khẩn cấp."
+        description="Danh sách trẻ vắng không phép hôm nay cần Ban giám hiệu theo dõi."
       >
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand-border/60 bg-brand-subtle/50 text-brand-text text-xs font-medium">
@@ -170,30 +170,7 @@ export default function AdminAbsenceEscalationsPage() {
         </div>
       </PageHeader>
 
-      {/* Thông báo nghiệp vụ quan trọng: Chỉ theo dõi, xử lý ngoài hệ thống (D39 mục 20, D40 mục 3) */}
-      <div className="rounded-2xl border border-brand-border/50 bg-brand-subtle/30 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm text-brand-dark">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-brand/10 text-brand shrink-0 mt-0.5 sm:mt-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.8}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <div>
-            <p className="font-semibold text-foreground">Giám sát xử lý vắng không phép theo thời gian thực</p>
-            <p className="text-muted text-xs mt-0.5 leading-relaxed">
-              Theo quy định nhà trường, trường hợp giáo viên không liên lạc được hoặc sau 10:00 chưa có liên hệ sẽ hiển thị tại đây.
-              Ban giám hiệu trực tiếp phối hợp gọi điện hoặc xử lý hỗ trợ bên ngoài hệ thống.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Thẻ thống kê tổng hợp (Kawaii Pastel Metric Cards) */}
+      {/* Thẻ thống kê tổng hợp */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <div className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-xs">
           <p className="text-xs font-medium text-muted">Tổng số trường hợp cần xử lý</p>
@@ -204,23 +181,23 @@ export default function AdminAbsenceEscalationsPage() {
         </div>
 
         <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-4 sm:p-5 shadow-xs">
-          <p className="text-xs font-medium text-rose-700">Không liên lạc được (Unreachable)</p>
+          <p className="text-xs font-medium text-rose-700">Không liên lạc được</p>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-bold text-rose-700 tracking-tight">{summary.unreachable}</span>
-            <span className="text-xs text-rose-600">cần BGH hỗ trợ gọi</span>
+            <span className="text-xs text-muted">trẻ</span>
           </div>
         </div>
 
         <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4 sm:p-5 shadow-xs">
-          <p className="text-xs font-medium text-amber-800">Chưa liên hệ (sau 10:00)</p>
+          <p className="text-xs font-medium text-amber-800">Chưa liên hệ</p>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-bold text-amber-800 tracking-tight">{summary.uncontacted}</span>
-            <span className="text-xs text-amber-700">cần nhắc giáo viên lớp</span>
+            <span className="text-xs text-muted">trẻ</span>
           </div>
         </div>
       </div>
 
-      {/* 3 trạng thái giao diện: Đang tải / Lỗi / Rỗng (AC-NFR-04) */}
+      {/* 3 trạng thái giao diện: Đang tải / Lỗi / Rỗng */}
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
@@ -254,7 +231,7 @@ export default function AdminAbsenceEscalationsPage() {
         <StatusMessage
           status="empty"
           title="Hôm nay không có trường hợp vắng không phép cần xử lý"
-          message="Tuyệt vời! Tất cả các trẻ vắng không phép hôm nay đã được giáo viên liên hệ thành công hoặc chưa có ca nào quá hạn 10:00 sáng."
+          message="Hiện tại không có trẻ vắng không phép nào cần xử lý trong ngày hôm nay."
         />
       )}
 
@@ -301,14 +278,9 @@ export default function AdminAbsenceEscalationsPage() {
                     </p>
 
                     {item.followUps.length === 0 ? (
-                      <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3.5 text-xs text-amber-900 leading-relaxed flex items-start gap-2.5">
-                        <span className="text-amber-500 font-bold shrink-0 mt-0.5">⚠️</span>
-                        <div>
-                          <p className="font-semibold">Chưa có liên hệ nào từ giáo viên</p>
-                          <p className="mt-0.5 text-amber-800">
-                            Đã quá 10:00 sáng theo giờ Việt Nam nhưng chưa ghi nhận cuộc gọi nào từ giáo viên phụ trách lớp.
-                          </p>
-                        </div>
+                      <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3.5 text-xs text-amber-900 leading-relaxed flex items-center gap-2.5">
+                        <span className="text-amber-500 font-bold shrink-0">⚠️</span>
+                        <p className="font-medium">Chưa có liên hệ nào từ giáo viên</p>
                       </div>
                     ) : (
                       <div className="relative pl-5 space-y-3.5 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border/70">
@@ -360,12 +332,6 @@ export default function AdminAbsenceEscalationsPage() {
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* Nhắc nhở quy tắc ở chân thẻ */}
-                <div className="mt-5 pt-3 border-t border-border/40 flex items-center justify-between text-[11px] text-muted">
-                  <span>Chỉ xem theo dõi • Dữ liệu hôm nay</span>
-                  <span className="text-[11px] font-medium text-brand-dark">Quy định FR-ATT-04</span>
                 </div>
               </div>
             );
