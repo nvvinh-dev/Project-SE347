@@ -19,6 +19,8 @@ using NhaTre.Application.Validators.Children;
 using NhaTre.Application.DTOs.Children;
 using NhaTre.Application.Validators.Tuition;
 using NhaTre.Application.DTOs.Tuition;
+using NhaTre.Application.Validators.MockBank;
+using NhaTre.Application.DTOs.MockBank;
 using NhaTre.Application.Validators.Users;
 using NhaTre.Application.DTOs.Users;
 using NhaTre.Application.Validators.Classes;
@@ -186,6 +188,24 @@ var bankWebhookKey = builder.Configuration["BankWebhook:SecretKey"];
 if (string.IsNullOrWhiteSpace(bankWebhookKey) || Encoding.UTF8.GetByteCount(bankWebhookKey) < 32)
     throw new InvalidOperationException("Thiếu cấu hình BankWebhook:SecretKey trong user-secrets (tối thiểu 32 byte).");
 builder.Services.AddSingleton(new BankWebhookSettings(Encoding.UTF8.GetBytes(bankWebhookKey)));
+// D57: Ngân hàng giả lập chỉ tồn tại khi chạy Development VÀ bật MockBank:Enabled. Thiếu một trong hai thì gỡ
+// MockBankController khỏi danh sách controller: POST /api/mock-bank/transfers trả 404 như đường dẫn lạ (AC-SEC-04)
+if (builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("MockBank:Enabled"))
+{
+    // Bật thì phải có địa chỉ webhook đầy đủ, thiếu thì dừng lúc khởi động như PaymentAccount
+    if (!Uri.TryCreate(builder.Configuration["MockBank:WebhookUrl"], UriKind.Absolute, out var mockBankWebhookUrl)
+        || (mockBankWebhookUrl.Scheme != Uri.UriSchemeHttp && mockBankWebhookUrl.Scheme != Uri.UriSchemeHttps))
+        throw new InvalidOperationException("Bật MockBank:Enabled thì MockBank:WebhookUrl phải là địa chỉ http(s) đầy đủ của webhook ngân hàng.");
+    builder.Services.AddSingleton(new MockBankSettings(mockBankWebhookUrl, Encoding.UTF8.GetBytes(bankWebhookKey)));
+    builder.Services.AddHttpClient<IMockBankWebhookClient, MockBankWebhookClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
+    builder.Services.AddScoped<IMockBankService, MockBankService>();
+    builder.Services.AddScoped<IValidator<MockBankTransferRequest>, MockBankTransferRequestValidator>();
+}
+else
+{
+    builder.Services.AddControllers().ConfigureApplicationPartManager(manager =>
+        manager.FeatureProviders.Add(new MockBankControllerRemover()));
+}
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IValidator<CreateUserRequest>, CreateUserRequestValidator>();
