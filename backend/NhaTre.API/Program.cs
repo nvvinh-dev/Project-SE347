@@ -182,6 +182,8 @@ builder.Services.AddScoped<IValidator<TuitionFeeRequest>, TuitionFeeRequestValid
 builder.Services.AddScoped<IValidator<InvoiceRequest>, InvoiceRequestValidator>();
 builder.Services.AddScoped<IValidator<RecordPaymentRequest>, RecordPaymentRequestValidator>();
 builder.Services.AddScoped<IValidator<BankTransactionNotification>, BankTransactionNotificationValidator>();
+builder.Services.AddScoped<IValidator<MatchBankTransactionRequest>, MatchBankTransactionRequestValidator>();
+builder.Services.AddScoped<IValidator<DismissBankTransactionRequest>, DismissBankTransactionRequestValidator>();
 // D21 mục 2, D46: khóa ký webhook ngân hàng (FR-TUITION-08), thiếu hoặc ngắn hơn 32 byte thì dừng lúc khởi
 // động như Jwt:Key. Bộ lọc BankWebhookSignatureFilter nhận khóa qua DI
 var bankWebhookKey = builder.Configuration["BankWebhook:SecretKey"];

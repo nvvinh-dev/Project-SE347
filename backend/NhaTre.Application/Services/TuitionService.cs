@@ -248,6 +248,73 @@ public class TuitionService : ITuitionService
         return BankReconcileOutcome.Accepted;
     }
 
+    public async Task<IReadOnlyList<BankTransactionResponse>> GetBankTransactionsAsync(string? status)
+    {
+        var transactions = await _tuitionRepository.GetBankTransactionsAsync(status);
+        return transactions.Select(ToResponse).ToList();
+    }
+
+    // FR-TUITION-09, D21 mục 3: đọc trước để trả đúng 404 hay 409 kèm lý do. Kiểm tra lần nữa bằng điều kiện
+    // trong chính các câu UPDATE: hai yêu cầu đồng thời thì yêu cầu thua không đổi gì và nhận 409 chung.
+    // Lý do không khớp ban đầu giữ nguyên sau khi gán (UnmatchedReasons)
+    public async Task<BankTransactionResult> MatchBankTransactionAsync(Guid id, MatchBankTransactionRequest request,
+        Guid accountantUserId)
+    {
+        var transaction = await _tuitionRepository.FindBankTransactionByIdAsync(id);
+        if (transaction is null)
+            return new BankTransactionResult(BankTransactionOutcome.TransactionNotFound);
+
+        if (transaction.Status != BankTransactionStatuses.Unmatched)
+            return new BankTransactionResult(BankTransactionOutcome.TransactionResolved);
+
+        var invoice = await _tuitionRepository.FindInvoiceByIdAsync(request.InvoiceId);
+        if (invoice is null)
+            return new BankTransactionResult(BankTransactionOutcome.InvoiceNotFound);
+
+        if (invoice.Status == InvoiceStatuses.Paid)
+            return new BankTransactionResult(BankTransactionOutcome.InvoicePaid);
+
+        // Thu đủ, không gạch nợ một phần: chuyển thiếu hay thừa thì Kế toán đánh dấu đã xử lý ngoài hệ thống
+        if (invoice.Amount != transaction.Amount)
+            return new BankTransactionResult(BankTransactionOutcome.AmountMismatch);
+
+        var matched = await _tuitionRepository.MatchBankTransactionAsync(transaction, invoice.Id,
+            accountantUserId, DateTime.UtcNow);
+        if (!matched)
+            return new BankTransactionResult(BankTransactionOutcome.Conflict);
+
+        // D50: ghi sau khi transaction đã commit
+        await _securityEventService.RecordAsync(
+            SecurityEventTypes.InvoiceMarkedPaid,
+            actorUserId: accountantUserId,
+            targetUserId: null,
+            targetReference: invoice.Id.ToString(),
+            detail: SecurityEventDetails.BankMatched);
+
+        var updated = await _tuitionRepository.FindBankTransactionByIdAsync(id);
+        return new BankTransactionResult(BankTransactionOutcome.Success, ToResponse(updated!));
+    }
+
+    // Không đổi hóa đơn nào, không hoàn tiền; D50 không có sự kiện cho thao tác này
+    public async Task<BankTransactionResult> DismissBankTransactionAsync(Guid id, DismissBankTransactionRequest request,
+        Guid accountantUserId)
+    {
+        var transaction = await _tuitionRepository.FindBankTransactionByIdAsync(id);
+        if (transaction is null)
+            return new BankTransactionResult(BankTransactionOutcome.TransactionNotFound);
+
+        if (transaction.Status != BankTransactionStatuses.Unmatched)
+            return new BankTransactionResult(BankTransactionOutcome.TransactionResolved);
+
+        var dismissed = await _tuitionRepository.DismissBankTransactionAsync(id, request.Note.Trim(),
+            accountantUserId, DateTime.UtcNow);
+        if (!dismissed)
+            return new BankTransactionResult(BankTransactionOutcome.TransactionResolved);
+
+        var updated = await _tuitionRepository.FindBankTransactionByIdAsync(id);
+        return new BankTransactionResult(BankTransactionOutcome.Success, ToResponse(updated!));
+    }
+
     // D21 mục 2: chuẩn hóa nội dung (chữ hoa; bỏ khoảng trắng, dấu chấm, gạch ngang) vì ngân hàng và người
     // chuyển hay chèn các ký tự này, rồi lấy mọi chuỗi có dạng mã thanh toán. Quét chồng lấn: nội dung
     // "HPHPK7M2Q9XA" có hai ứng viên HPHPK7M2Q9 và HPK7M2Q9XA, quét thường sẽ bỏ sót mã thật thứ hai
@@ -350,6 +417,13 @@ public class TuitionService : ITuitionService
 
     private static ChildInvoiceResponse ToChildInvoiceResponse(Invoice invoice)
         => new(invoice.Id, invoice.Amount, invoice.Description, invoice.Status, invoice.IssuedAt);
+
+    // Invoice chỉ có khi giao dịch đã khớp (CK_BankTransaction_MatchedHasInvoice)
+    private static BankTransactionResponse ToResponse(BankTransaction transaction)
+        => new(transaction.Id, transaction.TransactionId, transaction.Amount, transaction.Content,
+            transaction.TransactionAt, transaction.Status, transaction.UnmatchedReason,
+            transaction.ResolutionNote, transaction.ResolvedAt, transaction.InvoiceId,
+            transaction.Invoice?.PaymentCode, transaction.Invoice?.Description, transaction.Invoice?.Child.FullName);
 
     private static PaymentResponse ToResponse(Payment payment)
         => new(payment.Id, payment.InvoiceId, payment.Amount, payment.PaymentMethod,

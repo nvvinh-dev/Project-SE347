@@ -33,6 +33,18 @@ public interface ITuitionRepository
     Task<bool> BankTransactionExistsAsync(string transactionId);
     Task<BankTransaction?> ReconcileBankTransactionAsync(BankTransaction transaction, IReadOnlyCollection<string> paymentCodes);
 
+    // Đối soát thủ công (D21 mục 3). Giao dịch trả về kèm Invoice và Invoice.Child khi đã khớp
+    Task<IReadOnlyList<BankTransaction>> GetBankTransactionsAsync(string? status);
+    Task<BankTransaction?> FindBankTransactionByIdAsync(Guid id);
+
+    // Chuyển hóa đơn unpaid cùng số tiền sang paid, chuyển giao dịch Unmatched sang Matched và tạo thanh toán
+    // trong cùng một transaction. false khi một trong hai câu cập nhật không khớp dòng nào (không đổi gì)
+    Task<bool> MatchBankTransactionAsync(BankTransaction transaction, Guid invoiceId,
+        Guid accountantUserId, DateTime resolvedAtUtc);
+
+    // Chuyển giao dịch Unmatched sang Dismissed; false khi giao dịch không còn Unmatched
+    Task<bool> DismissBankTransactionAsync(Guid id, string note, Guid accountantUserId, DateTime resolvedAtUtc);
+
     // Báo cáo doanh thu: tổng tiền các thanh toán có paid_at trong [fromUtc, toUtc), 0 khi không có
     Task<decimal> SumPaymentsAsync(DateTime fromUtc, DateTime toUtc);
     Task<int> CountUnpaidInvoicesAsync();
