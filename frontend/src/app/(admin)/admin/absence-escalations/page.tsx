@@ -30,8 +30,9 @@ function formatVietnamDateTime(utcString: string): string {
 
 /**
  * Lấy nhãn và lớp CSS pastel cho kết quả liên hệ
+ * Giữ nhánh default phòng thủ để tránh lỗi runtime nếu API trả giá trị ngoài dự kiến
  */
-function getOutcomeBadge(outcome: "Reached" | "Unreachable") {
+function getOutcomeBadge(outcome: string) {
   switch (outcome) {
     case "Unreachable":
       return {
@@ -44,6 +45,12 @@ function getOutcomeBadge(outcome: "Reached" | "Unreachable") {
         label: "Đã liên lạc được",
         badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
         dotClass: "bg-emerald-500",
+      };
+    default:
+      return {
+        label: outcome,
+        badgeClass: "bg-muted/10 text-muted border-border",
+        dotClass: "bg-muted",
       };
   }
 }
