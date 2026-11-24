@@ -31,7 +31,7 @@ function formatVietnamDateTime(utcString: string): string {
 /**
  * Lấy nhãn và lớp CSS pastel cho kết quả liên hệ
  */
-function getOutcomeBadge(outcome: string) {
+function getOutcomeBadge(outcome: "Reached" | "Unreachable") {
   switch (outcome) {
     case "Unreachable":
       return {
@@ -44,12 +44,6 @@ function getOutcomeBadge(outcome: string) {
         label: "Đã liên lạc được",
         badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
         dotClass: "bg-emerald-500",
-      };
-    default:
-      return {
-        label: outcome,
-        badgeClass: "bg-muted/10 text-muted border-border",
-        dotClass: "bg-muted",
       };
   }
 }
@@ -73,6 +67,8 @@ function getClassBadgeClass(className: string): string {
 
 /**
  * Lấy trạng thái tổng quan hiện tại của trẻ cần xử lý
+ * Theo BR-ATTENDANCE-08 & AC-ATT-13 b: danh sách này chỉ bao gồm trẻ chưa có liên hệ (sau 10:00)
+ * hoặc trẻ có lần liên hệ sau cùng là Unreachable. Nếu giáo viên ghi Reached thì trẻ lập tức rời khỏi danh sách.
  */
 function getEscalationStatus(followUps: AbsenceFollowUpResponse[]) {
   if (followUps.length === 0) {
@@ -83,26 +79,17 @@ function getEscalationStatus(followUps: AbsenceFollowUpResponse[]) {
     };
   }
 
-  const latest = followUps[followUps.length - 1];
-  if (latest.outcome === "Unreachable") {
-    return {
-      statusLabel: "Không liên lạc được",
-      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
-      dotClass: "bg-rose-500",
-    };
-  }
-
   return {
-    statusLabel: "Đã liên lạc được",
-    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    dotClass: "bg-emerald-500",
+    statusLabel: "Không liên lạc được",
+    badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+    dotClass: "bg-rose-500",
   };
 }
 
 export default function AdminAbsenceEscalationsPage() {
   const { data: escalations, isLoading, isError, error, refetch, isFetching } = useAbsenceEscalations();
 
-  // Thống kê số ca cần xử lý
+  // Thống kê số ca cần xử lý (chỉ tính khi đã có dữ liệu)
   const summary = useMemo(() => {
     if (!escalations) return { total: 0, uncontacted: 0, unreachable: 0 };
     let uncontacted = 0;
@@ -123,26 +110,25 @@ export default function AdminAbsenceEscalationsPage() {
     };
   }, [escalations]);
 
-  const todayDisplay = useMemo(() => {
-    return new Date().toLocaleDateString("vi-VN", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      timeZone: "Asia/Ho_Chi_Minh",
-    });
-  }, []);
+  // Luôn lấy ngày mới nhất theo giờ Việt Nam
+  const todayDisplay = new Date().toLocaleDateString("vi-VN", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
 
   return (
     <div className="space-y-6">
-      {/* Tiêu đề trang */}
+      {/* Tiêu đề trang - nói rõ mốc 10:00 theo BR-ATTENDANCE-08 / AC-ATT-14 */}
       <PageHeader
         title="Trẻ vắng không phép cần xử lý"
-        description="Danh sách trẻ vắng không phép hôm nay cần Ban giám hiệu theo dõi."
+        description="Gồm trẻ không liên lạc được; từ 10:00 có thêm trẻ chưa được giáo viên liên hệ (giờ Việt Nam)."
       >
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand-border/60 bg-brand-subtle/50 text-brand-text text-xs font-medium">
-            <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-brand" />
             {todayDisplay}
           </span>
           <Button
@@ -153,6 +139,7 @@ export default function AdminAbsenceEscalationsPage() {
             className="rounded-xl border-border/80 hover:bg-card shadow-xs"
           >
             <svg
+              aria-hidden="true"
               className={`w-3.5 h-3.5 ${isFetching ? "animate-spin text-brand" : "text-muted"}`}
               fill="none"
               stroke="currentColor"
@@ -170,32 +157,49 @@ export default function AdminAbsenceEscalationsPage() {
         </div>
       </PageHeader>
 
-      {/* Thẻ thống kê tổng hợp */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        <div className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-xs">
-          <p className="text-xs font-medium text-muted">Tổng số trường hợp cần xử lý</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{summary.total}</span>
-            <span className="text-xs text-muted">trẻ hôm nay</span>
-          </div>
+      {/* Skeleton 3 thẻ thống kê trong lúc đang tải */}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5 shadow-xs animate-pulse">
+              <div className="h-4 w-32 bg-muted/20 rounded-md" />
+              <div className="mt-3 flex items-baseline gap-2">
+                <div className="h-7 w-12 bg-muted/25 rounded-md" />
+                <div className="h-3 w-16 bg-muted/15 rounded-md" />
+              </div>
+            </div>
+          ))}
         </div>
+      )}
 
-        <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-4 sm:p-5 shadow-xs">
-          <p className="text-xs font-medium text-rose-700">Không liên lạc được</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-bold text-rose-700 tracking-tight">{summary.unreachable}</span>
-            <span className="text-xs text-muted">trẻ</span>
+      {/* Ba thẻ thống kê tổng hợp: Chỉ hiển thị khi đã tải thành công có dữ liệu (ẩn hẳn khi lỗi) */}
+      {!isLoading && !isError && escalations && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-xs">
+            <p className="text-xs font-medium text-muted">Tổng số trường hợp cần xử lý</p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{summary.total}</span>
+              <span className="text-xs text-muted">trẻ hôm nay</span>
+            </div>
           </div>
-        </div>
 
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4 sm:p-5 shadow-xs">
-          <p className="text-xs font-medium text-amber-800">Chưa liên hệ</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-bold text-amber-800 tracking-tight">{summary.uncontacted}</span>
-            <span className="text-xs text-muted">trẻ</span>
+          <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-4 sm:p-5 shadow-xs">
+            <p className="text-xs font-medium text-rose-700">Không liên lạc được</p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold text-rose-700 tracking-tight">{summary.unreachable}</span>
+              <span className="text-xs text-muted">trẻ</span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4 sm:p-5 shadow-xs">
+            <p className="text-xs font-medium text-amber-800">Chưa liên hệ</p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold text-amber-800 tracking-tight">{summary.uncontacted}</span>
+              <span className="text-xs text-muted">trẻ (sau 10:00)</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 3 trạng thái giao diện: Đang tải / Lỗi / Rỗng */}
       {isLoading && (
@@ -246,10 +250,10 @@ export default function AdminAbsenceEscalationsPage() {
                 className="flex flex-col justify-between rounded-2xl border border-border/70 bg-card p-5 sm:p-6 shadow-xs hover:border-brand-border/60 transition-all"
               >
                 <div>
-                  {/* Tiêu đề thẻ: Họ tên trẻ & Lớp & Trạng thái hiện tại */}
-                  <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-border/50">
-                    <div className="min-w-0">
-                      <h3 className="text-base sm:text-lg font-bold text-foreground truncate">
+                  {/* Tiêu đề thẻ: Họ tên trẻ (break-words không bị cắt ở mobile) & Lớp & Trạng thái hiện tại */}
+                  <div className="flex flex-wrap items-start justify-between gap-2.5 pb-3 border-b border-border/50">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base sm:text-lg font-bold text-foreground break-words">
                         {item.childFullName}
                       </h3>
                       <div className="mt-1 flex items-center gap-2">
@@ -264,7 +268,7 @@ export default function AdminAbsenceEscalationsPage() {
                     </div>
 
                     <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${overallStatus.badgeClass}`}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium shrink-0 border ${overallStatus.badgeClass}`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full ${overallStatus.dotClass}`} />
                       {overallStatus.statusLabel}
@@ -279,7 +283,7 @@ export default function AdminAbsenceEscalationsPage() {
 
                     {item.followUps.length === 0 ? (
                       <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3.5 text-xs text-amber-900 leading-relaxed flex items-center gap-2.5">
-                        <span className="text-amber-500 font-bold shrink-0">⚠️</span>
+                        <span aria-hidden="true" className="text-amber-500 font-bold shrink-0">⚠️</span>
                         <p className="font-medium">Chưa có liên hệ nào từ giáo viên</p>
                       </div>
                     ) : (

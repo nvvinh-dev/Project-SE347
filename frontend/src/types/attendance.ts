@@ -53,7 +53,7 @@ export interface StudentAttendanceItem extends AttendanceChild {
  * Một lần liên hệ của giáo viên khi trẻ vắng không phép (FR-ATT-04, D39 mục 20, D45)
  */
 export interface AbsenceFollowUpResponse {
-  outcome: "Reached" | "Unreachable" | string;
+  outcome: "Reached" | "Unreachable";
   note: string | null;
   recordedByTeacherName: string;
   recordedAtUtc: string;
