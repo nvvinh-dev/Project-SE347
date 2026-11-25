@@ -4,6 +4,7 @@ using FluentValidation;
 using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Attendance;
 using NhaTre.Application.Interfaces;
+using NhaTre.Application.Validators;
 using NhaTre.Domain.Constants;
 using System.IdentityModel.Tokens.Jwt;
 
@@ -24,13 +25,16 @@ public class AttendanceController : ControllerBase
 {
     private readonly IAttendanceService _attendanceService;
     private readonly IValidator<CheckInRequest> _checkInValidator;
+    private readonly IValidator<BatchCheckInRequest> _batchCheckInValidator;
 
     public AttendanceController(
         IAttendanceService attendanceService,
-        IValidator<CheckInRequest> checkInValidator)
+        IValidator<CheckInRequest> checkInValidator,
+        IValidator<BatchCheckInRequest> batchCheckInValidator)
     {
         _attendanceService = attendanceService;
         _checkInValidator = checkInValidator;
+        _batchCheckInValidator = batchCheckInValidator;
     }
 
     // Chọn theo trẻ, theo ngày hoặc cả hai (UC-ATT-03); classId chỉ để thu hẹp khi giáo viên phụ
@@ -104,6 +108,31 @@ public class AttendanceController : ControllerBase
             AttendanceOutcome.AlreadyCheckedIn => Conflict(ApiResponse<AttendanceResponse>.Fail(
                 "Trẻ đã được điểm danh hôm nay. Bản điểm danh đã ghi không sửa được.")),
             _ => throw new InvalidOperationException($"Kết quả điểm danh không xử lý: {result.Outcome}")
+        };
+    }
+
+    // D39 mục 21: điểm danh cả lớp một lần, tối đa 50 trẻ. Trẻ đã điểm danh hôm nay được bỏ qua chứ không
+    // làm hỏng cả lô, nên trả 200 kèm kết quả từng trẻ (AC-ATT-11), kể cả khi mọi trẻ đều đã điểm danh
+    [HttpPost("attendances/batch")]
+    [Authorize(Roles = Roles.Teacher)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<BatchCheckInItemResponse>>>> CheckInBatch(
+        [FromBody] BatchCheckInRequest request)
+    {
+        var validationResult = await _batchCheckInValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+            return BadRequest(ApiResponse<IReadOnlyList<BatchCheckInItemResponse>>.Fail(
+                BatchRequests.ErrorMessages(validationResult)));
+
+        var result = await _attendanceService.CheckInBatchAsync(request, CurrentUserId());
+
+        return result.Outcome switch
+        {
+            BatchCheckInOutcome.Success => Ok(ApiResponse<IReadOnlyList<BatchCheckInItemResponse>>.Ok(result.Items!)),
+            BatchCheckInOutcome.ChildNotFound => NotFound(
+                ApiResponse<IReadOnlyList<BatchCheckInItemResponse>>.Fail("Không tìm thấy trẻ.")),
+            BatchCheckInOutcome.ConcurrentCheckIn => Conflict(ApiResponse<IReadOnlyList<BatchCheckInItemResponse>>.Fail(
+                "Có trẻ vừa được điểm danh cùng lúc nên chưa lưu bản nào. Vui lòng gửi lại.")),
+            _ => throw new InvalidOperationException($"Kết quả điểm danh hàng loạt không xử lý: {result.Outcome}")
         };
     }
 

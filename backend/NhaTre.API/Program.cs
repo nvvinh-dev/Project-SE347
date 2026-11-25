@@ -223,6 +223,7 @@ builder.Services.AddScoped<IValidator<CreateTeacherRequest>, CreateTeacherReques
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IValidator<CheckInRequest>, CheckInRequestValidator>();
+builder.Services.AddScoped<IValidator<BatchCheckInRequest>, BatchCheckInRequestValidator>();
 builder.Services.AddScoped<IPickupRepository, PickupRepository>();
 builder.Services.AddScoped<IPickupService, PickupService>();
 builder.Services.AddScoped<IValidator<CreatePickupRequest>, CreatePickupRequestValidator>();
@@ -232,6 +233,7 @@ builder.Services.AddScoped<IValidator<UploadedPhoto>, FacePhotoValidator>();
 builder.Services.AddScoped<IHealthRepository, HealthRepository>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<IValidator<QuickHealthStatusRequest>, QuickHealthStatusRequestValidator>();
+builder.Services.AddScoped<IValidator<BatchQuickHealthStatusRequest>, BatchQuickHealthStatusRequestValidator>();
 builder.Services.AddScoped<IValidator<GrowthMeasurementRequest>, GrowthMeasurementRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateHealthNotesRequest>, UpdateHealthNotesRequestValidator>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();

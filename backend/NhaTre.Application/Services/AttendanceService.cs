@@ -100,14 +100,77 @@ public class AttendanceService : IAttendanceService
         // D39 mục 6 sự kiện 8, mục 20: lưu xong bản vắng không phép mới báo phụ huynh của trẻ (AC-ATT-12);
         // trẻ cũng vào danh sách cần liên hệ của FR-ATT-04, danh sách đó đọc thẳng từ attendances
         if (attendance.Status == AttendanceStatuses.AbsentUnexcused)
-        {
-            await _notificationService.NotifyParentsOfChildAsync(child.Id,
-                $"Bé {child.FullName} được điểm danh vắng không phép ngày {today:dd/MM/yyyy}. "
-                + "Nhà trường sẽ liên hệ người đón đã đăng ký; phụ huynh vui lòng báo lý do vắng cho giáo viên.");
-        }
+            await NotifyUnexcusedAbsenceAsync(child, today);
 
         return new AttendanceResult(AttendanceOutcome.Success, ToResponse(attendance, child.FullName));
     }
+
+    // FR-ATT-01, D39 mục 21: điểm danh cả lớp một lần. Kiểm phạm vi mọi trẻ trước khi ghi: một trẻ ngoài
+    // phạm vi → 404 cho cả lô, không ghi gì (AC-ATT-11). Trẻ đã điểm danh hôm nay thì bỏ qua, giữ nguyên
+    // bản cũ; mọi quy tắc khác như CheckInAsync
+    public async Task<BatchCheckInResult> CheckInBatchAsync(BatchCheckInRequest request, Guid teacherUserId)
+    {
+        var childIds = request.Items.Select(i => i.ChildId).ToList();
+
+        // Validator đã chặn trẻ trùng, nên đủ số trẻ nghĩa là mọi trẻ đều trong phạm vi
+        var children = await _attendanceRepository.FindChildrenInHomeroomClassAsync(childIds, teacherUserId);
+        if (children.Count != childIds.Count)
+            return new BatchCheckInResult(BatchCheckInOutcome.ChildNotFound);
+
+        var teacherId = await _attendanceRepository.FindTeacherIdAsync(teacherUserId);
+        if (teacherId is null)
+            return new BatchCheckInResult(BatchCheckInOutcome.ChildNotFound);
+
+        var now = DateTime.UtcNow;
+        var today = VietnamTime.DateOf(now);
+
+        // BR-ATTENDANCE-04: bản đã có không ghi đè
+        var existing = (await _attendanceRepository.GetByChildrenOnDateAsync(childIds, today))
+            .ToDictionary(a => a.ChildId);
+
+        var created = request.Items
+            .Where(i => !existing.ContainsKey(i.ChildId))
+            .Select(i => new Attendance
+            {
+                ChildId = i.ChildId,
+                RecordedByTeacherId = teacherId.Value,
+                AttendanceDate = today,
+                CheckInTime = now,
+                Status = i.Status
+            })
+            .ToList();
+
+        // Giáo viên khác vừa điểm danh một trẻ trong lô sau bước đọc ở trên: UNIQUE chặn và cả lô không
+        // lưu. Gửi lại thì trẻ đó rơi vào nhánh đã điểm danh
+        if (created.Count > 0 && !await _attendanceRepository.TryAddRangeAsync(created))
+            return new BatchCheckInResult(BatchCheckInOutcome.ConcurrentCheckIn);
+
+        var childrenById = children.ToDictionary(c => c.Id);
+
+        // D39 mục 21: mỗi bản vắng không phép một thông báo như điểm danh từng trẻ, gửi sau khi đã lưu
+        foreach (var attendance in created.Where(a => a.Status == AttendanceStatuses.AbsentUnexcused))
+            await NotifyUnexcusedAbsenceAsync(childrenById[attendance.ChildId], today);
+
+        var createdByChild = created.ToDictionary(a => a.ChildId);
+
+        // Kết quả theo đúng thứ tự client gửi
+        var items = childIds
+            .Select(childId =>
+            {
+                var alreadyCheckedIn = existing.TryGetValue(childId, out var attendance);
+                attendance ??= createdByChild[childId];
+                return new BatchCheckInItemResponse(childId, alreadyCheckedIn,
+                    ToResponse(attendance, childrenById[childId].FullName));
+            })
+            .ToList();
+
+        return new BatchCheckInResult(BatchCheckInOutcome.Success, items);
+    }
+
+    private async Task NotifyUnexcusedAbsenceAsync(Child child, DateOnly today)
+        => await _notificationService.NotifyParentsOfChildAsync(child.Id,
+            $"Bé {child.FullName} được điểm danh vắng không phép ngày {today:dd/MM/yyyy}. "
+            + "Nhà trường sẽ liên hệ người đón đã đăng ký; phụ huynh vui lòng báo lý do vắng cho giáo viên.");
 
     private static AttendanceResponse ToResponse(Attendance attendance, string childFullName)
         => new(attendance.Id, attendance.ChildId, childFullName, attendance.AttendanceDate,

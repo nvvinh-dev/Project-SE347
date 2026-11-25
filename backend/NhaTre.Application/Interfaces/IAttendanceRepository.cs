@@ -8,6 +8,10 @@ public interface IAttendanceRepository
     // null khi trẻ không tồn tại, chưa xếp lớp hoặc thuộc lớp giáo viên khác
     Task<Child?> FindChildInHomeroomClassAsync(Guid childId, Guid teacherUserId);
 
+    // Các trẻ trong danh sách thuộc lớp tài khoản này phụ trách, cùng phạm vi như trên. Trẻ ngoài phạm vi
+    // không có trong kết quả, nên Service so số lượng để biết lô có trẻ ngoài phạm vi (D39 mục 21)
+    Task<IReadOnlyList<Child>> FindChildrenInHomeroomClassAsync(IReadOnlyCollection<Guid> childIds, Guid teacherUserId);
+
     // Bản điểm danh kèm Child, cùng phạm vi lớp phụ trách như trên
     Task<Attendance?> FindByIdInHomeroomClassAsync(Guid id, Guid teacherUserId);
 
@@ -29,6 +33,13 @@ public interface IAttendanceRepository
 
     // Thêm và lưu ngay; false khi trẻ đã có bản điểm danh ngày đó (vi phạm UNIQUE child_id, attendance_date)
     Task<bool> TryAddAsync(Attendance attendance);
+
+    // Các bản điểm danh ngày đó của các trẻ trong danh sách, để lô bỏ qua trẻ đã điểm danh
+    Task<IReadOnlyList<Attendance>> GetByChildrenOnDateAsync(IReadOnlyCollection<Guid> childIds, DateOnly attendanceDate);
+
+    // Thêm và lưu cả lô trong một lần SaveChanges, tức một transaction: false khi có trẻ vừa được điểm
+    // danh ngày đó (vi phạm UNIQUE child_id, attendance_date) và khi đó không bản nào được lưu
+    Task<bool> TryAddRangeAsync(IReadOnlyList<Attendance> attendances);
 
     // Hồ sơ teachers của tài khoản này, để ghi người ghi nhận là chính giáo viên đã thao tác (D44 mục 2).
     // null khi tài khoản không có hồ sơ
