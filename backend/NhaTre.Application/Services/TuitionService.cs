@@ -138,6 +138,104 @@ public class TuitionService : ITuitionService
         return new InvoiceResult(InvoiceOutcome.Success, ToResponse(invoice));
     }
 
+    // FR-TUITION-10: xem trước không ghi gì. Phạm vi không còn trẻ nào để lập vẫn trả kết quả (số 0 kèm danh
+    // sách bị bỏ qua) để Kế toán thấy lý do; chỉ lệnh lập mới báo 409
+    public async Task<BulkInvoicePreviewResult> PreviewBulkInvoicesAsync(BulkInvoiceRequest request)
+    {
+        var (outcome, candidates) = await FindBulkInvoiceCandidatesAsync(request, request.Description.Trim());
+        if (outcome != BulkInvoiceOutcome.Success)
+            return new BulkInvoicePreviewResult(outcome);
+
+        return new BulkInvoicePreviewResult(BulkInvoiceOutcome.Success, new BulkInvoicePreviewResponse(
+            candidates.Count(c => !c.AlreadyInvoiced),
+            candidates.Where(c => c.AlreadyInvoiced).Select(ToSkippedChild).ToList()));
+    }
+
+    // FR-TUITION-10, D39 mục 21: mỗi hóa đơn theo đúng quy tắc của hóa đơn lập từng trẻ (unpaid, thời điểm
+    // lập và mã thanh toán do server đặt). Repository kiểm lại trùng mô tả trong transaction, nên trẻ bị bỏ
+    // qua tính theo các hóa đơn thật sự đã lưu, không theo lần đọc trước. Không ghi security_events (D50)
+    public async Task<BulkInvoiceResult> CreateBulkInvoicesAsync(BulkInvoiceRequest request)
+    {
+        var description = request.Description.Trim();
+        var (outcome, candidates) = await FindBulkInvoiceCandidatesAsync(request, description);
+        if (outcome != BulkInvoiceOutcome.Success)
+            return new BulkInvoiceResult(outcome);
+
+        var issuedAtUtc = DateTime.UtcNow;
+        // Mã trùng nhau trong cùng lô thì sinh lại, để một mã trùng không làm hỏng cả lô; trùng với hóa đơn
+        // đã có thì UNIQUE ở DB chặn như hóa đơn lập từng trẻ
+        var paymentCodes = new HashSet<string>();
+        var invoices = candidates
+            .Where(c => !c.AlreadyInvoiced)
+            .Select(c =>
+            {
+                string paymentCode;
+                do paymentCode = PaymentCodes.Generate();
+                while (!paymentCodes.Add(paymentCode));
+
+                return new Invoice
+                {
+                    ChildId = c.ChildId,
+                    TuitionFeeId = request.TuitionFeeId,
+                    Amount = request.Amount,
+                    Description = description,
+                    IssuedAt = issuedAtUtc,
+                    Status = InvoiceStatuses.Unpaid,
+                    PaymentCode = paymentCode
+                };
+            })
+            .ToList();
+
+        if (invoices.Count == 0)
+            return new BulkInvoiceResult(BulkInvoiceOutcome.NothingToCreate);
+
+        var saved = await _tuitionRepository.AddBulkInvoicesAsync(request.TuitionFeeId, invoices, description);
+        if (saved.Count == 0)
+            return new BulkInvoiceResult(BulkInvoiceOutcome.NothingToCreate);
+
+        // D39 mục 6, 21: mỗi hóa đơn một thông báo cho phụ huynh của đúng trẻ, sau khi cả lô đã commit
+        var fullNames = candidates.ToDictionary(c => c.ChildId, c => c.ChildFullName);
+        foreach (var invoice in saved)
+            await _notificationService.NotifyParentsOfChildAsync(invoice.ChildId,
+                NewInvoiceMessage(fullNames[invoice.ChildId], description, invoice.Amount));
+
+        var savedChildIds = saved.Select(i => i.ChildId).ToHashSet();
+        return new BulkInvoiceResult(BulkInvoiceOutcome.Success, new BulkInvoiceResponse(
+            saved.Count,
+            candidates.Where(c => !savedChildIds.Contains(c.ChildId)).Select(ToSkippedChild).ToList()));
+    }
+
+    // Biểu phí, lớp, khối không tồn tại → 404 (FR-TUITION-10). Validator đã kiểm Scope.Id đúng dạng theo Type
+    private async Task<(BulkInvoiceOutcome Outcome, IReadOnlyList<BulkInvoiceCandidate> Candidates)>
+        FindBulkInvoiceCandidatesAsync(BulkInvoiceRequest request, string description)
+    {
+        if (await _tuitionRepository.FindFeeByIdAsync(request.TuitionFeeId) is null)
+            return (BulkInvoiceOutcome.TuitionFeeNotFound, Array.Empty<BulkInvoiceCandidate>());
+
+        Guid? classId = null;
+        short? gradeLevelId = null;
+
+        if (request.Scope.Type == InvoiceBulkScopeTypes.Class)
+        {
+            classId = Guid.Parse(request.Scope.Id!);
+            if (!await _tuitionRepository.ClassExistsAsync(classId.Value))
+                return (BulkInvoiceOutcome.ClassNotFound, Array.Empty<BulkInvoiceCandidate>());
+        }
+        else if (request.Scope.Type == InvoiceBulkScopeTypes.GradeLevel)
+        {
+            gradeLevelId = short.Parse(request.Scope.Id!);
+            if (!await _tuitionRepository.GradeLevelExistsAsync(gradeLevelId.Value))
+                return (BulkInvoiceOutcome.GradeLevelNotFound, Array.Empty<BulkInvoiceCandidate>());
+        }
+
+        var candidates = await _tuitionRepository.GetBulkInvoiceCandidatesAsync(classId, gradeLevelId, description);
+        return (BulkInvoiceOutcome.Success, candidates);
+    }
+
+    // Hiện chỉ có một lý do bỏ qua: trẻ đã có hóa đơn cùng mô tả (BR-TUITION-17)
+    private static BulkInvoiceSkippedChild ToSkippedChild(BulkInvoiceCandidate candidate)
+        => new(candidate.ChildId, candidate.ChildFullName, InvoiceSkipReasons.DuplicateDescription);
+
     // Hóa đơn đã paid bị khóa: mọi yêu cầu sửa số tiền, mô tả hay trẻ → 409 (BR-TUITION-12, D44 mục 4).
     // Hóa đơn unpaid sửa được cả trẻ vì không có thao tác xóa, lập nhầm trẻ chỉ sửa được cách này.
     // Lưu bằng UPDATE có điều kiện status = 'unpaid', không sửa hóa đơn đã đọc rồi SaveChanges: người

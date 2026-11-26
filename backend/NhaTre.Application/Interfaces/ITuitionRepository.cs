@@ -1,3 +1,4 @@
+using NhaTre.Application.DTOs.Tuition;
 using NhaTre.Domain.Entities;
 
 namespace NhaTre.Application.Interfaces;
@@ -13,6 +14,18 @@ public interface ITuitionRepository
     Task<IReadOnlyList<Invoice>> GetInvoicesAsync(Guid? childId, string? status);
     Task<Invoice?> FindInvoiceByIdAsync(Guid id);
     void AddInvoice(Invoice invoice);
+
+    // Lập hóa đơn hàng loạt (FR-TUITION-10). Lớp đã lưu trữ vẫn tính là tồn tại
+    Task<bool> ClassExistsAsync(Guid classId);
+    Task<bool> GradeLevelExistsAsync(short gradeLevelId);
+    // Trẻ đang ở lớp chưa lưu trữ trong phạm vi; classId và gradeLevelId cùng null là toàn trường.
+    // So mô tả sau khi bỏ khoảng trắng hai đầu; description truyền vào đã trim
+    Task<IReadOnlyList<BulkInvoiceCandidate>> GetBulkInvoiceCandidatesAsync(
+        Guid? classId, short? gradeLevelId, string description);
+    // Thêm các hóa đơn trong một transaction, bỏ hóa đơn của trẻ đã có hóa đơn cùng mô tả (kiểm lại trong
+    // transaction). Trả các hóa đơn đã lưu; rỗng thì không lưu gì
+    Task<IReadOnlyList<Invoice>> AddBulkInvoicesAsync(Guid tuitionFeeId, IReadOnlyList<Invoice> invoices,
+        string description);
 
     // Phụ huynh xem hóa đơn: chỉ khớp khi trẻ có liên kết với parentUserId trong child_guardians
     Task<IReadOnlyList<Invoice>> GetInvoicesOfChildForGuardianAsync(Guid childId, Guid parentUserId);
