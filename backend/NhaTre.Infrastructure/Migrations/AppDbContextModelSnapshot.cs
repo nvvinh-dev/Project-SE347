@@ -475,6 +475,14 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime?>("ArchivedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at_utc");
+
+                    b.Property<short>("GradeLevelId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("grade_level_id");
+
                     b.Property<Guid?>("HomeroomTeacherId")
                         .HasColumnType("uuid")
                         .HasColumnName("homeroom_teacher_id");
@@ -483,9 +491,17 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("max_age_months");
 
+                    b.Property<int?>("MaxCapacity")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_capacity");
+
                     b.Property<int?>("MinAgeMonths")
                         .HasColumnType("integer")
                         .HasColumnName("min_age_months");
+
+                    b.Property<int?>("MinCapacity")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_capacity");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -494,6 +510,9 @@ namespace NhaTre.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_classes");
+
+                    b.HasIndex("GradeLevelId")
+                        .HasDatabaseName("ix_classes_grade_level_id");
 
                     b.HasIndex("HomeroomTeacherId")
                         .HasDatabaseName("ix_classes_homeroom_teacher_id");
@@ -505,29 +524,38 @@ namespace NhaTre.Infrastructure.Migrations
                     b.ToTable("classes", null, t =>
                         {
                             t.HasCheckConstraint("CK_Class_AgeRange", "min_age_months <= max_age_months");
+
+                            t.HasCheckConstraint("CK_Class_CapacityRange", "min_capacity IS NULL OR max_capacity IS NULL OR min_capacity <= max_capacity");
+
+                            t.HasCheckConstraint("CK_Class_MaxCapacity", "max_capacity IS NULL OR max_capacity >= 1");
+
+                            t.HasCheckConstraint("CK_Class_MinCapacity", "min_capacity IS NULL OR min_capacity >= 1");
                         });
 
                     b.HasData(
                         new
                         {
                             Id = new Guid("e84b9f79-dc69-4aa2-b569-3558337df117"),
+                            GradeLevelId = (short)1,
                             MaxAgeMonths = 48,
                             MinAgeMonths = 36,
-                            Name = "Lớp Mầm"
+                            Name = "Mầm 1"
                         },
                         new
                         {
                             Id = new Guid("f8600076-d709-46e9-b658-2b2b1143509d"),
+                            GradeLevelId = (short)2,
                             MaxAgeMonths = 60,
                             MinAgeMonths = 48,
-                            Name = "Lớp Chồi"
+                            Name = "Chồi 1"
                         },
                         new
                         {
                             Id = new Guid("f983817a-6f20-400a-b631-b94f1497820f"),
+                            GradeLevelId = (short)3,
                             MaxAgeMonths = 72,
                             MinAgeMonths = 60,
-                            Name = "Lớp Lá"
+                            Name = "Lá 1"
                         });
                 });
 
@@ -612,6 +640,68 @@ namespace NhaTre.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_Complaint_Resolution", "status <> 'Resolved' OR (resolution IS NOT NULL AND resolution <> '')");
 
                             t.HasCheckConstraint("CK_Complaint_Status", "status IN ('New', 'InProgress', 'Resolved')");
+                        });
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.GradeLevel", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint")
+                        .HasColumnName("id");
+
+                    b.Property<int>("MaxAgeMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_age_months");
+
+                    b.Property<int>("MinAgeMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_age_months");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_grade_levels");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_grade_levels_name");
+
+                    b.ToTable("grade_levels", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GradeLevel_AgeRange", "min_age_months < max_age_months");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = (short)1,
+                            MaxAgeMonths = 48,
+                            MinAgeMonths = 36,
+                            Name = "Mầm",
+                            SortOrder = (short)1
+                        },
+                        new
+                        {
+                            Id = (short)2,
+                            MaxAgeMonths = 60,
+                            MinAgeMonths = 48,
+                            Name = "Chồi",
+                            SortOrder = (short)2
+                        },
+                        new
+                        {
+                            Id = (short)3,
+                            MaxAgeMonths = 72,
+                            MinAgeMonths = 60,
+                            Name = "Lá",
+                            SortOrder = (short)3
                         });
                 });
 
@@ -1497,11 +1587,20 @@ namespace NhaTre.Infrastructure.Migrations
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Class", b =>
                 {
+                    b.HasOne("NhaTre.Domain.Entities.GradeLevel", "GradeLevel")
+                        .WithMany()
+                        .HasForeignKey("GradeLevelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_classes_grade_levels_grade_level_id");
+
                     b.HasOne("NhaTre.Domain.Entities.Teacher", "HomeroomTeacher")
                         .WithMany("HomeroomClasses")
                         .HasForeignKey("HomeroomTeacherId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_classes_teachers_homeroom_teacher_id");
+
+                    b.Navigation("GradeLevel");
 
                     b.Navigation("HomeroomTeacher");
                 });

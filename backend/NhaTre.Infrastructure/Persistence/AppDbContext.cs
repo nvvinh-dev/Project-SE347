@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<Teacher> Teachers => Set<Teacher>();
     public DbSet<Child> Children => Set<Child>();
     public DbSet<ChildGuardian> ChildGuardians => Set<ChildGuardian>();
+    public DbSet<GradeLevel> GradeLevels => Set<GradeLevel>();
     public DbSet<Class> Classes => Set<Class>();
     public DbSet<ClassTeacher> ClassTeachers => Set<ClassTeacher>();
     public DbSet<Attendance> Attendances => Set<Attendance>();
