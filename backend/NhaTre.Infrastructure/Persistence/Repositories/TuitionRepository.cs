@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using NhaTre.Application.DTOs.Tuition;
 using NhaTre.Application.Interfaces;
 using NhaTre.Domain.Constants;
 using NhaTre.Domain.Entities;
@@ -66,6 +67,75 @@ public class TuitionRepository : ITuitionRepository
     public void AddInvoice(Invoice invoice)
     {
         _dbContext.Invoices.Add(invoice);
+    }
+
+    public async Task<bool> ClassExistsAsync(Guid classId)
+    {
+        return await _dbContext.Classes.AnyAsync(c => c.Id == classId);
+    }
+
+    public async Task<bool> GradeLevelExistsAsync(short gradeLevelId)
+    {
+        return await _dbContext.GradeLevels.AnyAsync(g => g.Id == gradeLevelId);
+    }
+
+    // D39 mục 21: chỉ trẻ đang ở lớp chưa lưu trữ; trẻ chưa xếp lớp không thuộc phạm vi nào. Xếp theo họ tên,
+    // id để thứ tự cố định khi trùng tên
+    public async Task<IReadOnlyList<BulkInvoiceCandidate>> GetBulkInvoiceCandidatesAsync(
+        Guid? classId, short? gradeLevelId, string description)
+    {
+        var query = _dbContext.Children
+            .AsNoTracking()
+            .Where(c => c.Class != null && c.Class.ArchivedAtUtc == null);
+
+        if (classId is not null)
+            query = query.Where(c => c.ClassId == classId);
+
+        if (gradeLevelId is not null)
+            query = query.Where(c => c.Class!.GradeLevelId == gradeLevelId);
+
+        return await query
+            .OrderBy(c => c.FullName)
+            .ThenBy(c => c.Id)
+            .Select(c => new BulkInvoiceCandidate(
+                c.Id,
+                c.FullName,
+                c.Invoices.Any(i => i.Description.Trim() == description)))
+            .ToListAsync();
+    }
+
+    // BR-TUITION-17: hai lần bấm lập đồng thời không được lập trùng. Khóa dòng biểu phí bằng FOR UPDATE
+    // (trường chỉ có một biểu phí, D39 mục 4) nên các lần lập hàng loạt chạy lần lượt; lần sau chờ lần trước
+    // commit rồi mới kiểm lại trùng mô tả, nên thấy các hóa đơn lần trước vừa lập. Database không có unique
+    // (child_id, description): hóa đơn lập từng trẻ (FR-TUITION-02) không bị chặn trùng mô tả
+    public async Task<IReadOnlyList<Invoice>> AddBulkInvoicesAsync(Guid tuitionFeeId, IReadOnlyList<Invoice> invoices,
+        string description)
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
+        // EF Core không có toán tử FOR UPDATE nên viết SQL; giá trị truyền dạng tham số, không ghép chuỗi
+        await _dbContext.Database
+            .SqlQuery<Guid>($"SELECT id AS \"Value\" FROM tuition_fees WHERE id = {tuitionFeeId} FOR UPDATE")
+            .ToListAsync();
+
+        var childIds = invoices.Select(i => i.ChildId).ToList();
+        var invoicedChildIds = await _dbContext.Invoices
+            .Where(i => childIds.Contains(i.ChildId) && i.Description.Trim() == description)
+            .Select(i => i.ChildId)
+            .Distinct()
+            .ToListAsync();
+
+        var toAdd = invoices.Where(i => !invoicedChildIds.Contains(i.ChildId)).ToList();
+
+        // Không còn hóa đơn nào để lập thì thoát mà không commit: transaction tự rollback
+        if (toAdd.Count == 0)
+            return toAdd;
+
+        _dbContext.Invoices.AddRange(toAdd);
+        await _dbContext.SaveChangesAsync();
+
+        await transaction.CommitAsync();
+        return toAdd;
     }
 
     // Liên kết phụ huynh–trẻ luôn có trong câu truy vấn (BR-TUITION-04), không chỉ kiểm ở Service.

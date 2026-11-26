@@ -15,6 +15,10 @@ public interface ITuitionService
     Task<InvoiceResult> UpdateInvoiceAsync(Guid id, InvoiceRequest request);
     Task<PaymentResult> RecordPaymentAsync(Guid invoiceId, RecordPaymentRequest request, Guid accountantUserId);
 
+    // Lập hóa đơn hàng loạt (FR-TUITION-10): xem trước không ghi gì, lập trả số hóa đơn đã lập
+    Task<BulkInvoicePreviewResult> PreviewBulkInvoicesAsync(BulkInvoiceRequest request);
+    Task<BulkInvoiceResult> CreateBulkInvoicesAsync(BulkInvoiceRequest request);
+
     // Webhook ngân hàng gọi sau khi đã kiểm chữ ký và validator (FR-TUITION-08)
     Task<BankReconcileOutcome> ReconcileBankTransactionAsync(BankTransactionNotification notification);
 

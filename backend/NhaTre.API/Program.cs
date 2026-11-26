@@ -180,6 +180,7 @@ if (paymentAccount is null
 builder.Services.AddSingleton(paymentAccount);
 builder.Services.AddScoped<IValidator<TuitionFeeRequest>, TuitionFeeRequestValidator>();
 builder.Services.AddScoped<IValidator<InvoiceRequest>, InvoiceRequestValidator>();
+builder.Services.AddScoped<IValidator<BulkInvoiceRequest>, BulkInvoiceRequestValidator>();
 builder.Services.AddScoped<IValidator<RecordPaymentRequest>, RecordPaymentRequestValidator>();
 builder.Services.AddScoped<IValidator<BankTransactionNotification>, BankTransactionNotificationValidator>();
 builder.Services.AddScoped<IValidator<MatchBankTransactionRequest>, MatchBankTransactionRequestValidator>();
