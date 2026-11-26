@@ -10,6 +10,10 @@ public interface IHealthService
     // null khi trẻ ngoài phạm vi lớp phụ trách, không có lý do thất bại nào khác
     Task<QuickHealthStatusResponse?> CreateQuickHealthStatusAsync(QuickHealthStatusRequest request, Guid teacherUserId);
 
+    // null khi có ít nhất một trẻ ngoài phạm vi lớp phụ trách; khi đó không bản ghi nào được lưu
+    Task<IReadOnlyList<QuickHealthStatusResponse>?> CreateQuickHealthStatusesAsync(
+        BatchQuickHealthStatusRequest request, Guid teacherUserId);
+
     // Trẻ của mọi lớp tài khoản này phụ trách; chưa phụ trách lớp nào thì danh sách rỗng
     Task<IReadOnlyList<HomeroomChildResponse>> GetHomeroomChildrenAsync(Guid teacherUserId);
 
