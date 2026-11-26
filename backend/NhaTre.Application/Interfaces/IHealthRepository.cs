@@ -16,6 +16,13 @@ public interface IHealthRepository
 
     void AddQuickHealthStatus(QuickHealthStatus quickHealthStatus);
 
+    // Các trẻ trong danh sách thuộc lớp tài khoản này phụ trách, cùng phạm vi như FindChildInHomeroomClassAsync.
+    // Trẻ ngoài phạm vi không có trong kết quả, nên Service so số lượng để biết lô có trẻ ngoài phạm vi
+    Task<IReadOnlyList<Child>> FindChildrenInHomeroomClassAsync(IReadOnlyCollection<Guid> childIds, Guid teacherUserId);
+
+    // Thêm cả lô; lưu bằng một lần SaveChangesAsync để mọi bản ghi cùng một transaction (D39 mục 21)
+    void AddQuickHealthStatuses(IReadOnlyList<QuickHealthStatus> quickHealthStatuses);
+
     // Y tế làm việc với trẻ toàn trường, không lọc theo lớp (D43 mục 2)
     Task<bool> ChildExistsAsync(Guid childId);
 

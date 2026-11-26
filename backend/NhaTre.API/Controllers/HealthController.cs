@@ -4,6 +4,7 @@ using FluentValidation;
 using NhaTre.Application.Common;
 using NhaTre.Application.DTOs.Health;
 using NhaTre.Application.Interfaces;
+using NhaTre.Application.Validators;
 using NhaTre.Domain.Constants;
 using System.IdentityModel.Tokens.Jwt;
 
@@ -33,17 +34,20 @@ public class HealthController : ControllerBase
 {
     private readonly IHealthService _healthService;
     private readonly IValidator<QuickHealthStatusRequest> _quickHealthStatusValidator;
+    private readonly IValidator<BatchQuickHealthStatusRequest> _batchQuickHealthStatusValidator;
     private readonly IValidator<GrowthMeasurementRequest> _growthMeasurementValidator;
     private readonly IValidator<UpdateHealthNotesRequest> _updateHealthNotesValidator;
 
     public HealthController(
         IHealthService healthService,
         IValidator<QuickHealthStatusRequest> quickHealthStatusValidator,
+        IValidator<BatchQuickHealthStatusRequest> batchQuickHealthStatusValidator,
         IValidator<GrowthMeasurementRequest> growthMeasurementValidator,
         IValidator<UpdateHealthNotesRequest> updateHealthNotesValidator)
     {
         _healthService = healthService;
         _quickHealthStatusValidator = quickHealthStatusValidator;
+        _batchQuickHealthStatusValidator = batchQuickHealthStatusValidator;
         _growthMeasurementValidator = growthMeasurementValidator;
         _updateHealthNotesValidator = updateHealthNotesValidator;
     }
@@ -79,6 +83,27 @@ public class HealthController : ControllerBase
 
         return CreatedAtAction(nameof(GetQuickHealthStatusById), new { id = result.Id },
             ApiResponse<QuickHealthStatusResponse>.Ok(result));
+    }
+
+    // D39 mục 21: ghi cho nhiều trẻ một lần, tối đa 50 trẻ; một dòng sai → 400, một trẻ ngoài phạm vi
+    // → 404, cả hai trường hợp không lưu gì (AC-HEALTH-19). Lô tạo nhiều bản ghi nên không có một địa chỉ
+    // Location để trả kèm: dùng 201 không có CreatedAtAction
+    [HttpPost("quick-health-statuses/batch")]
+    [Authorize(Roles = Roles.Teacher)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<QuickHealthStatusResponse>>>> CreateQuickHealthStatuses(
+        [FromBody] BatchQuickHealthStatusRequest request)
+    {
+        var validationResult = await _batchQuickHealthStatusValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+            return BadRequest(ApiResponse<IReadOnlyList<QuickHealthStatusResponse>>.Fail(
+                BatchRequests.ErrorMessages(validationResult)));
+
+        var result = await _healthService.CreateQuickHealthStatusesAsync(request, CurrentUserId());
+
+        if (result is null)
+            return NotFound(ApiResponse<IReadOnlyList<QuickHealthStatusResponse>>.Fail("Không tìm thấy trẻ."));
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse<IReadOnlyList<QuickHealthStatusResponse>>.Ok(result));
     }
 
     // Trẻ của các lớp mình phụ trách, mỗi trẻ chỉ có id, họ tên và lưu ý sức khỏe (D45). Màn hình

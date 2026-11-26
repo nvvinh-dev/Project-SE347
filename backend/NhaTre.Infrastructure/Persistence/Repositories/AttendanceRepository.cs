@@ -26,6 +26,19 @@ public class AttendanceRepository : IAttendanceRepository
                 && scope.Contains(c.ClassId));
     }
 
+    // Cùng phạm vi như trên, gom cả lô vào một câu truy vấn
+    public async Task<IReadOnlyList<Child>> FindChildrenInHomeroomClassAsync(
+        IReadOnlyCollection<Guid> childIds, Guid teacherUserId)
+    {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
+        return await _dbContext.Children
+            .AsNoTracking()
+            .Where(c => childIds.Contains(c.Id)
+                && scope.Contains(c.ClassId))
+            .ToListAsync();
+    }
+
     // Lấy theo lớp hiện tại của trẻ, cùng cách xác định phạm vi với FR-ATT-03
     public async Task<Attendance?> FindByIdInHomeroomClassAsync(Guid id, Guid teacherUserId)
     {
@@ -109,6 +122,35 @@ public class AttendanceRepository : IAttendanceRepository
         {
             // Bỏ theo dõi bản ghi lỗi để một SaveChanges khác trong cùng request không thử ghi lại nó
             _dbContext.Entry(attendance).State = EntityState.Detached;
+            return false;
+        }
+    }
+
+    public async Task<IReadOnlyList<Attendance>> GetByChildrenOnDateAsync(
+        IReadOnlyCollection<Guid> childIds, DateOnly attendanceDate)
+    {
+        return await _dbContext.Attendances
+            .AsNoTracking()
+            .Where(a => childIds.Contains(a.ChildId) && a.AttendanceDate == attendanceDate)
+            .ToListAsync();
+    }
+
+    // SaveChanges một lần cho cả lô: EF Core gói mọi lệnh INSERT vào một transaction, một dòng vấp UNIQUE
+    // thì cả lô rollback
+    public async Task<bool> TryAddRangeAsync(IReadOnlyList<Attendance> attendances)
+    {
+        _dbContext.Attendances.AddRange(attendances);
+
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Bỏ theo dõi cả lô như TryAddAsync
+            foreach (var attendance in attendances)
+                _dbContext.Entry(attendance).State = EntityState.Detached;
             return false;
         }
     }

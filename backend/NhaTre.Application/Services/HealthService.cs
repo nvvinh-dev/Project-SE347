@@ -68,6 +68,54 @@ public class HealthService : IHealthService
         return ToResponse(quickHealthStatus, child.FullName);
     }
 
+    // FR-HEALTH-01, D39 mục 21: ghi cho nhiều trẻ một lần. Kiểm phạm vi mọi trẻ trước khi ghi: một trẻ
+    // ngoài phạm vi → 404 cho cả lô, không lưu gì (AC-HEALTH-19). Mọi quy tắc khác như CreateQuickHealthStatusAsync
+    public async Task<IReadOnlyList<QuickHealthStatusResponse>?> CreateQuickHealthStatusesAsync(
+        BatchQuickHealthStatusRequest request, Guid teacherUserId)
+    {
+        var childIds = request.Items.Select(i => i.ChildId).ToList();
+
+        // Validator đã chặn trẻ trùng, nên đủ số trẻ nghĩa là mọi trẻ đều trong phạm vi
+        var children = await _healthRepository.FindChildrenInHomeroomClassAsync(childIds, teacherUserId);
+        if (children.Count != childIds.Count)
+            return null;
+
+        var teacherId = await _healthRepository.FindTeacherIdAsync(teacherUserId);
+        if (teacherId is null)
+            return null;
+
+        var childrenById = children.ToDictionary(c => c.Id);
+        var now = DateTime.UtcNow;
+
+        // Soạn mọi thông báo trước khi lưu, cùng lý do như CreateQuickHealthStatusAsync
+        var records = request.Items
+            .Select(i =>
+            {
+                var quickHealthStatus = new QuickHealthStatus
+                {
+                    ChildId = i.ChildId,
+                    RecordedByTeacherId = teacherId.Value,
+                    RecordedAt = now,
+                    Mood = i.Mood,
+                    TemperatureCelsius = i.TemperatureCelsius,
+                    Notes = i.Notes.Trim()
+                };
+                var child = childrenById[i.ChildId];
+                return (QuickHealthStatus: quickHealthStatus, Child: child,
+                    Message: QuickHealthStatusMessage(child.FullName, quickHealthStatus));
+            })
+            .ToList();
+
+        _healthRepository.AddQuickHealthStatuses(records.Select(r => r.QuickHealthStatus).ToList());
+        await _healthRepository.SaveChangesAsync();
+
+        // Mỗi bản ghi một thông báo cho phụ huynh của đúng trẻ đó, sau khi cả lô đã lưu (D39 mục 21)
+        foreach (var record in records)
+            await _notificationService.NotifyParentsOfChildAsync(record.Child.Id, record.Message);
+
+        return records.Select(r => ToResponse(r.QuickHealthStatus, r.Child.FullName)).ToList();
+    }
+
     // FR-HEALTH-07. Đây cũng là danh sách trẻ của lớp để màn hình giáo viên chọn trẻ (D45). Giáo viên
     // chưa được gán lớp thì danh sách rỗng (UC-HEALTH-06)
     public async Task<IReadOnlyList<HomeroomChildResponse>> GetHomeroomChildrenAsync(Guid teacherUserId)
