@@ -244,6 +244,95 @@ public class TuitionRepository : ITuitionRepository
         transaction.UnmatchedReason = reason;
     }
 
+    // Mới nhất trước theo lúc tiền vào tài khoản; id để thứ tự cố định khi hai giao dịch cùng thời điểm
+    public async Task<IReadOnlyList<BankTransaction>> GetBankTransactionsAsync(string? status)
+    {
+        var query = _dbContext.BankTransactions
+            .AsNoTracking()
+            .Include(b => b.Invoice!)
+            .ThenInclude(i => i.Child)
+            .AsQueryable();
+
+        if (status is not null)
+            query = query.Where(b => b.Status == status);
+
+        return await query
+            .OrderByDescending(b => b.TransactionAt)
+            .ThenBy(b => b.Id)
+            .ToListAsync();
+    }
+
+    public async Task<BankTransaction?> FindBankTransactionByIdAsync(Guid id)
+    {
+        return await _dbContext.BankTransactions
+            .AsNoTracking()
+            .Include(b => b.Invoice!)
+            .ThenInclude(i => i.Child)
+            .FirstOrDefaultAsync(b => b.Id == id);
+    }
+
+    // D21 mục 3, D44 mục 4: hai câu UPDATE có điều kiện trong một transaction. Khóa hóa đơn trước rồi mới
+    // khóa giao dịch, cùng thứ tự với chính nó và với webhook (chỉ khóa hóa đơn), nên không thể deadlock.
+    // Hai Kế toán gán cùng giao dịch: yêu cầu sau chờ khóa dòng giao dịch, rồi thấy đã Matched nên không dòng
+    // nào khớp. Gán hai giao dịch vào cùng hóa đơn: yêu cầu sau chờ khóa dòng hóa đơn, rồi thấy đã paid.
+    // Mã giao dịch, số tiền và thời điểm giao dịch không bao giờ đổi nên lấy từ bản Service đã đọc
+    public async Task<bool> MatchBankTransactionAsync(BankTransaction transaction, Guid invoiceId,
+        Guid accountantUserId, DateTime resolvedAtUtc)
+    {
+        await using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
+
+        var amounts = await _dbContext.Database
+            .SqlQuery<decimal>($"UPDATE invoices SET status = {InvoiceStatuses.Paid} WHERE id = {invoiceId} AND status = {InvoiceStatuses.Unpaid} AND amount = {transaction.Amount} RETURNING amount AS \"Value\"")
+            .ToListAsync();
+
+        // Không dòng nào khớp thì thoát mà không commit: transaction tự rollback
+        if (amounts.Count == 0)
+            return false;
+
+        var updatedTransactions = await _dbContext.BankTransactions
+            .Where(b => b.Id == transaction.Id && b.Status == BankTransactionStatuses.Unmatched)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(b => b.Status, BankTransactionStatuses.Matched)
+                .SetProperty(b => b.InvoiceId, invoiceId)
+                .SetProperty(b => b.ResolvedByUserId, accountantUserId)
+                .SetProperty(b => b.ResolvedAt, resolvedAtUtc));
+
+        // Rollback cả câu chuyển paid của hóa đơn ở trên
+        if (updatedTransactions == 0)
+            return false;
+
+        _dbContext.Payments.Add(new Payment
+        {
+            InvoiceId = invoiceId,
+            Amount = amounts[0],
+            PaidAt = transaction.TransactionAt,
+            PaymentMethod = PaymentMethods.BankTransfer,
+            ExternalReference = transaction.TransactionId,
+            RecordedByUserId = accountantUserId,
+            BankTransactionId = transaction.Id
+        });
+        await _dbContext.SaveChangesAsync();
+
+        await dbTransaction.CommitAsync();
+        return true;
+    }
+
+    // Điều kiện status = 'Unmatched' nằm trong câu UPDATE: giao dịch vừa được gán hay đánh dấu ở yêu cầu khác
+    // thì không dòng nào khớp
+    public async Task<bool> DismissBankTransactionAsync(Guid id, string note, Guid accountantUserId,
+        DateTime resolvedAtUtc)
+    {
+        var updatedRows = await _dbContext.BankTransactions
+            .Where(b => b.Id == id && b.Status == BankTransactionStatuses.Unmatched)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(b => b.Status, BankTransactionStatuses.Dismissed)
+                .SetProperty(b => b.ResolutionNote, note)
+                .SetProperty(b => b.ResolvedByUserId, accountantUserId)
+                .SetProperty(b => b.ResolvedAt, resolvedAtUtc));
+
+        return updatedRows == 1;
+    }
+
     // SUM của tháng chưa có thanh toán nào ra 0, không phải null (EF dịch thành COALESCE(SUM(...), 0))
     public async Task<decimal> SumPaymentsAsync(DateTime fromUtc, DateTime toUtc)
     {
