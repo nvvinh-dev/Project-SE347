@@ -9,11 +9,13 @@ internal static class TeacherScope
 {
     // Truy vấn chưa chạy: dùng trong Where bằng Contains thì EF dịch thành class_id IN (subquery), cùng một
     // câu SQL với truy vấn chính. Trẻ chưa xếp lớp có class_id null nên không bao giờ khớp. Giáo viên bị gỡ
-    // khỏi lớp thì mất quyền ngay ở request kế tiếp vì không có gì được lưu tạm
+    // khỏi lớp thì mất quyền ngay ở request kế tiếp vì không có gì được lưu tạm. Lớp đã lưu trữ không thuộc
+    // phạm vi của ai (BR-CLASS-05); lưu trữ cũng gỡ hết giáo viên của lớp, điều kiện này là lớp chặn thứ hai
     public static IQueryable<Guid?> ClassIdsInScope(this AppDbContext dbContext, Guid teacherUserId)
         => dbContext.Classes
-            .Where(c => c.HomeroomTeacher!.UserId == teacherUserId
-                || c.AssistantTeachers.Any(ct => ct.Teacher.UserId == teacherUserId))
+            .Where(c => c.ArchivedAtUtc == null
+                && (c.HomeroomTeacher!.UserId == teacherUserId
+                    || c.AssistantTeachers.Any(ct => ct.Teacher.UserId == teacherUserId)))
             .Select(c => (Guid?)c.Id);
 
     // Hồ sơ teachers của người gọi, để ghi người ghi nhận là chính giáo viên đã tạo bản ghi, kể cả khi

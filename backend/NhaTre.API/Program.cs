@@ -217,6 +217,7 @@ builder.Services.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordReques
 builder.Services.AddScoped<IValidator<ChangeRoleRequest>, ChangeRoleRequestValidator>();
 builder.Services.AddScoped<IClassRepository, ClassRepository>();
 builder.Services.AddScoped<IClassService, ClassService>();
+builder.Services.AddScoped<IValidator<SaveClassRequest>, SaveClassRequestValidator>();
 builder.Services.AddScoped<IValidator<AssignClassRequest>, AssignClassRequestValidator>();
 builder.Services.AddScoped<IValidator<AssignHomeroomTeacherRequest>, AssignHomeroomTeacherRequestValidator>();
 builder.Services.AddScoped<IValidator<AssignAssistantTeachersRequest>, AssignAssistantTeachersRequestValidator>();
