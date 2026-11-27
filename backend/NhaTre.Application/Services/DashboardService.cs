@@ -23,7 +23,8 @@ public class DashboardService : IDashboardService
     {
         var totalStudents = await _dashboardRepository.GetTotalStudentsCountAsync();
         var unassignedStudents = await _dashboardRepository.GetUnassignedStudentsCountAsync();
-        var classes = await _dashboardRepository.GetChildrenCountByClassesAsync();
+        var activeClassesCount = await _dashboardRepository.GetActiveClassesCountAsync();
+        var gradeLevels = await _dashboardRepository.GetChildrenCountByGradeLevelsAsync();
 
         var assignedStudents = Math.Max(0, totalStudents - unassignedStudents);
 
@@ -31,8 +32,8 @@ public class DashboardService : IDashboardService
             TotalStudents: totalStudents,
             AssignedStudents: assignedStudents,
             UnassignedStudents: unassignedStudents,
-            TotalClasses: classes.Count,
-            Classes: classes
+            TotalClasses: activeClassesCount,
+            GradeLevels: gradeLevels
         );
     }
 
@@ -43,28 +44,27 @@ public class DashboardService : IDashboardService
         var startDate = new DateOnly(year, month, 1);
         var endDate = startDate.AddMonths(1);
 
-        var classCounts = await _dashboardRepository.GetClassAttendanceCountsAsync(startDate, endDate);
+        var gradeLevelCounts = await _dashboardRepository.GetGradeLevelAttendanceCountsAsync(startDate, endDate);
 
-        var classDtos = classCounts.Select(c =>
+        var gradeLevelDtos = gradeLevelCounts.Select(g =>
         {
-            var rate = c.TotalRecords > 0
-                ? Math.Round((double)c.PresentRecords / c.TotalRecords * 100, 1)
+            var rate = g.TotalRecords > 0
+                ? Math.Round((double)g.PresentRecords / g.TotalRecords * 100, 1)
                 : 0.0;
 
-            return new ClassAttendanceDto(
-                ClassId: c.ClassId,
-                ClassName: c.ClassName,
-                TotalRecords: c.TotalRecords,
-                PresentRecords: c.PresentRecords,
-                AttendanceRate: rate,
-                MinAgeMonths: c.MinAgeMonths,
-                MaxAgeMonths: c.MaxAgeMonths
+            return new GradeLevelAttendanceDto(
+                GradeLevelId: g.GradeLevelId,
+                GradeLevelName: g.GradeLevelName,
+                SortOrder: g.SortOrder,
+                TotalRecords: g.TotalRecords,
+                PresentRecords: g.PresentRecords,
+                AttendanceRate: rate
             );
         }).ToList();
 
-        // Số liệu toàn trường tính bằng tổng các lớp hiện tại để bảo đảm tính nhất quán (khớp chính xác tổng 3 lớp)
-        var totalRecords = classDtos.Sum(c => c.TotalRecords);
-        var presentRecords = classDtos.Sum(c => c.PresentRecords);
+        // Số liệu toàn trường tính bằng tổng các khối hiện tại để bảo đảm tính nhất quán
+        var totalRecords = gradeLevelDtos.Sum(g => g.TotalRecords);
+        var presentRecords = gradeLevelDtos.Sum(g => g.PresentRecords);
         var overallRate = totalRecords > 0
             ? Math.Round((double)presentRecords / totalRecords * 100, 1)
             : 0.0;
@@ -75,7 +75,7 @@ public class DashboardService : IDashboardService
             TotalRecords: totalRecords,
             PresentRecords: presentRecords,
             OverallAttendanceRate: overallRate,
-            Classes: classDtos
+            GradeLevels: gradeLevelDtos
         );
     }
 

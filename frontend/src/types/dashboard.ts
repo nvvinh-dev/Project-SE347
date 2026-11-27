@@ -1,14 +1,15 @@
 /**
  * Định nghĩa DTO phản ánh chính xác backend Dashboard API (D45, AC-DASH-06, BR-DASHBOARD-02, BR-DASHBOARD-03)
- * Toàn bộ DTO chỉ chứa dữ liệu tổng hợp, không chứa thông tin cá nhân hay ngoài phạm vi.
+ * Toàn bộ DTO chỉ chứa dữ liệu tổng hợp theo 3 khối, không chứa thông tin cá nhân hay ngoài phạm vi.
  */
 
-export interface ClassChildrenCountDto {
-  classId: string;
-  className: string;
+export interface GradeLevelChildrenCountDto {
+  gradeLevelId: number;
+  gradeLevelName: string;
+  sortOrder: number;
+  minAgeMonths: number;
+  maxAgeMonths: number;
   studentCount: number;
-  minAgeMonths: number | null;
-  maxAgeMonths: number | null;
 }
 
 export interface ChildrenStatisticsResponse {
@@ -16,17 +17,16 @@ export interface ChildrenStatisticsResponse {
   assignedStudents: number;
   unassignedStudents: number;
   totalClasses: number;
-  classes: ClassChildrenCountDto[];
+  gradeLevels: GradeLevelChildrenCountDto[];
 }
 
-export interface ClassAttendanceDto {
-  classId: string;
-  className: string;
+export interface GradeLevelAttendanceDto {
+  gradeLevelId: number;
+  gradeLevelName: string;
+  sortOrder: number;
   totalRecords: number;
   presentRecords: number;
   attendanceRate: number;
-  minAgeMonths: number | null;
-  maxAgeMonths: number | null;
 }
 
 export interface AttendanceStatisticsResponse {
@@ -35,7 +35,7 @@ export interface AttendanceStatisticsResponse {
   totalRecords: number;
   presentRecords: number;
   overallAttendanceRate: number;
-  classes: ClassAttendanceDto[];
+  gradeLevels: GradeLevelAttendanceDto[];
 }
 
 export interface RevenueStatisticsResponse {

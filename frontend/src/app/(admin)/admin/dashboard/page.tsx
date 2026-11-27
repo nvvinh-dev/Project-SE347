@@ -83,17 +83,17 @@ export default function AdminDashboardPage() {
 
   const hasUnassignedChildren = (stats?.unassignedStudents ?? 0) > 0;
 
-  // Sắp xếp danh sách lớp ổn định theo minAgeMonths tăng dần (Mầm -> Chồi -> Lá)
-  const sortedChildrenClasses = (stats?.classes ?? []).slice().sort(
-    (a, b) => (a.minAgeMonths ?? 0) - (b.minAgeMonths ?? 0)
+  // Sắp xếp danh sách khối ổn định theo sortOrder tăng dần (Mầm -> Chồi -> Lá)
+  const sortedChildrenGradeLevels = (stats?.gradeLevels ?? []).slice().sort(
+    (a, b) => a.sortOrder - b.sortOrder
   );
 
-  const sortedAttendanceClasses = (attendanceStats?.classes ?? []).slice().sort(
-    (a, b) => (a.minAgeMonths ?? 0) - (b.minAgeMonths ?? 0)
+  const sortedAttendanceGradeLevels = (attendanceStats?.gradeLevels ?? []).slice().sort(
+    (a, b) => a.sortOrder - b.sortOrder
   );
 
   // Cấu hình theme visual nhất quán cho 3 khối lớp mầm non
-  const classThemes = [
+  const gradeLevelThemes = [
     {
       badgeBg: "bg-brand-subtle",
       badgeText: "text-brand-text",
@@ -562,14 +562,14 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* 6. Thống Kê Điểm Danh Chuyên Cần Theo Khối Lớp (FR-DASH-03, AC-DASH-03, D23) */}
+          {/* 6. Thống Kê Điểm Danh Chuyên Cần Theo Khối (FR-DASH-03, AC-DASH-03, D23, D39 mục 12) */}
           <div className="p-5 sm:p-6 rounded-2xl bg-card border border-border shadow-2xs space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-info" />
                   <h3 className="text-base font-bold text-foreground">
-                    Tỷ lệ điểm danh chuyên cần theo khối lớp
+                    Tỷ lệ điểm danh chuyên cần theo khối
                   </h3>
                 </div>
                 <p className="text-xs text-muted mt-0.5">
@@ -603,13 +603,13 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-                {sortedAttendanceClasses.map((cls, index) => {
-                  const theme = classThemes[index % classThemes.length];
-                  const hasData = cls.totalRecords > 0;
+                {sortedAttendanceGradeLevels.map((grade, index) => {
+                  const theme = gradeLevelThemes[index % gradeLevelThemes.length];
+                  const hasData = grade.totalRecords > 0;
 
                   return (
                     <div
-                      key={cls.classId}
+                      key={grade.gradeLevelId}
                       className="p-5 rounded-xl bg-background/50 border border-border shadow-2xs space-y-3.5 hover:border-border-hover transition-all"
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -617,12 +617,12 @@ export default function AdminDashboardPage() {
                           className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}
                         >
                           <span>{theme.icon}</span>
-                          <span>{cls.className}</span>
+                          <span>Khối {grade.gradeLevelName}</span>
                         </span>
 
                         <div className="text-right">
                           <span className="text-base font-extrabold text-foreground">
-                            {hasData ? `${formatRate(cls.attendanceRate)}%` : "—"}
+                            {hasData ? `${formatRate(grade.attendanceRate)}%` : "—"}
                           </span>
                           <span className="text-xs text-muted block">tỷ lệ có mặt</span>
                         </div>
@@ -633,7 +633,7 @@ export default function AdminDashboardPage() {
                         <div className="flex justify-between text-[11px] text-muted">
                           <span>
                             {hasData
-                              ? `${cls.presentRecords}/${cls.totalRecords} lượt có mặt`
+                              ? `${grade.presentRecords}/${grade.totalRecords} lượt có mặt`
                               : "Chưa có lượt điểm danh"}
                           </span>
                         </div>
@@ -642,7 +642,7 @@ export default function AdminDashboardPage() {
                             className={`h-full rounded-full ${
                               !hasData ? "bg-transparent" : "bg-info"
                             } transition-all duration-500`}
-                            style={{ width: hasData ? `${cls.attendanceRate}%` : "0%" }}
+                            style={{ width: hasData ? `${grade.attendanceRate}%` : "0%" }}
                           />
                         </div>
                       </div>
@@ -653,20 +653,20 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
-          {/* 7. Chi tiết Phân bổ Các Khối Lớp Học (FR-DASH-02, AC-DASH-02, BR-DASHBOARD-02) */}
+          {/* 7. Chi tiết Phân bổ Học Sinh Theo 3 Khối Lớp (FR-DASH-02, AC-DASH-02, BR-DASHBOARD-02, D39 mục 12) */}
           <div className="p-5 sm:p-6 rounded-2xl bg-card border border-border shadow-2xs space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-brand" />
                   <h3 className="text-base font-bold text-foreground">
-                    Phân bổ học sinh theo từng lớp học
+                    Phân bổ học sinh theo khối
                   </h3>
                 </div>
                 <p className="text-xs text-muted mt-0.5">
                   {stats?.totalClasses
-                    ? `Thống kê số lượng học sinh của ${stats.totalClasses} khối lớp mầm non cố định`
-                    : "Thống kê số lượng học sinh của các khối lớp mầm non cố định"}
+                    ? `Thống kê số lượng học sinh theo 3 khối (${stats.totalClasses} lớp đang hoạt động)`
+                    : "Thống kê số lượng học sinh theo 3 khối lớp mầm non"}
                 </p>
               </div>
 
@@ -696,27 +696,24 @@ export default function AdminDashboardPage() {
                   Thử tải lại
                 </button>
               </div>
-            ) : sortedChildrenClasses.length === 0 ? (
+            ) : sortedChildrenGradeLevels.length === 0 ? (
               <div className="p-8 text-center text-xs text-muted">
-                Chưa có dữ liệu lớp học
+                Chưa có dữ liệu khối lớp
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-                {sortedChildrenClasses.map((cls, index) => {
-                  const theme = classThemes[index % classThemes.length];
-                  const ageLabel =
-                    cls.minAgeMonths != null && cls.maxAgeMonths != null
-                      ? `${cls.minAgeMonths} ≤ tuổi < ${cls.maxAgeMonths} tháng`
-                      : "Theo độ tuổi quy định";
+                {sortedChildrenGradeLevels.map((grade, index) => {
+                  const theme = gradeLevelThemes[index % gradeLevelThemes.length];
+                  const ageLabel = `${grade.minAgeMonths} ≤ tuổi < ${grade.maxAgeMonths} tháng`;
 
                   const percentage =
                     stats && stats.totalStudents > 0
-                      ? Math.round((cls.studentCount / stats.totalStudents) * 100)
+                      ? Math.round((grade.studentCount / stats.totalStudents) * 100)
                       : 0;
 
                   return (
                     <div
-                      key={cls.classId}
+                      key={grade.gradeLevelId}
                       className="p-5 rounded-xl bg-background/50 border border-border shadow-2xs space-y-4 hover:border-border-hover transition-all"
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -724,12 +721,12 @@ export default function AdminDashboardPage() {
                           className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}
                         >
                           <span>{theme.icon}</span>
-                          <span>{cls.className}</span>
+                          <span>Khối {grade.gradeLevelName}</span>
                         </span>
 
                         <div className="text-right">
                           <span className="text-sm font-bold text-foreground">
-                            {cls.studentCount}
+                            {grade.studentCount}
                           </span>
                           <span className="text-xs text-muted"> học sinh</span>
                         </div>

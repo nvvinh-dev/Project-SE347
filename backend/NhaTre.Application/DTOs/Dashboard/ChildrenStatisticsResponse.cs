@@ -7,5 +7,5 @@ public record ChildrenStatisticsResponse(
     int AssignedStudents,
     int UnassignedStudents,
     int TotalClasses,
-    IReadOnlyList<ClassChildrenCountDto> Classes
+    IReadOnlyList<GradeLevelChildrenCountDto> GradeLevels
 );

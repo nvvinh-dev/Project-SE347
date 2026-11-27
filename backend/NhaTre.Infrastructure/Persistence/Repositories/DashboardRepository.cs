@@ -24,38 +24,52 @@ public class DashboardRepository : IDashboardRepository
         return await _dbContext.Children.CountAsync(c => c.ClassId == null);
     }
 
-    public async Task<IReadOnlyList<ClassChildrenCountDto>> GetChildrenCountByClassesAsync()
+    public async Task<int> GetActiveClassesCountAsync()
     {
-        return await _dbContext.Classes
+        // BR-CLASS-05: Lớp đã lưu trữ không tính vào dashboard
+        return await _dbContext.Classes.CountAsync(c => c.ArchivedAtUtc == null);
+    }
+
+    public async Task<IReadOnlyList<GradeLevelChildrenCountDto>> GetChildrenCountByGradeLevelsAsync()
+    {
+        // FR-DASH-02, D39 mục 12: Khoảng tuổi lấy từ GradeLevel, bỏ lớp đã lưu trữ (BR-CLASS-05)
+        // Trẻ tính vào khối của lớp hiện tại; sắp xếp theo SortOrder của khối
+        return await _dbContext.GradeLevels
             .AsNoTracking()
-            .OrderBy(c => c.MinAgeMonths)
-            .Select(c => new ClassChildrenCountDto(
-                c.Id,
-                c.Name,
-                c.Children.Count(),
-                c.MinAgeMonths,
-                c.MaxAgeMonths
+            .OrderBy(g => g.SortOrder)
+            .Select(g => new GradeLevelChildrenCountDto(
+                g.Id,
+                g.Name,
+                g.SortOrder,
+                g.MinAgeMonths,
+                g.MaxAgeMonths,
+                _dbContext.Classes
+                    .Where(c => c.GradeLevelId == g.Id && c.ArchivedAtUtc == null)
+                    .SelectMany(c => c.Children)
+                    .Count()
             ))
             .ToListAsync();
     }
 
-    public async Task<IReadOnlyList<ClassAttendanceCountDto>> GetClassAttendanceCountsAsync(DateOnly startDate, DateOnly endDate)
+    public async Task<IReadOnlyList<GradeLevelAttendanceCountDto>> GetGradeLevelAttendanceCountsAsync(DateOnly startDate, DateOnly endDate)
     {
-        // AC-DASH-03, D23: Tỷ lệ có mặt tháng hiện tại theo 3 lớp, bắt buộc lọc status = 'Present'
-        // Toàn bộ dữ liệu trả ra là số liệu tổng hợp (AC-DASH-06, D45), không lộ thông tin từng trẻ
-        // Lớp tính theo lớp hiện tại của trẻ (c.Children). Trẻ đã gỡ khỏi lớp (class_id = null) không thuộc lớp nào.
-        return await _dbContext.Classes
+        // FR-DASH-03, AC-DASH-03, D23, D39 mục 12: Tỷ lệ có mặt tháng hiện tại tách theo 3 khối, bắt buộc lọc status = 'Present'
+        // Bản ghi điểm danh tính vào khối của lớp hiện tại của trẻ (chưa lưu trữ, BR-CLASS-05)
+        return await _dbContext.GradeLevels
             .AsNoTracking()
-            .OrderBy(c => c.MinAgeMonths)
-            .Select(c => new ClassAttendanceCountDto(
-                c.Id,
-                c.Name,
-                c.MinAgeMonths,
-                c.MaxAgeMonths,
-                c.Children
+            .OrderBy(g => g.SortOrder)
+            .Select(g => new GradeLevelAttendanceCountDto(
+                g.Id,
+                g.Name,
+                g.SortOrder,
+                _dbContext.Classes
+                    .Where(c => c.GradeLevelId == g.Id && c.ArchivedAtUtc == null)
+                    .SelectMany(c => c.Children)
                     .SelectMany(ch => ch.Attendances)
                     .Count(a => a.AttendanceDate >= startDate && a.AttendanceDate < endDate),
-                c.Children
+                _dbContext.Classes
+                    .Where(c => c.GradeLevelId == g.Id && c.ArchivedAtUtc == null)
+                    .SelectMany(c => c.Children)
                     .SelectMany(ch => ch.Attendances)
                     .Count(a => a.AttendanceDate >= startDate && a.AttendanceDate < endDate && a.Status == AttendanceStatuses.Present)
             ))
