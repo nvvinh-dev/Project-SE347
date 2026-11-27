@@ -3,18 +3,34 @@ import { apiClient } from "@/lib/axios";
 import { useApiQuery, useApiMutation } from "./useApiQuery";
 import type { ApiResponse } from "@/types/auth";
 import type {
+  GradeLevelResponse,
   ClassResponse,
   ClassPlacementResponse,
+  SaveClassRequest,
   AssignClassRequest,
   AssignHomeroomTeacherRequest,
   AssignAssistantTeachersRequest,
 } from "@/types/class";
 
+export const GRADE_LEVELS_QUERY_KEY = ["grade-levels"] as const;
 export const CLASSES_QUERY_KEY = ["classes"] as const;
 export const CLASS_PLACEMENTS_QUERY_KEY = ["class-placements"] as const;
 
 /**
- * Lấy danh sách 3 lớp học cố định (GET /api/classes)
+ * Lấy danh sách 3 khối lớp cố định (GET /api/grade-levels)
+ */
+export function useGradeLevels() {
+  return useApiQuery<GradeLevelResponse[]>({
+    queryKey: GRADE_LEVELS_QUERY_KEY,
+    queryFn: async () => {
+      const response = await apiClient.get<ApiResponse<GradeLevelResponse[]>>("/api/grade-levels");
+      return response.data.data ?? [];
+    },
+  });
+}
+
+/**
+ * Lấy danh sách lớp học đang hoạt động theo thứ tự khối và tên (GET /api/classes)
  */
 export function useClasses() {
   return useApiQuery<ClassResponse[]>({
@@ -22,6 +38,79 @@ export function useClasses() {
     queryFn: async () => {
       const response = await apiClient.get<ApiResponse<ClassResponse[]>>("/api/classes");
       return response.data.data ?? [];
+    },
+  });
+}
+
+/**
+ * Tạo lớp học mới theo khối (POST /api/classes)
+ */
+export function useCreateClass() {
+  const queryClient = useQueryClient();
+  return useApiMutation<ClassResponse, SaveClassRequest>({
+    mutationFn: async (data) => {
+      const response = await apiClient.post<ApiResponse<ClassResponse>>("/api/classes", data);
+      return response.data.data!;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+    },
+    onError: (error) => {
+      if (error.status === 404 || error.status === 409) {
+        queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: GRADE_LEVELS_QUERY_KEY });
+      }
+    },
+  });
+}
+
+/**
+ * Cập nhật thông tin lớp học (PUT /api/classes/{id})
+ */
+export function useUpdateClass() {
+  const queryClient = useQueryClient();
+  return useApiMutation<ClassResponse, { classId: string; data: SaveClassRequest }>({
+    mutationFn: async ({ classId, data }) => {
+      const response = await apiClient.put<ApiResponse<ClassResponse>>(
+        `/api/classes/${classId}`,
+        data
+      );
+      return response.data.data!;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CLASS_PLACEMENTS_QUERY_KEY });
+    },
+    onError: (error) => {
+      if (error.status === 404 || error.status === 409) {
+        queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: CLASS_PLACEMENTS_QUERY_KEY });
+      }
+    },
+  });
+}
+
+/**
+ * Lưu trữ lớp học một chiều (POST /api/classes/{id}/archive)
+ */
+export function useArchiveClass() {
+  const queryClient = useQueryClient();
+  return useApiMutation<ClassResponse, { classId: string }>({
+    mutationFn: async ({ classId }) => {
+      const response = await apiClient.post<ApiResponse<ClassResponse>>(
+        `/api/classes/${classId}/archive`
+      );
+      return response.data.data!;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CLASS_PLACEMENTS_QUERY_KEY });
+    },
+    onError: (error) => {
+      if (error.status === 404 || error.status === 409) {
+        queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: CLASS_PLACEMENTS_QUERY_KEY });
+      }
     },
   });
 }

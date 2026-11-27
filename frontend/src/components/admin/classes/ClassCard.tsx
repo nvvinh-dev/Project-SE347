@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { getGradeLevelTheme } from "@/lib/classAge";
 import type { ClassResponse } from "@/types/class";
 
 interface ClassCardProps {
@@ -9,6 +10,8 @@ interface ClassCardProps {
   isSelected: boolean;
   invalidTeacherMap?: Map<string, string>;
   onSelect: () => void;
+  onEditClass: () => void;
+  onArchiveClass: () => void;
   onAssignTeacher: () => void;
   onRemoveTeacher: () => void;
   onAssignAssistantTeachers: () => void;
@@ -20,6 +23,8 @@ export function ClassCard({
   isSelected,
   invalidTeacherMap,
   onSelect,
+  onEditClass,
+  onArchiveClass,
   onAssignTeacher,
   onRemoveTeacher,
   onAssignAssistantTeachers,
@@ -27,54 +32,25 @@ export function ClassCard({
   // Xác định giao diện màu sắc và thông số theo từng khối lớp (D39 mục 3, AC-CLASS-01)
   const minMonths = classInfo.minAgeMonths;
   const maxMonths = classInfo.maxAgeMonths;
+  const displayChildCount = studentCount ?? classInfo.childCount;
 
-  // Tính nhãn năm tuổi và công thức linh hoạt từ dữ liệu API trả về
-  const minYears = minMonths !== null ? Math.floor(minMonths / 12) : null;
-  const maxYears = maxMonths !== null ? Math.floor(maxMonths / 12) : null;
-  const ageLabel =
-    minYears !== null && maxYears !== null
-      ? `${minYears} – ${maxYears} Tuổi`
-      : classInfo.name;
-  const ageRangeFormula =
-    minMonths !== null && maxMonths !== null
-      ? `${minMonths} ≤ tuổi < ${maxMonths} tháng`
-      : "Độ tuổi quy định";
+  // Tính nhãn năm tuổi và công thức từ khoảng tuổi của khối
+  const minYears = Math.floor(minMonths / 12);
+  const maxYears = Math.floor(maxMonths / 12);
+  const ageLabel = `Khối ${classInfo.gradeLevel.name} · ${minYears}–${maxYears} tuổi`;
+  const ageRangeFormula = `${minMonths} ≤ tuổi < ${maxMonths} tháng`;
 
-  const isMam = minMonths === 36 || classInfo.name.includes("Mầm");
-  const isChoi = minMonths === 48 || classInfo.name.includes("Chồi");
-
-  const theme = isMam
-    ? {
-      badgeBg: "bg-[#E8F8F1]",
-      badgeText: "text-[#1A624C]",
-      badgeBorder: "border-[#A7E5D2]/60",
-      accentBg: "bg-[#55B38F]",
-      borderHover: "hover:border-[#55B38F]/50",
-      icon: "🌱",
-      tooltipText: `Bao gồm trẻ từ đủ ${minMonths ?? 36} tháng đến dưới ${maxMonths ?? 48} tháng tuổi. Tròn ${maxMonths ?? 48} tháng thuộc Lớp Chồi.`,
-    }
-    : isChoi
-      ? {
-        badgeBg: "bg-[#EAF7FC]",
-        badgeText: "text-[#17627D]",
-        badgeBorder: "border-[#D5E3F2]",
-        accentBg: "bg-[#71C8E4]",
-        borderHover: "hover:border-[#71C8E4]/50",
-        icon: "🌿",
-        tooltipText: `Bao gồm trẻ từ đủ ${minMonths ?? 48} tháng đến dưới ${maxMonths ?? 60} tháng tuổi. Tròn ${maxMonths ?? 60} tháng thuộc Lớp Lá.`,
-      }
-      : {
-        badgeBg: "bg-[#FBE8E2]",
-        badgeText: "text-[#8A4F42]",
-        badgeBorder: "border-[#FAC4CD]/60",
-        accentBg: "bg-[#E8916E]",
-        borderHover: "hover:border-[#E8916E]/50",
-        icon: "🍃",
-        tooltipText: `Bao gồm trẻ từ đủ ${minMonths ?? 60} tháng đến dưới ${maxMonths ?? 72} tháng tuổi. Trẻ đủ ${maxMonths ?? 72} tháng thuộc diện ra trường.`,
-      };
+  const theme = getGradeLevelTheme({
+    gradeLevelId: classInfo.gradeLevel.id,
+    minAgeMonths: minMonths,
+    maxAgeMonths: maxMonths,
+    name: classInfo.gradeLevel.name,
+  });
 
   const hasTeacher = Boolean(classInfo.homeroomTeacher);
   const assistantTeachers = classInfo.assistantTeachers ?? [];
+  const hasCapacityLimit =
+    classInfo.minCapacity !== null || classInfo.maxCapacity !== null;
 
   return (
     <div
@@ -84,7 +60,7 @@ export function ClassCard({
         }`}
     >
       <div className="space-y-4">
-        {/* Phần đầu thẻ: Nhóm tuổi & Sĩ số */}
+        {/* Phần đầu thẻ: Khối lớp, độ tuổi & Sĩ số */}
         <div className="flex items-start justify-between gap-2">
           <span
             className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}
@@ -95,25 +71,69 @@ export function ClassCard({
 
           <div className="text-right shrink-0">
             <span className="text-sm font-bold text-foreground">
-              {studentCount !== undefined ? studentCount : "—"}
+              {displayChildCount}
             </span>
+            {classInfo.maxCapacity !== null && (
+              <span className="text-xs text-muted font-medium">
+                /{classInfo.maxCapacity}
+              </span>
+            )}
             <span className="text-xs text-muted"> trẻ</span>
           </div>
         </div>
 
-        {/* Tên Lớp & Quy tắc độ tuổi gọn gàng kèm Tooltip */}
+        {/* Tên Lớp, thao tác Sửa / Lưu trữ & Quy tắc độ tuổi gọn gàng kèm Tooltip */}
         <div>
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-lg font-bold text-foreground">{classInfo.name}</h3>
-            {/* Cảnh báo chưa đủ cấu hình nếu chưa có GVCN */}
-            {!hasTeacher && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full shrink-0">
-                <span>Chưa có GVCN</span>
-              </span>
-            )}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <h3 className="text-lg font-bold text-foreground truncate">{classInfo.name}</h3>
+              {/* Cảnh báo chưa đủ cấu hình nếu chưa có GVCN */}
+              {!hasTeacher && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full shrink-0">
+                  <span>Chưa có GVCN</span>
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={onEditClass}
+                className="px-2.5 py-1 min-h-[32px] rounded-full text-xs font-semibold text-brand hover:bg-brand-subtle border border-transparent hover:border-brand-subtle transition-all cursor-pointer flex items-center gap-1"
+                title={`Chỉnh sửa lớp ${classInfo.name}`}
+                aria-label={`Sửa lớp ${classInfo.name}`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.75}
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                  />
+                </svg>
+                <span>Sửa</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onArchiveClass}
+                className="p-1.5 min-h-[32px] min-w-[32px] rounded-full text-muted hover:text-amber-800 hover:bg-amber-50 transition-all cursor-pointer flex items-center justify-center"
+                title="Lưu trữ lớp học"
+                aria-label={`Lưu trữ lớp ${classInfo.name}`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.75}
+                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 mt-1">
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
             <span className="text-xs text-muted font-medium">
               {ageRangeFormula}
             </span>
@@ -133,6 +153,16 @@ export function ClassCard({
                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-foreground" />
               </div>
             </div>
+            {hasCapacityLimit && (
+              <span className="text-[11px] text-muted font-medium">
+                · Sĩ số:{" "}
+                {classInfo.minCapacity !== null && classInfo.maxCapacity !== null
+                  ? `${classInfo.minCapacity}–${classInfo.maxCapacity} trẻ`
+                  : classInfo.minCapacity !== null
+                    ? `tối thiểu ${classInfo.minCapacity} trẻ`
+                    : `tối đa ${classInfo.maxCapacity} trẻ`}
+              </span>
+            )}
           </div>
         </div>
 
@@ -302,7 +332,7 @@ export function ClassCard({
             : "bg-[#F8F8F9] text-[#606363] border-[#ECEDEC] hover:bg-brand-subtle hover:text-brand hover:border-brand-subtle"
             }`}
         >
-          <span>Xem danh sách trẻ {studentCount !== undefined ? `(${studentCount})` : ""}</span>
+          <span>Xem danh sách trẻ ({displayChildCount})</span>
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
