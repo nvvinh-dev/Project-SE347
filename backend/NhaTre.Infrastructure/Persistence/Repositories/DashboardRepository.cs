@@ -54,25 +54,39 @@ public class DashboardRepository : IDashboardRepository
     public async Task<IReadOnlyList<GradeLevelAttendanceCountDto>> GetGradeLevelAttendanceCountsAsync(DateOnly startDate, DateOnly endDate)
     {
         // FR-DASH-03, AC-DASH-03, D23, D39 mục 12: Tỷ lệ có mặt tháng hiện tại tách theo 3 khối, bắt buộc lọc status = 'Present'
-        // Bản ghi điểm danh tính vào khối của lớp hiện tại của trẻ (chưa lưu trữ, BR-CLASS-05)
-        return await _dbContext.GradeLevels
+        // Gom một lần theo khối của lớp hiện tại của trẻ (chưa lưu trữ, BR-CLASS-05) rồi đếm tổng lượt và lượt có mặt
+        var countsByGrade = await _dbContext.Attendances
+            .AsNoTracking()
+            .Where(a => a.AttendanceDate >= startDate
+                && a.AttendanceDate < endDate
+                && a.Child.ClassId != null
+                && a.Child.Class!.ArchivedAtUtc == null)
+            .GroupBy(a => a.Child.Class!.GradeLevelId)
+            .Select(grp => new
+            {
+                GradeLevelId = grp.Key,
+                TotalAttendanceRecords = grp.Count(),
+                PresentCount = grp.Count(a => a.Status == AttendanceStatuses.Present)
+            })
+            .ToDictionaryAsync(x => x.GradeLevelId);
+
+        var gradeLevels = await _dbContext.GradeLevels
             .AsNoTracking()
             .OrderBy(g => g.SortOrder)
-            .Select(g => new GradeLevelAttendanceCountDto(
-                g.Id,
-                g.Name,
-                g.SortOrder,
-                _dbContext.Classes
-                    .Where(c => c.GradeLevelId == g.Id && c.ArchivedAtUtc == null)
-                    .SelectMany(c => c.Children)
-                    .SelectMany(ch => ch.Attendances)
-                    .Count(a => a.AttendanceDate >= startDate && a.AttendanceDate < endDate),
-                _dbContext.Classes
-                    .Where(c => c.GradeLevelId == g.Id && c.ArchivedAtUtc == null)
-                    .SelectMany(c => c.Children)
-                    .SelectMany(ch => ch.Attendances)
-                    .Count(a => a.AttendanceDate >= startDate && a.AttendanceDate < endDate && a.Status == AttendanceStatuses.Present)
-            ))
+            .Select(g => new { g.Id, g.Name, g.SortOrder })
             .ToListAsync();
+
+        return gradeLevels
+            .Select(g =>
+            {
+                countsByGrade.TryGetValue(g.Id, out var counts);
+                return new GradeLevelAttendanceCountDto(
+                    g.Id,
+                    g.Name,
+                    g.SortOrder,
+                    counts?.TotalAttendanceRecords ?? 0,
+                    counts?.PresentCount ?? 0);
+            })
+            .ToList();
     }
 }

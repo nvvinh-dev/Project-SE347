@@ -701,7 +701,8 @@ export default function AdminDashboardPage() {
                 Chưa có dữ liệu khối lớp
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
                 {sortedChildrenGradeLevels.map((grade, index) => {
                   const theme = gradeLevelThemes[index % gradeLevelThemes.length];
                   const ageLabel = `${grade.minAgeMonths} ≤ tuổi < ${grade.maxAgeMonths} tháng`;
@@ -755,6 +756,13 @@ export default function AdminDashboardPage() {
                   );
                 })}
               </div>
+              {hasUnassignedChildren && stats && (
+                <p className="text-[11px] text-muted mt-3">
+                  Ghi chú: Tỷ trọng từng khối được tính trên tổng {stats.totalStudents} học sinh toàn trường (bao gồm{" "}
+                  {stats.unassignedStudents} trẻ chưa xếp lớp), nên tổng tỷ trọng 3 khối sẽ nhỏ hơn 100%.
+                </p>
+              )}
+            </>
             )}
           </div>
         </div>
