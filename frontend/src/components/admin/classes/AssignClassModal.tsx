@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAssignClass } from "@/hooks/useClasses";
-import { calculateAgeInMonths, fitsAgeRange, formatDate, formatAgeFriendly } from "@/lib/classAge";
+import { calculateAgeInMonths, fitsAgeRange, formatDate, formatAgeFriendly, getGradeLevelTheme } from "@/lib/classAge";
 import { toApiError } from "@/lib/axios";
 import type { ClassResponse, ClassPlacementResponse } from "@/types/class";
 
@@ -64,8 +64,8 @@ export function AssignClassModal({
   const ageInMonths = calculateAgeInMonths(placement.dateOfBirth);
   const currentClassId = placement.classId;
 
-  // Tìm lớp được đề xuất tự động dựa trên độ tuổi nửa mở [min, max)
-  const suggestedClass = classes.find((c) =>
+  // Tìm tất cả lớp thuộc khối có khoảng tuổi nửa mở [min, max) khớp độ tuổi của trẻ
+  const suggestedClasses = classes.filter((c) =>
     fitsAgeRange(ageInMonths, c.minAgeMonths, c.maxAgeMonths)
   );
 
@@ -195,9 +195,12 @@ export function AssignClassModal({
                   const isCurrent = placement.classId === cls.id;
                   const fits = fitsAgeRange(ageInMonths, cls.minAgeMonths, cls.maxAgeMonths);
 
-                  const isMam = cls.minAgeMonths === 36 || cls.name.includes("Mầm");
-                  const isChoi = cls.minAgeMonths === 48 || cls.name.includes("Chồi");
-                  const classIcon = isMam ? "🌱" : isChoi ? "🌿" : "🍃";
+                  const theme = getGradeLevelTheme({
+                    gradeLevelId: cls.gradeLevel?.id,
+                    minAgeMonths: cls.minAgeMonths,
+                    maxAgeMonths: cls.maxAgeMonths,
+                    name: cls.gradeLevel?.name ?? cls.name,
+                  });
 
                   return (
                     <label
@@ -221,11 +224,18 @@ export function AssignClassModal({
                           className="w-4 h-4 text-brand focus:ring-brand"
                         />
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                              <span>{classIcon}</span>
+                              <span>{theme.icon}</span>
                               <span>{cls.name}</span>
                             </span>
+                            {cls.gradeLevel?.name && (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}
+                              >
+                                Khối {cls.gradeLevel.name}
+                              </span>
+                            )}
                             {isCurrent && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-700">
                                 Lớp hiện tại
@@ -238,7 +248,10 @@ export function AssignClassModal({
                             )}
                           </div>
                           <p className="text-[11px] text-muted mt-0.5">
-                            Độ tuổi quy định: {cls.minAgeMonths ?? 0} ≤ tuổi &lt; {cls.maxAgeMonths ?? 0} tháng
+                            Độ tuổi quy định: {cls.minAgeMonths} ≤ tuổi &lt; {cls.maxAgeMonths} tháng ·{" "}
+                            {cls.maxCapacity !== null
+                              ? `${cls.childCount}/${cls.maxCapacity} trẻ`
+                              : `${cls.childCount} trẻ`}
                           </p>
                         </div>
                       </div>
@@ -297,9 +310,11 @@ export function AssignClassModal({
                 <span className="shrink-0 mt-0.5">💡</span>
                 <div className="leading-relaxed">
                   Lưu ý: Bé hiện tại là {ageInMonths} tháng tuổi. Lớp này không khớp độ tuổi.
-                  {suggestedClass
-                    ? ` Độ tuổi của bé phù hợp nhất với ${suggestedClass.name} (${suggestedClass.minAgeMonths}–${suggestedClass.maxAgeMonths} tháng).`
-                    : " Bé hiện không nằm trong độ tuổi 36–72 tháng của trường."}
+                  {suggestedClasses.length === 1
+                    ? ` Độ tuổi của bé phù hợp nhất với ${suggestedClasses[0].name} (${suggestedClasses[0].minAgeMonths}–${suggestedClasses[0].maxAgeMonths} tháng).`
+                    : suggestedClasses.length > 1
+                      ? ` Độ tuổi của bé phù hợp nhất với Khối ${suggestedClasses[0].gradeLevel?.name ?? ""} (${suggestedClasses.map((c) => c.name).join(", ")}, ${suggestedClasses[0].minAgeMonths}–${suggestedClasses[0].maxAgeMonths} tháng).`
+                      : " Bé hiện không nằm trong độ tuổi 36–72 tháng của trường."}
                 </div>
               </div>
             )}

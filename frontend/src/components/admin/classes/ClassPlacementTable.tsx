@@ -114,8 +114,11 @@ export function ClassPlacementTable({
         { label: "Tất cả", count: isError ? "—" : counts.all, value: "ALL", dotColor: null },
         { label: "Chờ xếp lớp", count: isError ? "—" : counts.unassigned, value: "UNASSIGNED", dotColor: "bg-amber-500" },
         ...classes.map((cls) => {
-          const isMam = cls.minAgeMonths === 36 || cls.name.includes("Mầm");
-          const isChoi = cls.minAgeMonths === 48 || cls.name.includes("Chồi");
+          const isMam =
+            cls.gradeLevel?.id === 1 || cls.minAgeMonths === 36 || cls.name.includes("Mầm");
+          const isChoi =
+            !isMam &&
+            (cls.gradeLevel?.id === 2 || cls.minAgeMonths === 48 || cls.name.includes("Chồi"));
           const dotColor = isMam ? "bg-[#55B38F]" : isChoi ? "bg-[#71C8E4]" : "bg-[#E8916E]";
           return {
             label: cls.name,
@@ -169,7 +172,7 @@ export function ClassPlacementTable({
           </div>
 
           {/* Tabs bộ lọc */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 sm:pb-0 min-w-0 max-w-full">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0 max-w-full">
             {filterTabs.map((tab) => {
               const isActive = selectedClassFilter === tab.value;
               return (
@@ -265,9 +268,21 @@ export function ClassPlacementTable({
               paginatedPlacements.map((child) => {
                 const ageInMonths = calculateAgeInMonths(child.dateOfBirth);
                 const matchedClass = classes.find((c) => c.id === child.classId);
-                const isMam = matchedClass?.minAgeMonths === 36 || Boolean(child.className?.includes("Mầm"));
-                const isChoi = matchedClass?.minAgeMonths === 48 || Boolean(child.className?.includes("Chồi"));
-                const isLa = matchedClass?.minAgeMonths === 60 || Boolean(child.className?.includes("Lá"));
+                const isMam =
+                  matchedClass?.gradeLevel?.id === 1 ||
+                  matchedClass?.minAgeMonths === 36 ||
+                  Boolean(child.className?.includes("Mầm"));
+                const isChoi =
+                  !isMam &&
+                  (matchedClass?.gradeLevel?.id === 2 ||
+                    matchedClass?.minAgeMonths === 48 ||
+                    Boolean(child.className?.includes("Chồi")));
+                const isLa =
+                  !isMam &&
+                  !isChoi &&
+                  (matchedClass?.gradeLevel?.id === 3 ||
+                    matchedClass?.minAgeMonths === 60 ||
+                    Boolean(child.className?.includes("Lá")));
 
                 const classBadgeStyle = isMam
                   ? "bg-[#E8F8F1] text-[#1A624C] border border-[#A7E5D2]/60"

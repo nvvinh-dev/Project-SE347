@@ -3,6 +3,18 @@
  * Tương ứng với NhaTre.Application/DTOs/Classes/
  */
 
+export interface GradeLevelResponse {
+  id: number;
+  name: string;
+  minAgeMonths: number;
+  maxAgeMonths: number;
+}
+
+export interface ClassGradeLevelResponse {
+  id: number;
+  name: string;
+}
+
 export interface ClassTeacherResponse {
   userId: string;
   fullName: string;
@@ -11,10 +23,25 @@ export interface ClassTeacherResponse {
 export interface ClassResponse {
   id: string;
   name: string;
-  minAgeMonths: number | null;
-  maxAgeMonths: number | null;
+  gradeLevel: ClassGradeLevelResponse;
+  minAgeMonths: number;
+  maxAgeMonths: number;
+  minCapacity: number | null;
+  maxCapacity: number | null;
+  childCount: number;
   homeroomTeacher: ClassTeacherResponse | null;
   assistantTeachers: ClassTeacherResponse[];
+}
+
+/**
+ * Body tạo hoặc sửa lớp học (POST /api/classes, PUT /api/classes/{id})
+ * [property: JsonRequired] trên cả 4 trường: bắt buộc gửi đủ gradeLevelId, name, minCapacity, maxCapacity
+ */
+export interface SaveClassRequest {
+  gradeLevelId: number;
+  name: string;
+  minCapacity: number | null;
+  maxCapacity: number | null;
 }
 
 /**

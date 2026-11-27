@@ -8,12 +8,33 @@ import { ClassPlacementTable } from "@/components/admin/classes/ClassPlacementTa
 import { AssignHomeroomTeacherModal } from "@/components/admin/classes/AssignHomeroomTeacherModal";
 import { AssignAssistantTeachersModal } from "@/components/admin/classes/AssignAssistantTeachersModal";
 import { AssignClassModal } from "@/components/admin/classes/AssignClassModal";
-import { useClasses, useClassPlacements, useAssignHomeroomTeacher } from "@/hooks/useClasses";
+import { SaveClassModal } from "@/components/admin/classes/SaveClassModal";
+import {
+  useGradeLevels,
+  useClasses,
+  useClassPlacements,
+  useAssignHomeroomTeacher,
+  useArchiveClass,
+} from "@/hooks/useClasses";
 import { useUsers } from "@/hooks/useUsers";
+import { getGradeLevelTheme } from "@/lib/classAge";
 import { toApiError } from "@/lib/axios";
-import type { ClassPlacementResponse } from "@/types/class";
+import type { ClassPlacementResponse, ClassResponse } from "@/types/class";
+
+type SaveModalState =
+  | { mode: "create"; defaultGradeLevelId?: number }
+  | { mode: "edit"; classId: string }
+  | null;
 
 export default function AdminClassesPage() {
+  const {
+    data: gradeLevels = [],
+    isLoading: isLoadingGradeLevels,
+    isError: isErrorGradeLevels,
+    error: errorGradeLevels,
+    refetch: refetchGradeLevels,
+  } = useGradeLevels();
+
   const {
     data: classes = [],
     isLoading: isLoadingClasses,
@@ -47,12 +68,16 @@ export default function AdminClassesPage() {
   }, [users]);
 
   const removeTeacherMutation = useAssignHomeroomTeacher();
+  const archiveClassMutation = useArchiveClass();
 
   // State bộ lọc lớp đang chọn ở bảng và trang hiện tại
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Quản lý trạng thái các hộp thoại bằng classId để luôn lấy dữ liệu lớp mới nhất khi refetch
+  // Quản lý trạng thái các hộp thoại bằng ID để luôn lấy dữ liệu mới nhất khi refetch
+  const [saveModalState, setSaveModalState] = useState<SaveModalState>(null);
+  const [archivingClassId, setArchivingClassId] = useState<string | null>(null);
+  const [archiveClassError, setArchiveClassError] = useState<string | null>(null);
   const [assigningTeacherClassId, setAssigningTeacherClassId] = useState<string | null>(null);
   const [assigningAssistantClassId, setAssigningAssistantClassId] = useState<string | null>(null);
   const [removingTeacherClassId, setRemovingTeacherClassId] = useState<string | null>(null);
@@ -60,6 +85,17 @@ export default function AdminClassesPage() {
   const [assigningChild, setAssigningChild] = useState<ClassPlacementResponse | null>(null);
 
   // Lấy dữ liệu lớp mới nhất tương ứng với ID đang mở modal
+  const editingClass = useMemo(
+    () =>
+      saveModalState?.mode === "edit"
+        ? (classes.find((c) => c.id === saveModalState.classId) ?? null)
+        : null,
+    [classes, saveModalState]
+  );
+  const archivingClass = useMemo(
+    () => classes.find((c) => c.id === archivingClassId) ?? null,
+    [classes, archivingClassId]
+  );
   const assigningTeacherClass = useMemo(
     () => classes.find((c) => c.id === assigningTeacherClassId) ?? null,
     [classes, assigningTeacherClassId]
@@ -108,6 +144,33 @@ export default function AdminClassesPage() {
     };
   }, [placements]);
 
+  // Nhóm các lớp đang hoạt động theo 3 khối cố định (giữ thứ tự sort_order từ backend)
+  const studentCountByClassId = useMemo(() => {
+    const map = new Map<string, number>();
+    if (isLoadingPlacements || isErrorPlacements) return map;
+    for (const placement of placements) {
+      if (placement.classId) {
+        map.set(placement.classId, (map.get(placement.classId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [placements, isLoadingPlacements, isErrorPlacements]);
+
+  const classesByGradeLevel = useMemo(() => {
+    return gradeLevels.map((gradeLevel) => {
+      const groupClasses = classes.filter((c) => c.gradeLevel?.id === gradeLevel.id);
+      const totalChildrenInGrade = groupClasses.reduce(
+        (sum, cls) => sum + (studentCountByClassId.get(cls.id) ?? cls.childCount),
+        0
+      );
+      return {
+        gradeLevel,
+        classes: groupClasses,
+        totalChildren: totalChildrenInGrade,
+      };
+    });
+  }, [gradeLevels, classes, studentCountByClassId]);
+
   // Xử lý xác nhận gỡ giáo viên chủ nhiệm
   const handleConfirmRemoveTeacher = async () => {
     if (!removingTeacherClass) return;
@@ -130,19 +193,44 @@ export default function AdminClassesPage() {
     }
   };
 
-  const isGlobalError = isErrorClasses || isErrorPlacements;
+  // Xử lý xác nhận lưu trữ lớp học (một chiều)
+  const handleConfirmArchiveClass = async () => {
+    if (!archivingClass) return;
+    setArchiveClassError(null);
+
+    try {
+      await archiveClassMutation.mutateAsync({ classId: archivingClass.id });
+      if (selectedClassFilter === archivingClass.id) {
+        setSelectedClassFilter("ALL");
+        setCurrentPage(1);
+      }
+      showToast(`Đã lưu trữ lớp "${archivingClass.name}" thành công.`);
+      setArchivingClassId(null);
+      setArchiveClassError(null);
+    } catch (err) {
+      setArchiveClassError(toApiError(err).message);
+    }
+  };
+
+  const isGlobalError = isErrorGradeLevels || isErrorClasses || isErrorPlacements;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 1. Tiêu đề trang và các chỉ số nhanh */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 min-w-0 max-w-full">
+      {/* 1. Tiêu đề trang, các chỉ số nhanh và nút tạo lớp mới */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 min-w-0 max-w-full">
         <PageHeader
           title="Xếp lớp & Phân công"
-          description="Quản lý 3 khối lớp theo độ tuổi và phân công giáo viên chủ nhiệm"
+          description="Quản lý lớp học theo 3 khối cố định, phân công giáo viên và xếp lớp cho trẻ"
         />
 
-        {/* Thẻ chỉ số thống kê nhanh */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 shrink-0 max-w-full">
+        <div className="flex flex-wrap items-center gap-2 shrink-0 max-w-full">
+          <div className="px-3.5 py-1.5 rounded-full bg-card border border-border text-xs flex items-center gap-2 shadow-2xs">
+            <span className="text-muted">Số lớp:</span>
+            <span className="font-bold text-foreground">
+              {isLoadingClasses || isErrorClasses ? "—" : classes.length}
+            </span>
+          </div>
+
           <div className="px-3.5 py-1.5 rounded-full bg-card border border-border text-xs flex items-center gap-2 shadow-2xs">
             <span className="text-muted">Tổng số trẻ:</span>
             <span className="font-bold text-foreground">
@@ -178,6 +266,15 @@ export default function AdminClassesPage() {
               {isLoadingPlacements || isErrorPlacements ? "—" : metrics.unassigned}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setSaveModalState({ mode: "create" })}
+            disabled={isLoadingGradeLevels || gradeLevels.length === 0}
+            className="px-4 py-2 rounded-full text-xs font-bold bg-brand hover:bg-brand-hover text-white shadow-xs transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span>+ Tạo lớp mới</span>
+          </button>
         </div>
       </div>
 
@@ -191,7 +288,7 @@ export default function AdminClassesPage() {
           <button
             type="button"
             onClick={() => setSuccessToast(null)}
-            className="p-1 rounded-full hover:bg-black/5 text-[#1A624C] transition-all"
+            className="p-1 rounded-full hover:bg-black/5 text-[#1A624C] transition-all cursor-pointer"
             aria-label="Đóng thông báo"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,80 +300,177 @@ export default function AdminClassesPage() {
 
       {/* Thông báo lỗi khi tải dữ liệu */}
       {isGlobalError && (
-        <div className="p-4 rounded-2xl bg-danger-bg border border-danger-border text-xs text-danger flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-danger-bg border border-danger-border text-xs text-danger flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span>⚠️</span>
             <span>
-              {errorClasses ? toApiError(errorClasses).message : toApiError(errorPlacements).message}
+              {errorGradeLevels
+                ? toApiError(errorGradeLevels).message
+                : errorClasses
+                  ? toApiError(errorClasses).message
+                  : toApiError(errorPlacements).message}
             </span>
           </div>
           <button
             type="button"
             onClick={() => {
+              refetchGradeLevels();
               refetchClasses();
               refetchPlacements();
             }}
-            className="px-3 py-1 rounded-full font-semibold bg-danger text-white hover:bg-danger-hover transition-all"
+            className="px-3 py-1 rounded-full font-semibold bg-danger text-white hover:bg-danger-hover transition-all cursor-pointer shrink-0"
           >
             Thử lại
           </button>
         </div>
       )}
 
-      {/* 2. Danh sách 3 thẻ lớp học cố định (D39 mục 3, AC-CLASS-01) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {isLoadingClasses ? (
-          Array.from({ length: 3 }).map((_, idx) => (
-            <div
-              key={idx}
-              className="p-5 rounded-3xl bg-card border border-border animate-pulse space-y-4"
-            >
-              <div className="h-6 w-36 bg-black/5 rounded-full" />
-              <div className="h-8 w-28 bg-black/5 rounded" />
-              <div className="h-12 w-full bg-black/5 rounded-2xl" />
-              <div className="h-8 w-full bg-black/5 rounded-full" />
-            </div>
-          ))
-        ) : isErrorClasses ? (
-          <div className="col-span-1 md:col-span-3 p-8 rounded-3xl bg-card border border-danger-border text-center space-y-3">
+      {/* 2. Danh sách lớp học nhóm theo 3 khối cố định (D39 mục 3, FR-CLASS-03) */}
+      <div className="space-y-6">
+        {isLoadingClasses || isLoadingGradeLevels ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="p-5 rounded-3xl bg-card border border-border animate-pulse space-y-4"
+              >
+                <div className="h-6 w-36 bg-black/5 rounded-full" />
+                <div className="h-8 w-28 bg-black/5 rounded" />
+                <div className="h-12 w-full bg-black/5 rounded-2xl" />
+                <div className="h-8 w-full bg-black/5 rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : isErrorClasses || isErrorGradeLevels ? (
+          <div className="p-8 rounded-3xl bg-card border border-danger-border text-center space-y-3">
             <p className="text-xs font-semibold text-danger">
-              Không thể tải danh sách lớp học: {toApiError(errorClasses).message}
+              Không thể tải danh sách khối và lớp học:{" "}
+              {errorGradeLevels
+                ? toApiError(errorGradeLevels).message
+                : toApiError(errorClasses).message}
             </p>
             <button
               type="button"
-              onClick={() => refetchClasses()}
+              onClick={() => {
+                refetchGradeLevels();
+                refetchClasses();
+              }}
               className="px-4 py-1.5 rounded-full text-xs font-semibold bg-danger text-white hover:bg-danger-hover transition-all cursor-pointer"
             >
               Thử tải lại
             </button>
           </div>
         ) : (
-          classes.map((cls) => {
-            const studentCount =
-              isLoadingPlacements || isErrorPlacements
-                ? undefined
-                : placements.filter((p) => p.classId === cls.id).length;
-            const isSelected =
-              selectedClassFilter === cls.id || selectedClassFilter === cls.name;
+          classesByGradeLevel.map(({ gradeLevel, classes: groupClasses, totalChildren }) => {
+            const theme = getGradeLevelTheme({
+              gradeLevelId: gradeLevel.id,
+              minAgeMonths: gradeLevel.minAgeMonths,
+              maxAgeMonths: gradeLevel.maxAgeMonths,
+              name: gradeLevel.name,
+            });
 
             return (
-              <ClassCard
-                key={cls.id}
-                classInfo={cls}
-                studentCount={studentCount}
-                isSelected={isSelected}
-                invalidTeacherMap={invalidTeacherMap}
-                onSelect={() => {
-                  setSelectedClassFilter(cls.id);
-                  setCurrentPage(1);
-                }}
-                onAssignTeacher={() => setAssigningTeacherClassId(cls.id)}
-                onRemoveTeacher={() => {
-                  setRemoveTeacherError(null);
-                  setRemovingTeacherClassId(cls.id);
-                }}
-                onAssignAssistantTeachers={() => setAssigningAssistantClassId(cls.id)}
-              />
+              <section
+                key={gradeLevel.id}
+                aria-labelledby={`grade-level-heading-${gradeLevel.id}`}
+                className={`p-4 sm:p-5 rounded-3xl border ${theme.sectionBorder} ${theme.sectionBg} space-y-4`}
+              >
+                {/* Tiêu đề từng khối */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}
+                    >
+                      <span>{theme.icon}</span>
+                      <span id={`grade-level-heading-${gradeLevel.id}`}>
+                        Khối {gradeLevel.name}
+                      </span>
+                    </span>
+                    <span className="text-xs font-medium text-muted">
+                      Độ tuổi: {gradeLevel.minAgeMonths} ≤ tuổi &lt; {gradeLevel.maxAgeMonths} tháng
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="px-3 py-1 rounded-full bg-card border border-border text-xs font-semibold text-foreground shadow-2xs">
+                      {groupClasses.length} lớp · {totalChildren} trẻ
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSaveModalState({
+                          mode: "create",
+                          defaultGradeLevelId: gradeLevel.id,
+                        })
+                      }
+                      className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-card hover:bg-brand-subtle text-brand border border-border hover:border-brand-subtle transition-all cursor-pointer shadow-2xs"
+                    >
+                      + Thêm lớp
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lưới thẻ lớp học thuộc khối hoặc trạng thái rỗng */}
+                {groupClasses.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {groupClasses.map((cls: ClassResponse) => {
+                      const studentCount =
+                        isLoadingPlacements || isErrorPlacements
+                          ? undefined
+                          : (studentCountByClassId.get(cls.id) ?? 0);
+                      const isSelected =
+                        selectedClassFilter === cls.id || selectedClassFilter === cls.name;
+
+                      return (
+                        <ClassCard
+                          key={cls.id}
+                          classInfo={cls}
+                          studentCount={studentCount}
+                          isSelected={isSelected}
+                          invalidTeacherMap={invalidTeacherMap}
+                          onSelect={() => {
+                            setSelectedClassFilter(cls.id);
+                            setCurrentPage(1);
+                          }}
+                          onEditClass={() =>
+                            setSaveModalState({ mode: "edit", classId: cls.id })
+                          }
+                          onArchiveClass={() => {
+                            setArchiveClassError(null);
+                            setArchivingClassId(cls.id);
+                          }}
+                          onAssignTeacher={() => setAssigningTeacherClassId(cls.id)}
+                          onRemoveTeacher={() => {
+                            setRemoveTeacherError(null);
+                            setRemovingTeacherClassId(cls.id);
+                          }}
+                          onAssignAssistantTeachers={() =>
+                            setAssigningAssistantClassId(cls.id)
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-2xl bg-card/85 border border-dashed border-border text-center space-y-2.5">
+                    <p className="text-xs font-medium text-muted">
+                      Chưa có lớp học nào đang hoạt động thuộc Khối {gradeLevel.name}.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSaveModalState({
+                          mode: "create",
+                          defaultGradeLevelId: gradeLevel.id,
+                        })
+                      }
+                      className="px-4 py-1.5 rounded-full text-xs font-semibold bg-brand text-white hover:bg-brand-hover transition-all cursor-pointer"
+                    >
+                      Tạo lớp cho Khối {gradeLevel.name}
+                    </button>
+                  </div>
+                )}
+              </section>
             );
           })
         )}
@@ -334,7 +528,76 @@ export default function AdminClassesPage() {
         />
       )}
 
-      {/* 7. Hộp thoại xác nhận Gỡ Giáo viên Chủ nhiệm */}
+      {/* 7. Modal Tạo / Chỉnh sửa lớp học (FR-CLASS-03) */}
+      {saveModalState && (saveModalState.mode === "create" || editingClass) && (
+        <SaveClassModal
+          key={
+            saveModalState.mode === "edit" && editingClass
+              ? `edit-${editingClass.id}`
+              : `create-${saveModalState.mode === "create" ? (saveModalState.defaultGradeLevelId ?? "any") : "any"}`
+          }
+          mode={saveModalState.mode}
+          classInfo={saveModalState.mode === "edit" ? editingClass : null}
+          gradeLevels={gradeLevels}
+          defaultGradeLevelId={
+            saveModalState.mode === "create" ? saveModalState.defaultGradeLevelId : undefined
+          }
+          isOpen={saveModalState !== null}
+          onClose={() => setSaveModalState(null)}
+          onSuccess={showToast}
+        />
+      )}
+
+      {/* 8. Hộp thoại xác nhận Lưu trữ lớp học (một chiều) */}
+      <ConfirmDialog
+        isOpen={archivingClass !== null}
+        title="Lưu trữ lớp học"
+        variant="destructive"
+        confirmText="Xác nhận lưu trữ"
+        cancelText="Hủy bỏ"
+        isLoading={archiveClassMutation.isPending}
+        onClose={() => {
+          if (!archiveClassMutation.isPending) {
+            setArchivingClassId(null);
+            setArchiveClassError(null);
+          }
+        }}
+        onConfirm={handleConfirmArchiveClass}
+        description={
+          archivingClass ? (
+            <div className="space-y-3">
+              <p>
+                Bạn có chắc chắn muốn lưu trữ lớp{" "}
+                <strong className="text-foreground">{archivingClass.name}</strong> (Khối{" "}
+                {archivingClass.gradeLevel.name})?
+              </p>
+
+              {(studentCountByClassId.get(archivingClass.id) ?? archivingClass.childCount) > 0 && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-xs text-amber-900">
+                  Lớp hiện đang có{" "}
+                  <strong>
+                    {studentCountByClassId.get(archivingClass.id) ?? archivingClass.childCount}
+                  </strong>{" "}
+                  trẻ. Hệ thống chỉ cho phép lưu trữ lớp khi không còn trẻ nào đang theo học.
+                </div>
+              )}
+
+              {archiveClassError ? (
+                <div className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger flex items-start gap-2">
+                  <span className="shrink-0 mt-0.5">⚠️</span>
+                  <div className="leading-relaxed font-normal">{archiveClassError}</div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger">
+                  Lưu ý: Lưu trữ lớp là thao tác một chiều và không thể mở lại. Sau khi lưu trữ, lớp sẽ ẩn khỏi danh sách đang hoạt động và tự động gỡ phân công giáo viên phụ trách (ảnh hoạt động cũ vẫn được giữ nguyên).
+                </div>
+              )}
+            </div>
+          ) : null
+        }
+      />
+
+      {/* 9. Hộp thoại xác nhận Gỡ Giáo viên Chủ nhiệm */}
       <ConfirmDialog
         isOpen={removingTeacherClass !== null}
         title="Gỡ giáo viên chủ nhiệm"

@@ -78,6 +78,83 @@ export function formatDate(dateStr: string): string {
   return dateStr;
 }
 
+export interface GradeLevelTheme {
+  key: "mam" | "choi" | "la";
+  icon: string;
+  dotColor: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  accentBg: string;
+  borderHover: string;
+  sectionBg: string;
+  sectionBorder: string;
+  tooltipText: string;
+}
+
+/**
+ * Lấy bộ màu và biểu tượng thống nhất cho 3 khối lớp cố định (Mầm / Chồi / Lá)
+ */
+export function getGradeLevelTheme(params: {
+  gradeLevelId?: number | null;
+  minAgeMonths?: number | null;
+  maxAgeMonths?: number | null;
+  name?: string | null;
+}): GradeLevelTheme {
+  const { gradeLevelId, minAgeMonths, maxAgeMonths, name } = params;
+  const isMam =
+    gradeLevelId === 1 || minAgeMonths === 36 || Boolean(name?.includes("Mầm"));
+  const isChoi =
+    !isMam &&
+    (gradeLevelId === 2 || minAgeMonths === 48 || Boolean(name?.includes("Chồi")));
+
+  if (isMam) {
+    return {
+      key: "mam",
+      icon: "🌱",
+      dotColor: "bg-[#55B38F]",
+      badgeBg: "bg-[#E8F8F1]",
+      badgeText: "text-[#1A624C]",
+      badgeBorder: "border-[#A7E5D2]/60",
+      accentBg: "bg-[#55B38F]",
+      borderHover: "hover:border-[#55B38F]/50",
+      sectionBg: "bg-[#E8F8F1]/45",
+      sectionBorder: "border-[#A7E5D2]/60",
+      tooltipText: `Bao gồm trẻ từ đủ ${minAgeMonths ?? 36} tháng đến dưới ${maxAgeMonths ?? 48} tháng tuổi. Tròn ${maxAgeMonths ?? 48} tháng thuộc Khối Chồi.`,
+    };
+  }
+
+  if (isChoi) {
+    return {
+      key: "choi",
+      icon: "🌿",
+      dotColor: "bg-[#71C8E4]",
+      badgeBg: "bg-[#EAF7FC]",
+      badgeText: "text-[#17627D]",
+      badgeBorder: "border-[#D5E3F2]",
+      accentBg: "bg-[#71C8E4]",
+      borderHover: "hover:border-[#71C8E4]/50",
+      sectionBg: "bg-[#EAF7FC]/55",
+      sectionBorder: "border-[#D5E3F2]",
+      tooltipText: `Bao gồm trẻ từ đủ ${minAgeMonths ?? 48} tháng đến dưới ${maxAgeMonths ?? 60} tháng tuổi. Tròn ${maxAgeMonths ?? 60} tháng thuộc Khối Lá.`,
+    };
+  }
+
+  return {
+    key: "la",
+    icon: "🍃",
+    dotColor: "bg-[#E8916E]",
+    badgeBg: "bg-[#FBE8E2]",
+    badgeText: "text-[#8A4F42]",
+    badgeBorder: "border-[#FAC4CD]/60",
+    accentBg: "bg-[#E8916E]",
+    borderHover: "hover:border-[#E8916E]/50",
+    sectionBg: "bg-[#FBE8E2]/45",
+    sectionBorder: "border-[#FAC4CD]/60",
+    tooltipText: `Bao gồm trẻ từ đủ ${minAgeMonths ?? 60} tháng đến dưới ${maxAgeMonths ?? 72} tháng tuổi. Trẻ đủ ${maxAgeMonths ?? 72} tháng thuộc diện ra trường.`,
+  };
+}
+
 /**
  * Định dạng tuổi hiển thị thân thiện cho người dùng
  * Ví dụ: "41 tháng (3 tuổi 5 tháng)"
