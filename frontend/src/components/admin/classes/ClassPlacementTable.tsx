@@ -2,7 +2,12 @@
 
 import React, { useState, useMemo } from "react";
 import { Pagination } from "@/components/ui/Pagination";
-import { calculateAgeInMonths, formatDate, formatAgeFriendly } from "@/lib/classAge";
+import {
+  calculateAgeInMonths,
+  formatDate,
+  formatAgeFriendly,
+  getGradeLevelTheme,
+} from "@/lib/classAge";
 import { toApiError } from "@/lib/axios";
 import type { ClassResponse, ClassPlacementResponse } from "@/types/class";
 
@@ -114,17 +119,17 @@ export function ClassPlacementTable({
         { label: "Tất cả", count: isError ? "—" : counts.all, value: "ALL", dotColor: null },
         { label: "Chờ xếp lớp", count: isError ? "—" : counts.unassigned, value: "UNASSIGNED", dotColor: "bg-amber-500" },
         ...classes.map((cls) => {
-          const isMam =
-            cls.gradeLevel?.id === 1 || cls.minAgeMonths === 36 || cls.name.includes("Mầm");
-          const isChoi =
-            !isMam &&
-            (cls.gradeLevel?.id === 2 || cls.minAgeMonths === 48 || cls.name.includes("Chồi"));
-          const dotColor = isMam ? "bg-[#55B38F]" : isChoi ? "bg-[#71C8E4]" : "bg-[#E8916E]";
+          const theme = getGradeLevelTheme({
+            gradeLevelId: cls.gradeLevel.id,
+            minAgeMonths: cls.minAgeMonths,
+            maxAgeMonths: cls.maxAgeMonths,
+            name: cls.gradeLevel.name,
+          });
           return {
             label: cls.name,
             count: isError ? "—" : (counts.byClassId[cls.id] ?? 0),
             value: cls.id,
-            dotColor,
+            dotColor: theme.dotColor,
           };
         }),
       ];
@@ -268,29 +273,20 @@ export function ClassPlacementTable({
               paginatedPlacements.map((child) => {
                 const ageInMonths = calculateAgeInMonths(child.dateOfBirth);
                 const matchedClass = classes.find((c) => c.id === child.classId);
-                const isMam =
-                  matchedClass?.gradeLevel?.id === 1 ||
-                  matchedClass?.minAgeMonths === 36 ||
-                  Boolean(child.className?.includes("Mầm"));
-                const isChoi =
-                  !isMam &&
-                  (matchedClass?.gradeLevel?.id === 2 ||
-                    matchedClass?.minAgeMonths === 48 ||
-                    Boolean(child.className?.includes("Chồi")));
-                const isLa =
-                  !isMam &&
-                  !isChoi &&
-                  (matchedClass?.gradeLevel?.id === 3 ||
-                    matchedClass?.minAgeMonths === 60 ||
-                    Boolean(child.className?.includes("Lá")));
+                const theme = matchedClass
+                  ? getGradeLevelTheme({
+                      gradeLevelId: matchedClass.gradeLevel.id,
+                      minAgeMonths: matchedClass.minAgeMonths,
+                      maxAgeMonths: matchedClass.maxAgeMonths,
+                      name: matchedClass.gradeLevel.name,
+                    })
+                  : child.className
+                    ? getGradeLevelTheme({ name: child.className })
+                    : null;
 
-                const classBadgeStyle = isMam
-                  ? "bg-[#E8F8F1] text-[#1A624C] border border-[#A7E5D2]/60"
-                  : isChoi
-                    ? "bg-[#EAF7FC] text-[#17627D] border border-[#D5E3F2]"
-                    : isLa
-                      ? "bg-[#FBE8E2] text-[#8A4F42] border border-[#FAC4CD]/60"
-                      : "bg-amber-50 text-amber-800 border border-amber-200/80";
+                const classBadgeStyle = theme
+                  ? `${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder}`
+                  : "bg-amber-50 text-amber-800 border border-amber-200/80";
 
                 return (
                   <tr key={child.childId} className="hover:bg-[#F8F8F9]/80 transition-colors">
@@ -315,9 +311,9 @@ export function ClassPlacementTable({
                     {/* Cột 3: Lớp hiện tại */}
                     <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap ${classBadgeStyle}`}>
-                        {child.className ? (
+                        {child.className && theme ? (
                           <>
-                            <span>{isMam ? "🌱" : isChoi ? "🌿" : "🍃"}</span>
+                            <span>{theme.icon}</span>
                             <span>{child.className}</span>
                           </>
                         ) : (

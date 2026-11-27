@@ -196,10 +196,10 @@ export function AssignClassModal({
                   const fits = fitsAgeRange(ageInMonths, cls.minAgeMonths, cls.maxAgeMonths);
 
                   const theme = getGradeLevelTheme({
-                    gradeLevelId: cls.gradeLevel?.id,
+                    gradeLevelId: cls.gradeLevel.id,
                     minAgeMonths: cls.minAgeMonths,
                     maxAgeMonths: cls.maxAgeMonths,
-                    name: cls.gradeLevel?.name ?? cls.name,
+                    name: cls.gradeLevel.name,
                   });
 
                   return (
@@ -229,13 +229,11 @@ export function AssignClassModal({
                               <span>{theme.icon}</span>
                               <span>{cls.name}</span>
                             </span>
-                            {cls.gradeLevel?.name && (
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}
-                              >
-                                Khối {cls.gradeLevel.name}
-                              </span>
-                            )}
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}
+                            >
+                              Khối {cls.gradeLevel.name}
+                            </span>
                             {isCurrent && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-700">
                                 Lớp hiện tại
@@ -313,7 +311,7 @@ export function AssignClassModal({
                   {suggestedClasses.length === 1
                     ? ` Độ tuổi của bé phù hợp nhất với ${suggestedClasses[0].name} (${suggestedClasses[0].minAgeMonths}–${suggestedClasses[0].maxAgeMonths} tháng).`
                     : suggestedClasses.length > 1
-                      ? ` Độ tuổi của bé phù hợp nhất với Khối ${suggestedClasses[0].gradeLevel?.name ?? ""} (${suggestedClasses.map((c) => c.name).join(", ")}, ${suggestedClasses[0].minAgeMonths}–${suggestedClasses[0].maxAgeMonths} tháng).`
+                      ? ` Độ tuổi của bé phù hợp nhất với Khối ${suggestedClasses[0].gradeLevel.name} (${suggestedClasses.map((c) => c.name).join(", ")}, ${suggestedClasses[0].minAgeMonths}–${suggestedClasses[0].maxAgeMonths} tháng).`
                       : " Bé hiện không nằm trong độ tuổi 36–72 tháng của trường."}
                 </div>
               </div>

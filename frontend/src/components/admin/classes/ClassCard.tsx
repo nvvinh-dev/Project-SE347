@@ -37,14 +37,14 @@ export function ClassCard({
   // Tính nhãn năm tuổi và công thức từ khoảng tuổi của khối
   const minYears = Math.floor(minMonths / 12);
   const maxYears = Math.floor(maxMonths / 12);
-  const ageLabel = `Khối ${classInfo.gradeLevel?.name ?? "—"} · ${minYears}–${maxYears} tuổi`;
+  const ageLabel = `Khối ${classInfo.gradeLevel.name} · ${minYears}–${maxYears} tuổi`;
   const ageRangeFormula = `${minMonths} ≤ tuổi < ${maxMonths} tháng`;
 
   const theme = getGradeLevelTheme({
-    gradeLevelId: classInfo.gradeLevel?.id,
+    gradeLevelId: classInfo.gradeLevel.id,
     minAgeMonths: minMonths,
     maxAgeMonths: maxMonths,
-    name: classInfo.gradeLevel?.name ?? classInfo.name,
+    name: classInfo.gradeLevel.name,
   });
 
   const hasTeacher = Boolean(classInfo.homeroomTeacher);

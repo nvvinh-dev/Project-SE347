@@ -262,6 +262,8 @@ export function SaveClassModal({
               type="text"
               placeholder="Ví dụ: Mầm 2, Chồi Hoa Sen..."
               disabled={isPending}
+              aria-invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? "save-class-name-error" : "save-class-name-hint"}
               {...nameField}
               onChange={(e) => {
                 nameField.onChange(e);
@@ -271,9 +273,11 @@ export function SaveClassModal({
             />
 
             {errors.name?.message ? (
-              <p className="text-[11px] font-medium text-danger">{errors.name.message}</p>
+              <p id="save-class-name-error" className="text-[11px] font-medium text-danger">
+                {errors.name.message}
+              </p>
             ) : (
-              <p className="text-[11px] text-muted">
+              <p id="save-class-name-hint" className="text-[11px] text-muted">
                 Tên lớp phải là duy nhất trên toàn trường (kể cả lớp đã lưu trữ).
               </p>
             )}
@@ -281,7 +285,10 @@ export function SaveClassModal({
 
           {/* Thông báo lỗi từ server (400 / 404 / 409) */}
           {serverError && (
-            <div className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger flex items-start gap-2">
+            <div
+              role="alert"
+              className="p-3 rounded-xl bg-danger-bg border border-danger-border text-xs text-danger flex items-start gap-2"
+            >
               <span className="shrink-0 mt-0.5">⚠️</span>
               <div className="leading-relaxed">{serverError}</div>
             </div>
