@@ -15,8 +15,8 @@ public class MediaRepository : IMediaRepository
     }
 
     // Cùng biểu thức phạm vi với FindHomeroomClassAsync bên dưới, không viết lại điều kiện GVCN hay giáo viên phụ.
-    // Chiếu thẳng sang DTO nên câu SQL chỉ đọc id và tên (D45). Xếp theo nhóm tuổi như ClassRepository.GetAllAsync
-    // (Mầm, Chồi, Lá); OrderBy đặt trước Select vì EF không dịch được OrderBy trên record đã dựng
+    // Chiếu thẳng sang DTO nên câu SQL chỉ đọc id và tên (D45). Xếp như ClassRepository.GetAllAsync: theo khối
+    // (Mầm, Chồi, Lá), rồi tên, rồi id; OrderBy đặt trước Select vì EF không dịch được OrderBy trên record đã dựng
     public async Task<IReadOnlyList<HomeroomClassResponse>> GetHomeroomClassesAsync(Guid teacherUserId)
     {
         var scope = _dbContext.ClassIdsInScope(teacherUserId);
@@ -24,7 +24,9 @@ public class MediaRepository : IMediaRepository
         return await _dbContext.Classes
             .AsNoTracking()
             .Where(c => scope.Contains((Guid?)c.Id))
-            .OrderBy(c => c.MinAgeMonths)
+            .OrderBy(c => c.GradeLevel.SortOrder)
+            .ThenBy(c => c.Name)
+            .ThenBy(c => c.Id)
             .Select(c => new HomeroomClassResponse(c.Id, c.Name))
             .ToListAsync();
     }

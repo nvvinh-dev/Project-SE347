@@ -15,8 +15,8 @@ public static class ClassAgeRules
         return months;
     }
 
-    // Ba lớp nối nhau ở mốc 48 và 60 tháng, nên lấy nửa khoảng [min, max): trẻ đúng 48 tháng vào lớp
-    // Chồi, không vào lớp Mầm. Lớp thiếu một trong hai giới hạn thì không nhận trẻ nào
+    // Ba khối nối nhau ở mốc 48 và 60 tháng, nên lấy nửa khoảng [min, max): trẻ đúng 48 tháng vào khối
+    // Chồi, không vào khối Mầm. Thiếu một trong hai giới hạn thì không nhận trẻ nào
     public static bool FitsAgeRange(int ageInMonths, int? minAgeMonths, int? maxAgeMonths)
         => minAgeMonths is not null
             && maxAgeMonths is not null

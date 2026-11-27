@@ -33,7 +33,8 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
             .OnDelete(DeleteBehavior.SetNull); // xóa giáo viên không kéo xóa lớp
 
         // D39 mục 3: ba lớp có sẵn giữ id cố định (migration seed không đổi giữa các máy), mỗi lớp
-        // thuộc một khối; Admin tạo thêm lớp qua FR-CLASS-03. Hai cột tuổi giữ giá trị cũ, ngừng đọc
+        // thuộc một khối; Admin tạo thêm lớp qua FR-CLASS-03. Hai cột tuổi giữ giá trị cũ, module lớp ngừng
+        // đọc từ FR-CLASS-03
         builder.HasData(
             new Class
             {

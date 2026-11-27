@@ -6,7 +6,8 @@ public class Class
     public short GradeLevelId { get; set; }
     public Guid? HomeroomTeacherId { get; set; }
     public string Name { get; set; } = null!;
-    // D39 mục 3: khoảng tuổi lấy từ khối (GradeLevel); hai cột này giữ lại nhưng ngừng đọc
+    // D39 mục 3: khoảng tuổi lấy từ khối (GradeLevel). Hai cột này giữ lại; module lớp ngừng đọc từ
+    // FR-CLASS-03, lớp tạo mới để trống. Dashboard vẫn còn đọc tới khi chuyển sang thống kê theo khối
     public int? MinAgeMonths { get; set; }
     public int? MaxAgeMonths { get; set; }
     // Rỗng là không giới hạn (FR-CLASS-04)
