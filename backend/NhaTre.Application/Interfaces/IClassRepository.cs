@@ -37,7 +37,8 @@ public interface IClassRepository
     Task<ClassPlacementResponse?> FindPlacementAsync(Guid childId);
 
     // Khóa dòng lớp đích rồi mới xếp: ClassArchived khi lớp vừa bị lưu trữ, ClassChanged khi khối của lớp
-    // không còn là expectedGradeLevelId, ChildChanged khi ngày sinh của trẻ không còn là expectedDateOfBirth
+    // không còn là expectedGradeLevelId, ClassFull khi lớp đã đủ sĩ số tối đa (không tính chính trẻ này),
+    // ChildChanged khi ngày sinh của trẻ không còn là expectedDateOfBirth
     Task<ClassOutcome> AssignClassAsync(
         Guid childId, Guid classId, short expectedGradeLevelId, DateOnly expectedDateOfBirth);
 

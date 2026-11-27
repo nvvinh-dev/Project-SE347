@@ -8,8 +8,9 @@ namespace NhaTre.Application.Services;
 
 // FR-CLASS-01: Admin xếp trẻ vào lớp đang hoạt động của khối khớp tuổi và gán giáo viên chủ nhiệm (D39 mục 3).
 // FR-CLASS-02: Admin phân công giáo viên phụ cho lớp.
-// FR-CLASS-03: Admin tạo, sửa và lưu trữ lớp trong 3 khối cố định; FR-CLASS-04 (phần sửa lớp): không hạ sĩ
-// số tối đa dưới số trẻ đang có.
+// FR-CLASS-03: Admin tạo, sửa và lưu trữ lớp trong 3 khối cố định.
+// FR-CLASS-04: không hạ sĩ số tối đa dưới số trẻ đang có, không xếp trẻ vào lớp đã đủ sĩ số tối đa. Sĩ số tối
+// thiểu không chặn xếp hay gỡ trẻ, GET /api/classes trả minCapacity và childCount để giao diện cảnh báo.
 // Quản lý lớp, xếp lớp, gán giáo viên chủ nhiệm và giáo viên phụ không thuộc 8 sự kiện của security_events (D50)
 public class ClassService : IClassService
 {
@@ -61,11 +62,12 @@ public class ClassService : IClassService
         if (targetClass is null)
             return new ClassResult(ClassOutcome.ClassNotFound);
 
-        if (!await _classRepository.GradeLevelExistsAsync(request.GradeLevelId))
-            return new ClassResult(ClassOutcome.GradeLevelNotFound);
-
+        // Mọi thao tác trên lớp đã lưu trữ là 409 dù body gửi gì, nên xét trước khối (góp ý review PR #103)
         if (targetClass.ArchivedAtUtc is not null)
             return new ClassResult(ClassOutcome.ClassArchived);
+
+        if (!await _classRepository.GradeLevelExistsAsync(request.GradeLevelId))
+            return new ClassResult(ClassOutcome.GradeLevelNotFound);
 
         var name = request.Name.Trim();
 
@@ -126,7 +128,8 @@ public class ClassService : IClassService
 
         // Repository khóa dòng lớp rồi mới ghi. UPDATE chỉ khớp khi khối của lớp và ngày sinh của trẻ vẫn là
         // giá trị vừa dùng để xét tuổi: Admin đổi khối hay Kế toán sửa ngày sinh giữa lúc đọc và lúc ghi thì
-        // không xếp, tránh trẻ nằm ở lớp không khớp tuổi
+        // không xếp, tránh trẻ nằm ở lớp không khớp tuổi. Sĩ số tối đa (BR-CLASS-06) chỉ xét trong repository,
+        // sau khi khóa, vì số trẻ đếm trước lúc khóa có thể đã cũ
         var outcome = await _classRepository.AssignClassAsync(
             child.ChildId, targetClass.Id, targetClass.GradeLevelId, child.DateOfBirth);
 

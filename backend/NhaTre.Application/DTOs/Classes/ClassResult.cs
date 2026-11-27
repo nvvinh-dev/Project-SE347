@@ -27,6 +27,7 @@ public enum ClassOutcome
     ChangeGradeWithChildren,
     ArchiveWithChildren,
     MaxCapacityBelowChildCount,
+    ClassFull,
     // Khối của lớp đổi giữa lúc Service xét tuổi và lúc xếp
     ClassChanged
 }
