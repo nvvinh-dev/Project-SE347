@@ -19,6 +19,8 @@ namespace NhaTre.API.Controllers;
 // FR-TUITION-05: Phụ huynh chỉ xem hóa đơn của con mình (child_guardians, D39 mục 10), không thanh
 // toán trong hệ thống (D21)
 // FR-TUITION-06: chỉ Kế toán ghi nhận khoản phụ huynh đã nộp, là đường duy nhất để hóa đơn sang paid (D21)
+// FR-TUITION-07: chỉ Phụ huynh xem thông tin chuyển khoản theo mã thanh toán của hóa đơn con mình (D21 mục 1)
+// FR-TUITION-10: chỉ Kế toán lập hóa đơn hàng loạt cho một lớp, một khối hoặc toàn trường (D39 mục 21)
 [ApiController]
 [Route("api")]
 [Authorize]
@@ -27,17 +29,20 @@ public class TuitionController : ControllerBase
     private readonly ITuitionService _tuitionService;
     private readonly IValidator<TuitionFeeRequest> _tuitionFeeValidator;
     private readonly IValidator<InvoiceRequest> _invoiceValidator;
+    private readonly IValidator<BulkInvoiceRequest> _bulkInvoiceValidator;
     private readonly IValidator<RecordPaymentRequest> _recordPaymentValidator;
 
     public TuitionController(
         ITuitionService tuitionService,
         IValidator<TuitionFeeRequest> tuitionFeeValidator,
         IValidator<InvoiceRequest> invoiceValidator,
+        IValidator<BulkInvoiceRequest> bulkInvoiceValidator,
         IValidator<RecordPaymentRequest> recordPaymentValidator)
     {
         _tuitionService = tuitionService;
         _tuitionFeeValidator = tuitionFeeValidator;
         _invoiceValidator = invoiceValidator;
+        _bulkInvoiceValidator = bulkInvoiceValidator;
         _recordPaymentValidator = recordPaymentValidator;
     }
 
@@ -174,6 +179,62 @@ public class TuitionController : ControllerBase
         };
     }
 
+    // FR-TUITION-10: xem trước không ghi gì nên trả 200, kể cả khi không còn trẻ nào để lập
+    [HttpPost("invoices/bulk/preview")]
+    [Authorize(Roles = Roles.Accountant)]
+    public async Task<ActionResult<ApiResponse<BulkInvoicePreviewResponse>>> PreviewBulkInvoices(
+        [FromBody] BulkInvoiceRequest request)
+    {
+        var validationResult = await _bulkInvoiceValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<BulkInvoicePreviewResponse>.Fail(errors));
+        }
+
+        var result = await _tuitionService.PreviewBulkInvoicesAsync(request);
+
+        return result.Outcome switch
+        {
+            BulkInvoiceOutcome.Success => Ok(ApiResponse<BulkInvoicePreviewResponse>.Ok(result.Preview!)),
+            _ => BulkInvoiceNotFound<BulkInvoicePreviewResponse>(result.Outcome)
+        };
+    }
+
+    // FR-TUITION-10: lô hóa đơn không có route xem lại chung nên 201 không kèm Location; từng hóa đơn
+    // xem lại qua GET invoices
+    [HttpPost("invoices/bulk")]
+    [Authorize(Roles = Roles.Accountant)]
+    public async Task<ActionResult<ApiResponse<BulkInvoiceResponse>>> CreateBulkInvoices(
+        [FromBody] BulkInvoiceRequest request)
+    {
+        var validationResult = await _bulkInvoiceValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<BulkInvoiceResponse>.Fail(errors));
+        }
+
+        var result = await _tuitionService.CreateBulkInvoicesAsync(request);
+
+        return result.Outcome switch
+        {
+            BulkInvoiceOutcome.Success => StatusCode(StatusCodes.Status201Created,
+                ApiResponse<BulkInvoiceResponse>.Ok(result.Result!)),
+            BulkInvoiceOutcome.NothingToCreate => Conflict(ApiResponse<BulkInvoiceResponse>.Fail(
+                "Không còn trẻ nào trong phạm vi đã chọn để lập hóa đơn: phạm vi chưa có trẻ hoặc mọi trẻ đã có hóa đơn cùng mô tả.")),
+            _ => BulkInvoiceNotFound<BulkInvoiceResponse>(result.Outcome)
+        };
+    }
+
+    private NotFoundObjectResult BulkInvoiceNotFound<T>(BulkInvoiceOutcome outcome) => outcome switch
+    {
+        BulkInvoiceOutcome.TuitionFeeNotFound => NotFound(ApiResponse<T>.Fail("Không tìm thấy biểu phí.")),
+        BulkInvoiceOutcome.ClassNotFound => NotFound(ApiResponse<T>.Fail("Không tìm thấy lớp.")),
+        BulkInvoiceOutcome.GradeLevelNotFound => NotFound(ApiResponse<T>.Fail("Không tìm thấy khối.")),
+        _ => throw new InvalidOperationException($"Kết quả lập hóa đơn hàng loạt không xử lý: {outcome}")
+    };
+
     // FR-TUITION-06: hành động nghiệp vụ riêng trên hóa đơn nên là POST, thành công trả 200. Ghi nhận rồi
     // thì không sửa, không xóa được (BR-TUITION-13)
     [HttpPost("invoices/{id:guid}/record-payment")]
@@ -224,6 +285,25 @@ public class TuitionController : ControllerBase
             return NotFound(ApiResponse<ChildInvoiceResponse>.Fail("Không tìm thấy hóa đơn."));
 
         return Ok(ApiResponse<ChildInvoiceResponse>.Ok(result));
+    }
+
+    // Phạm vi như xem một hóa đơn: ngoài phạm vi → 404 (AC-TUITION-19). Hóa đơn đã paid → 409 (AC-TUITION-18)
+    [HttpGet("children/{childId:guid}/invoices/{invoiceId:guid}/payment-instruction")]
+    [Authorize(Roles = Roles.Parent)]
+    public async Task<ActionResult<ApiResponse<PaymentInstructionResponse>>> GetPaymentInstruction(
+        Guid childId, Guid invoiceId)
+    {
+        var result = await _tuitionService.GetPaymentInstructionForGuardianAsync(childId, invoiceId, CurrentUserId());
+
+        return result.Outcome switch
+        {
+            PaymentInstructionOutcome.Success => Ok(ApiResponse<PaymentInstructionResponse>.Ok(result.Instruction!)),
+            PaymentInstructionOutcome.InvoiceNotFound => NotFound(ApiResponse<PaymentInstructionResponse>.Fail(
+                "Không tìm thấy hóa đơn.")),
+            PaymentInstructionOutcome.InvoicePaid => Conflict(ApiResponse<PaymentInstructionResponse>.Fail(
+                "Hóa đơn đã được thanh toán, không còn thông tin chuyển khoản.")),
+            _ => throw new InvalidOperationException($"Kết quả xem thông tin chuyển khoản không xử lý: {result.Outcome}")
+        };
     }
 
     // Báo cáo không lưu vào bảng nào, mỗi lần gọi tính lại cho tháng hiện tại (D39 mục 12)

@@ -5,10 +5,14 @@ export const MAX_TUITION_AMOUNT = 9_999_999_999;
 export const FEE_DESCRIPTION_MAX = 500;
 export const INVOICE_DESCRIPTION_MAX = 1000;
 export const EXTERNAL_REFERENCE_MAX = 100;
+export const RESOLUTION_NOTE_MAX = 500;
 
 const currencyFormatter = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   timeZone: VN_TIME_ZONE, day: "2-digit", month: "2-digit", year: "numeric",
+});
+const dateTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
+  timeZone: VN_TIME_ZONE, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
 });
 const monthFormatter = new Intl.DateTimeFormat("vi-VN", {
   timeZone: VN_TIME_ZONE, month: "2-digit", year: "numeric",
@@ -51,6 +55,12 @@ export function formatIssuedDate(utc: string) {
   return Number.isFinite(time) ? dateFormatter.format(time) : "—";
 }
 
+/** Thời điểm theo giờ Việt Nam, ví dụ "18/11/2026, 09:30". */
+export function formatDateTime(utc: string) {
+  const time = Date.parse(utc);
+  return Number.isFinite(time) ? dateTimeFormatter.format(time) : "—";
+}
+
 /**
  * Mô tả mặc định của hóa đơn: mô tả biểu phí + kỳ thu tháng hiện tại.
  * Biểu phí đã kết thúc bằng "tháng" thì không ghép thêm chữ "tháng" lần nữa.
@@ -68,3 +78,7 @@ export function currentBillingPeriod() {
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
   return `${part("month")}/${part("year")}`;
 }
+
+// D57: lối vào Ngân hàng giả lập chỉ hiện khi bật cờ (backend vẫn khóa lại ngoài Development).
+export const MOCK_BANK_ENABLED = process.env.NEXT_PUBLIC_MOCK_BANK_ENABLED === "true";
+export const MOCK_BANK_CONTENT_MAX = 500;

@@ -12,6 +12,7 @@ export const accountantNav: NavItem[] = [
   { title: "Hồ sơ trẻ", href: "/accountant/students", icon: "students" },
   { title: "Hồ sơ giáo viên", href: "/accountant/teachers", icon: "teachers" },
   { title: "Học phí & Hóa đơn", href: "/accountant/tuition", icon: "tuition" },
+  { title: "Đối soát chuyển khoản", href: "/accountant/reconciliation", icon: "reconcile" },
   { title: "Báo cáo doanh thu", href: "/accountant/revenue", icon: "reports" },
   { title: "Thực đơn tuần", href: "/accountant/menu", icon: "menu" },
   { title: "Thông báo nghỉ học", href: "/accountant/notifications", icon: "notifications" },
@@ -33,6 +34,7 @@ export const adminNav: NavItem[] = [
   { title: "Tổng quan", href: "/admin/dashboard", icon: "dashboard", exact: true },
   { title: "Quản lý tài khoản", href: "/admin/users", icon: "teachers" },
   { title: "Xếp lớp & Phân công", href: "/admin/classes", icon: "students" },
+  { title: "Vắng cần xử lý", href: "/admin/absence-escalations", icon: "alert" },
   { title: "Xử lý phản ánh", href: "/admin/complaints", icon: "complaints" },
 ];
 

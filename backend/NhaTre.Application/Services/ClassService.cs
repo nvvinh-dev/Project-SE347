@@ -6,9 +6,11 @@ using NhaTre.Domain.Entities;
 
 namespace NhaTre.Application.Services;
 
-// FR-CLASS-01: Admin xếp trẻ vào một trong 3 lớp cố định và gán giáo viên chủ nhiệm (D39 mục 3).
+// FR-CLASS-01: Admin xếp trẻ vào lớp đang hoạt động của khối khớp tuổi và gán giáo viên chủ nhiệm (D39 mục 3).
 // FR-CLASS-02: Admin phân công giáo viên phụ cho lớp.
-// Xếp lớp, gán giáo viên chủ nhiệm và giáo viên phụ không thuộc 8 sự kiện của security_events (D50)
+// FR-CLASS-03: Admin tạo, sửa và lưu trữ lớp trong 3 khối cố định; FR-CLASS-04 (phần sửa lớp): không hạ sĩ
+// số tối đa dưới số trẻ đang có.
+// Quản lý lớp, xếp lớp, gán giáo viên chủ nhiệm và giáo viên phụ không thuộc 8 sự kiện của security_events (D50)
 public class ClassService : IClassService
 {
     private static readonly short TeacherRoleId = Roles.ToRoleId(Roles.Teacher);
@@ -20,8 +22,74 @@ public class ClassService : IClassService
         _classRepository = classRepository;
     }
 
+    public async Task<IReadOnlyList<GradeLevelResponse>> GetGradeLevelsAsync()
+        => await _classRepository.GetGradeLevelsAsync();
+
     public async Task<IReadOnlyList<ClassResponse>> GetClassesAsync()
         => await _classRepository.GetAllAsync();
+
+    public async Task<ClassResult> CreateClassAsync(SaveClassRequest request)
+    {
+        if (!await _classRepository.GradeLevelExistsAsync(request.GradeLevelId))
+            return new ClassResult(ClassOutcome.GradeLevelNotFound);
+
+        // BR-CLASS-05: tên không trùng lớp nào khác, kể cả lớp đã lưu trữ; so trên bản đã trim như lúc lưu
+        var name = request.Name.Trim();
+
+        if (await _classRepository.NameExistsAsync(name, exceptClassId: null))
+            return new ClassResult(ClassOutcome.DuplicateClassName);
+
+        // Lớp mới đang hoạt động, chưa có trẻ và giáo viên (UC-CLASS-03); hai cột tuổi cũ để trống
+        var newClass = new Class
+        {
+            GradeLevelId = request.GradeLevelId,
+            Name = name,
+            MinCapacity = request.MinCapacity,
+            MaxCapacity = request.MaxCapacity
+        };
+
+        if (!await _classRepository.AddAsync(newClass))
+            return new ClassResult(ClassOutcome.DuplicateClassName);
+
+        return await LoadClassResultAsync(newClass.Id);
+    }
+
+    public async Task<ClassResult> UpdateClassAsync(Guid classId, SaveClassRequest request)
+    {
+        var targetClass = await _classRepository.FindByIdAsync(classId);
+
+        if (targetClass is null)
+            return new ClassResult(ClassOutcome.ClassNotFound);
+
+        if (!await _classRepository.GradeLevelExistsAsync(request.GradeLevelId))
+            return new ClassResult(ClassOutcome.GradeLevelNotFound);
+
+        if (targetClass.ArchivedAtUtc is not null)
+            return new ClassResult(ClassOutcome.ClassArchived);
+
+        var name = request.Name.Trim();
+
+        if (await _classRepository.NameExistsAsync(name, exceptClassId: classId))
+            return new ClassResult(ClassOutcome.DuplicateClassName);
+
+        // Lưu trữ, số trẻ (đổi khối, sĩ số tối đa) xét lại sau khi repository khóa dòng lớp
+        var outcome = await _classRepository.UpdateAsync(
+            classId, request.GradeLevelId, name, request.MinCapacity, request.MaxCapacity);
+
+        return outcome == ClassOutcome.Success
+            ? await LoadClassResultAsync(classId)
+            : new ClassResult(outcome);
+    }
+
+    // Lưu trữ một chiều, không có API mở lại (D39 mục 3). Mọi điều kiện xét sau khi repository khóa dòng lớp
+    public async Task<ClassResult> ArchiveClassAsync(Guid classId)
+    {
+        var outcome = await _classRepository.ArchiveAsync(classId, DateTime.UtcNow);
+
+        return outcome == ClassOutcome.Success
+            ? await LoadClassResultAsync(classId)
+            : new ClassResult(outcome);
+    }
 
     public async Task<IReadOnlyList<ClassPlacementResponse>> GetPlacementsAsync()
         => await _classRepository.GetPlacementsAsync();
@@ -42,19 +110,28 @@ public class ClassService : IClassService
         if (targetClass is null)
             return new ClassPlacementResult(ClassOutcome.ClassNotFound);
 
+        // BR-CLASS-03: không xếp được trẻ vào lớp đã lưu trữ (AC-CLASS-09 b)
+        if (targetClass.ArchivedAtUtc is not null)
+            return new ClassPlacementResult(ClassOutcome.ClassArchived);
+
         if (child.ClassId == targetClass.Id)
             return new ClassPlacementResult(ClassOutcome.AlreadyInClass);
 
-        // BR-CLASS-03: tuổi tính từ ngày sinh đã lưu, request không có trường tuổi
+        // BR-CLASS-03: tuổi tính từ ngày sinh đã lưu, request không có trường tuổi; khoảng tuổi là của khối
         var ageInMonths = ClassAgeRules.AgeInMonths(child.DateOfBirth, TodayInVietnam());
 
-        if (!ClassAgeRules.FitsAgeRange(ageInMonths, targetClass.MinAgeMonths, targetClass.MaxAgeMonths))
+        if (!ClassAgeRules.FitsAgeRange(
+                ageInMonths, targetClass.GradeLevel.MinAgeMonths, targetClass.GradeLevel.MaxAgeMonths))
             return new ClassPlacementResult(ClassOutcome.AgeMismatch);
 
-        // UPDATE chỉ khớp khi ngày sinh vẫn là ngày vừa dùng để tính tuổi: Kế toán sửa ngày sinh
-        // giữa lúc đọc và lúc ghi thì không xếp, tránh trẻ nằm ở lớp không khớp tuổi
-        if (!await _classRepository.AssignClassAsync(child.ChildId, targetClass.Id, child.DateOfBirth))
-            return new ClassPlacementResult(ClassOutcome.ChildChanged);
+        // Repository khóa dòng lớp rồi mới ghi. UPDATE chỉ khớp khi khối của lớp và ngày sinh của trẻ vẫn là
+        // giá trị vừa dùng để xét tuổi: Admin đổi khối hay Kế toán sửa ngày sinh giữa lúc đọc và lúc ghi thì
+        // không xếp, tránh trẻ nằm ở lớp không khớp tuổi
+        var outcome = await _classRepository.AssignClassAsync(
+            child.ChildId, targetClass.Id, targetClass.GradeLevelId, child.DateOfBirth);
+
+        if (outcome != ClassOutcome.Success)
+            return new ClassPlacementResult(outcome);
 
         return new ClassPlacementResult(ClassOutcome.Success,
             child with { ClassId = targetClass.Id, ClassName = targetClass.Name });
@@ -66,6 +143,10 @@ public class ClassService : IClassService
 
         if (targetClass is null)
             return new ClassResult(ClassOutcome.ClassNotFound);
+
+        // BR-CLASS-05: không gán giáo viên cho lớp đã lưu trữ; repository xét lại sau khi khóa dòng lớp
+        if (targetClass.ArchivedAtUtc is not null)
+            return new ClassResult(ClassOutcome.ClassArchived);
 
         if (request.TeacherUserId is null)
         {
@@ -103,8 +184,14 @@ public class ClassService : IClassService
 
     public async Task<ClassResult> AssignAssistantTeachersAsync(Guid classId, AssignAssistantTeachersRequest request)
     {
-        if (await _classRepository.FindByIdAsync(classId) is null)
+        var targetClass = await _classRepository.FindByIdAsync(classId);
+
+        if (targetClass is null)
             return new ClassResult(ClassOutcome.ClassNotFound);
+
+        // BR-CLASS-05: không gán giáo viên cho lớp đã lưu trữ; repository xét lại sau khi khóa dòng lớp
+        if (targetClass.ArchivedAtUtc is not null)
+            return new ClassResult(ClassOutcome.ClassArchived);
 
         // Validator đã chặn id trùng, nên mỗi tài khoản đạt điều kiện ứng với đúng một hồ sơ: thiếu hồ sơ
         // nào là có tài khoản không tồn tại, không phải Giáo viên, bị vô hiệu hóa hoặc chưa có hồ sơ
@@ -148,8 +235,8 @@ public class ClassService : IClassService
             : new ClassResult(outcome);
     }
 
-    // Đọc lại sau khi ghi để response có đủ giáo viên chủ nhiệm và giáo viên phụ hiện tại.
-    // 3 lớp cố định không bị xóa, nên lớp vừa ghi xong luôn đọc lại được
+    // Đọc lại sau khi ghi để response có đủ khối, số trẻ, giáo viên chủ nhiệm và giáo viên phụ hiện tại.
+    // Lớp không bị xóa (chỉ lưu trữ), nên lớp vừa ghi xong luôn đọc lại được
     private async Task<ClassResult> LoadClassResultAsync(Guid classId)
     {
         var response = await _classRepository.GetResponseByIdAsync(classId);

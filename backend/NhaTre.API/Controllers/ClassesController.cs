@@ -8,37 +8,120 @@ using NhaTre.Domain.Constants;
 
 namespace NhaTre.API.Controllers;
 
-// Module Lớp gồm hai tài nguyên classes và class-placements (trẻ cần xếp lớp), nên route gốc của
-// Controller là api/ và mỗi action tự ghi tên tài nguyên.
-// Chỉ Admin xếp trẻ vào lớp, gán giáo viên chủ nhiệm (FR-CLASS-01) và giáo viên phụ (FR-CLASS-02).
-// 3 lớp cố định (D39 mục 3): không có tạo, sửa hay xóa lớp
+// Module Lớp gồm ba tài nguyên grade-levels (khối), classes và class-placements (trẻ cần xếp lớp), nên route
+// gốc của Controller là api/ và mỗi action tự ghi tên tài nguyên.
+// Chỉ Admin tạo, sửa, lưu trữ lớp theo khối (FR-CLASS-03), xếp trẻ vào lớp, gán giáo viên chủ nhiệm
+// (FR-CLASS-01) và giáo viên phụ (FR-CLASS-02). 3 khối cố định, không tạo hay sửa khối; lớp không bị xóa,
+// chỉ lưu trữ (D39 mục 3)
 [ApiController]
 [Route("api")]
 [Authorize(Roles = Roles.Admin)]
 public class ClassesController : ControllerBase
 {
+    private const string ClassArchivedMessage = "Lớp này đã được lưu trữ, không thể thao tác thêm.";
+    private const string DuplicateClassNameMessage = "Đã có lớp mang tên này (kể cả lớp đã lưu trữ).";
+
     private readonly IClassService _classService;
+    private readonly IValidator<SaveClassRequest> _saveClassValidator;
     private readonly IValidator<AssignClassRequest> _assignClassValidator;
     private readonly IValidator<AssignHomeroomTeacherRequest> _assignHomeroomTeacherValidator;
     private readonly IValidator<AssignAssistantTeachersRequest> _assignAssistantTeachersValidator;
 
     public ClassesController(
         IClassService classService,
+        IValidator<SaveClassRequest> saveClassValidator,
         IValidator<AssignClassRequest> assignClassValidator,
         IValidator<AssignHomeroomTeacherRequest> assignHomeroomTeacherValidator,
         IValidator<AssignAssistantTeachersRequest> assignAssistantTeachersValidator)
     {
         _classService = classService;
+        _saveClassValidator = saveClassValidator;
         _assignClassValidator = assignClassValidator;
         _assignHomeroomTeacherValidator = assignHomeroomTeacherValidator;
         _assignAssistantTeachersValidator = assignAssistantTeachersValidator;
     }
 
+    [HttpGet("grade-levels")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<GradeLevelResponse>>>> GetGradeLevels()
+    {
+        var result = await _classService.GetGradeLevelsAsync();
+        return Ok(ApiResponse<IReadOnlyList<GradeLevelResponse>>.Ok(result));
+    }
+
+    // Chỉ lớp đang hoạt động, xếp theo khối
     [HttpGet("classes")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<ClassResponse>>>> GetClasses()
     {
         var result = await _classService.GetClassesAsync();
         return Ok(ApiResponse<IReadOnlyList<ClassResponse>>.Ok(result));
+    }
+
+    // Chưa có route xem một lớp nên 201 không kèm Location (api-conventions §4)
+    [HttpPost("classes")]
+    public async Task<ActionResult<ApiResponse<ClassResponse>>> CreateClass([FromBody] SaveClassRequest request)
+    {
+        var validationResult = await _saveClassValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<ClassResponse>.Fail(errors));
+        }
+
+        var result = await _classService.CreateClassAsync(request);
+
+        return result.Outcome switch
+        {
+            ClassOutcome.Success => StatusCode(StatusCodes.Status201Created, ApiResponse<ClassResponse>.Ok(result.Class!)),
+            ClassOutcome.GradeLevelNotFound => NotFound(ApiResponse<ClassResponse>.Fail("Không tìm thấy khối.")),
+            ClassOutcome.DuplicateClassName => Conflict(ApiResponse<ClassResponse>.Fail(DuplicateClassNameMessage)),
+            _ => throw new InvalidOperationException($"Kết quả tạo lớp không xử lý: {result.Outcome}")
+        };
+    }
+
+    // Gửi đủ khối, tên và sĩ số; đổi khối chỉ khi lớp chưa có trẻ
+    [HttpPut("classes/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<ClassResponse>>> UpdateClass(
+        Guid id, [FromBody] SaveClassRequest request)
+    {
+        var validationResult = await _saveClassValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<ClassResponse>.Fail(errors));
+        }
+
+        var result = await _classService.UpdateClassAsync(id, request);
+
+        return result.Outcome switch
+        {
+            ClassOutcome.Success => Ok(ApiResponse<ClassResponse>.Ok(result.Class!)),
+            ClassOutcome.ClassNotFound => NotFound(ApiResponse<ClassResponse>.Fail("Không tìm thấy lớp học.")),
+            ClassOutcome.GradeLevelNotFound => NotFound(ApiResponse<ClassResponse>.Fail("Không tìm thấy khối.")),
+            ClassOutcome.ClassArchived => Conflict(ApiResponse<ClassResponse>.Fail(ClassArchivedMessage)),
+            ClassOutcome.DuplicateClassName => Conflict(ApiResponse<ClassResponse>.Fail(DuplicateClassNameMessage)),
+            ClassOutcome.ChangeGradeWithChildren => Conflict(ApiResponse<ClassResponse>.Fail(
+                "Chỉ đổi khối khi lớp chưa có trẻ. Hãy chuyển hoặc gỡ hết trẻ khỏi lớp trước.")),
+            ClassOutcome.MaxCapacityBelowChildCount => Conflict(ApiResponse<ClassResponse>.Fail(
+                "Sĩ số tối đa không được nhỏ hơn số trẻ đang có trong lớp.")),
+            _ => throw new InvalidOperationException($"Kết quả sửa lớp không xử lý: {result.Outcome}")
+        };
+    }
+
+    // Hành động nghiệp vụ một chiều, không tạo tài nguyên mới nên trả 200 (api-conventions §4)
+    [HttpPost("classes/{id:guid}/archive")]
+    public async Task<ActionResult<ApiResponse<ClassResponse>>> ArchiveClass(Guid id)
+    {
+        var result = await _classService.ArchiveClassAsync(id);
+
+        return result.Outcome switch
+        {
+            ClassOutcome.Success => Ok(ApiResponse<ClassResponse>.Ok(result.Class!)),
+            ClassOutcome.ClassNotFound => NotFound(ApiResponse<ClassResponse>.Fail("Không tìm thấy lớp học.")),
+            ClassOutcome.ClassArchived => Conflict(ApiResponse<ClassResponse>.Fail("Lớp này đã được lưu trữ.")),
+            ClassOutcome.ArchiveWithChildren => Conflict(ApiResponse<ClassResponse>.Fail(
+                "Lớp vẫn còn trẻ. Hãy chuyển hoặc gỡ hết trẻ khỏi lớp trước khi lưu trữ.")),
+            _ => throw new InvalidOperationException($"Kết quả lưu trữ lớp không xử lý: {result.Outcome}")
+        };
     }
 
     [HttpPut("classes/{id:guid}/homeroom-teacher")]
@@ -58,6 +141,7 @@ public class ClassesController : ControllerBase
         {
             ClassOutcome.Success => Ok(ApiResponse<ClassResponse>.Ok(result.Class!)),
             ClassOutcome.ClassNotFound => NotFound(ApiResponse<ClassResponse>.Fail("Không tìm thấy lớp học.")),
+            ClassOutcome.ClassArchived => Conflict(ApiResponse<ClassResponse>.Fail(ClassArchivedMessage)),
             ClassOutcome.UserNotFound => NotFound(ApiResponse<ClassResponse>.Fail("Không tìm thấy tài khoản.")),
             ClassOutcome.NotTeacherRole => Conflict(ApiResponse<ClassResponse>.Fail(
                 "Tài khoản này không có vai trò Giáo viên.")),
@@ -93,6 +177,7 @@ public class ClassesController : ControllerBase
         {
             ClassOutcome.Success => Ok(ApiResponse<ClassResponse>.Ok(result.Class!)),
             ClassOutcome.ClassNotFound => NotFound(ApiResponse<ClassResponse>.Fail("Không tìm thấy lớp học.")),
+            ClassOutcome.ClassArchived => Conflict(ApiResponse<ClassResponse>.Fail(ClassArchivedMessage)),
             ClassOutcome.InvalidAssistantTeacher => Conflict(ApiResponse<ClassResponse>.Fail(
                 "Có tài khoản trong danh sách không phải giáo viên đang hoạt động có hồ sơ giáo viên.")),
             ClassOutcome.AssistantIsHomeroom => Conflict(ApiResponse<ClassResponse>.Fail(
@@ -130,10 +215,13 @@ public class ClassesController : ControllerBase
             // AC-CLASS-03 và UC-CLASS-01 (E1) chốt 400 cho xếp sai nhóm tuổi
             ClassOutcome.AgeMismatch => BadRequest(ApiResponse<ClassPlacementResponse>.Fail(
                 "Tuổi của trẻ không khớp độ tuổi của lớp này.")),
+            ClassOutcome.ClassArchived => Conflict(ApiResponse<ClassPlacementResponse>.Fail(ClassArchivedMessage)),
             ClassOutcome.AlreadyInClass => Conflict(ApiResponse<ClassPlacementResponse>.Fail("Trẻ đã ở lớp này.")),
             ClassOutcome.NotInAnyClass => Conflict(ApiResponse<ClassPlacementResponse>.Fail("Trẻ chưa được xếp lớp.")),
             ClassOutcome.ChildChanged => Conflict(ApiResponse<ClassPlacementResponse>.Fail(
                 "Thông tin của trẻ vừa được cập nhật. Vui lòng tải lại rồi thử lại.")),
+            ClassOutcome.ClassChanged => Conflict(ApiResponse<ClassPlacementResponse>.Fail(
+                "Thông tin của lớp vừa được cập nhật. Vui lòng tải lại rồi thử lại.")),
             _ => throw new InvalidOperationException($"Kết quả xếp lớp không xử lý: {result.Outcome}")
         };
     }

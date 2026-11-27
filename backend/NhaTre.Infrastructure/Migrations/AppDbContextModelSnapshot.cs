@@ -22,6 +22,53 @@ namespace NhaTre.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.AbsenceFollowUp", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AttendanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("attendance_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("outcome");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at");
+
+                    b.Property<Guid>("RecordedByTeacherId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recorded_by_teacher_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_absence_follow_ups");
+
+                    b.HasIndex("AttendanceId")
+                        .HasDatabaseName("ix_absence_follow_ups_attendance_id");
+
+                    b.HasIndex("RecordedByTeacherId")
+                        .HasDatabaseName("ix_absence_follow_ups_recorded_by_teacher_id");
+
+                    b.ToTable("absence_follow_ups", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AbsenceFollowUp_Outcome", "outcome IN ('Reached', 'Unreachable')");
+
+                            t.HasCheckConstraint("CK_AbsenceFollowUp_ReachedNote", "outcome <> 'Reached' OR note IS NOT NULL");
+                        });
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.ActivityPhoto", b =>
                 {
                     b.Property<Guid>("Id")
@@ -56,6 +103,149 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasDatabaseName("ix_activity_photos_uploaded_by_teacher_id");
 
                     b.ToTable("activity_photos", (string)null);
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.Allergen", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_allergens");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_allergens_code");
+
+                    b.ToTable("allergens", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = (short)1,
+                            Code = "Milk",
+                            Name = "Sữa bò và sản phẩm từ sữa",
+                            SortOrder = (short)1
+                        },
+                        new
+                        {
+                            Id = (short)2,
+                            Code = "Egg",
+                            Name = "Trứng",
+                            SortOrder = (short)2
+                        },
+                        new
+                        {
+                            Id = (short)3,
+                            Code = "Peanut",
+                            Name = "Đậu phộng",
+                            SortOrder = (short)3
+                        },
+                        new
+                        {
+                            Id = (short)4,
+                            Code = "TreeNut",
+                            Name = "Hạt cây (điều, óc chó, hạnh nhân...)",
+                            SortOrder = (short)4
+                        },
+                        new
+                        {
+                            Id = (short)5,
+                            Code = "Soy",
+                            Name = "Đậu nành",
+                            SortOrder = (short)5
+                        },
+                        new
+                        {
+                            Id = (short)6,
+                            Code = "Wheat",
+                            Name = "Lúa mì, gluten",
+                            SortOrder = (short)6
+                        },
+                        new
+                        {
+                            Id = (short)7,
+                            Code = "Fish",
+                            Name = "Cá",
+                            SortOrder = (short)7
+                        },
+                        new
+                        {
+                            Id = (short)8,
+                            Code = "Crustacean",
+                            Name = "Giáp xác (tôm, cua)",
+                            SortOrder = (short)8
+                        },
+                        new
+                        {
+                            Id = (short)9,
+                            Code = "Mollusc",
+                            Name = "Nhuyễn thể (mực, nghêu, sò)",
+                            SortOrder = (short)9
+                        },
+                        new
+                        {
+                            Id = (short)10,
+                            Code = "Sesame",
+                            Name = "Mè",
+                            SortOrder = (short)10
+                        });
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.AllergyAcknowledgement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("AckDate")
+                        .HasColumnType("date")
+                        .HasColumnName("ack_date");
+
+                    b.Property<DateTime>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acknowledged_at");
+
+                    b.Property<Guid>("AcknowledgedByTeacherId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("acknowledged_by_teacher_id");
+
+                    b.PrimitiveCollection<string[]>("AllergenCodes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("allergen_codes");
+
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_allergy_acknowledgements");
+
+                    b.HasIndex("AcknowledgedByTeacherId")
+                        .HasDatabaseName("ix_allergy_acknowledgements_acknowledged_by_teacher_id");
+
+                    b.HasIndex("ChildId", "AckDate")
+                        .HasDatabaseName("ix_allergy_acknowledgements_child_id_ack_date");
+
+                    b.ToTable("allergy_acknowledgements", (string)null);
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Attendance", b =>
@@ -102,6 +292,106 @@ namespace NhaTre.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.BankTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("account_number");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("content");
+
+                    b.Property<Guid?>("InvoiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invoice_id");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("ResolutionNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("resolution_note");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<Guid?>("ResolvedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("resolved_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("TransactionAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("transaction_at");
+
+                    b.Property<string>("TransactionId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("transaction_id");
+
+                    b.Property<string>("UnmatchedReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("unmatched_reason");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bank_transactions");
+
+                    b.HasIndex("InvoiceId")
+                        .HasDatabaseName("ix_bank_transactions_invoice_id");
+
+                    b.HasIndex("ResolvedByUserId")
+                        .HasDatabaseName("ix_bank_transactions_resolved_by_user_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_bank_transactions_status");
+
+                    b.HasIndex("TransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_bank_transactions_transaction_id");
+
+                    b.ToTable("bank_transactions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BankTransaction_AmountPositive", "amount > 0");
+
+                            t.HasCheckConstraint("CK_BankTransaction_DismissedHasResolution", "status <> 'Dismissed' OR (resolution_note IS NOT NULL AND resolved_by_user_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_BankTransaction_MatchedHasInvoice", "(status = 'Matched') = (invoice_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_BankTransaction_Status", "status IN ('Matched', 'Unmatched', 'Dismissed')");
+
+                            t.HasCheckConstraint("CK_BankTransaction_UnmatchedHasReason", "status <> 'Unmatched' OR unmatched_reason IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_BankTransaction_UnmatchedReason", "unmatched_reason IS NULL OR unmatched_reason IN ('NoInvoiceCode', 'AmbiguousInvoiceCode', 'AmountMismatch', 'InvoiceAlreadyPaid')");
+                        });
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.Child", b =>
                 {
                     b.Property<Guid>("Id")
@@ -140,6 +430,25 @@ namespace NhaTre.Infrastructure.Migrations
                     b.ToTable("children", (string)null);
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.ChildAllergen", b =>
+                {
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.Property<short>("AllergenId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("allergen_id");
+
+                    b.HasKey("ChildId", "AllergenId")
+                        .HasName("pk_child_allergens");
+
+                    b.HasIndex("AllergenId")
+                        .HasDatabaseName("ix_child_allergens_allergen_id");
+
+                    b.ToTable("child_allergens", (string)null);
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.ChildGuardian", b =>
                 {
                     b.Property<Guid>("ChildId")
@@ -166,6 +475,14 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime?>("ArchivedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at_utc");
+
+                    b.Property<short>("GradeLevelId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("grade_level_id");
+
                     b.Property<Guid?>("HomeroomTeacherId")
                         .HasColumnType("uuid")
                         .HasColumnName("homeroom_teacher_id");
@@ -174,9 +491,17 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("max_age_months");
 
+                    b.Property<int?>("MaxCapacity")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_capacity");
+
                     b.Property<int?>("MinAgeMonths")
                         .HasColumnType("integer")
                         .HasColumnName("min_age_months");
+
+                    b.Property<int?>("MinCapacity")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_capacity");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -185,6 +510,9 @@ namespace NhaTre.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_classes");
+
+                    b.HasIndex("GradeLevelId")
+                        .HasDatabaseName("ix_classes_grade_level_id");
 
                     b.HasIndex("HomeroomTeacherId")
                         .HasDatabaseName("ix_classes_homeroom_teacher_id");
@@ -196,29 +524,38 @@ namespace NhaTre.Infrastructure.Migrations
                     b.ToTable("classes", null, t =>
                         {
                             t.HasCheckConstraint("CK_Class_AgeRange", "min_age_months <= max_age_months");
+
+                            t.HasCheckConstraint("CK_Class_CapacityRange", "min_capacity IS NULL OR max_capacity IS NULL OR min_capacity <= max_capacity");
+
+                            t.HasCheckConstraint("CK_Class_MaxCapacity", "max_capacity IS NULL OR max_capacity >= 1");
+
+                            t.HasCheckConstraint("CK_Class_MinCapacity", "min_capacity IS NULL OR min_capacity >= 1");
                         });
 
                     b.HasData(
                         new
                         {
                             Id = new Guid("e84b9f79-dc69-4aa2-b569-3558337df117"),
+                            GradeLevelId = (short)1,
                             MaxAgeMonths = 48,
                             MinAgeMonths = 36,
-                            Name = "Lớp Mầm"
+                            Name = "Mầm 1"
                         },
                         new
                         {
                             Id = new Guid("f8600076-d709-46e9-b658-2b2b1143509d"),
+                            GradeLevelId = (short)2,
                             MaxAgeMonths = 60,
                             MinAgeMonths = 48,
-                            Name = "Lớp Chồi"
+                            Name = "Chồi 1"
                         },
                         new
                         {
                             Id = new Guid("f983817a-6f20-400a-b631-b94f1497820f"),
+                            GradeLevelId = (short)3,
                             MaxAgeMonths = 72,
                             MinAgeMonths = 60,
-                            Name = "Lớp Lá"
+                            Name = "Lá 1"
                         });
                 });
 
@@ -303,6 +640,68 @@ namespace NhaTre.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_Complaint_Resolution", "status <> 'Resolved' OR (resolution IS NOT NULL AND resolution <> '')");
 
                             t.HasCheckConstraint("CK_Complaint_Status", "status IN ('New', 'InProgress', 'Resolved')");
+                        });
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.GradeLevel", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint")
+                        .HasColumnName("id");
+
+                    b.Property<int>("MaxAgeMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_age_months");
+
+                    b.Property<int>("MinAgeMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_age_months");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_grade_levels");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_grade_levels_name");
+
+                    b.ToTable("grade_levels", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GradeLevel_AgeRange", "min_age_months < max_age_months");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = (short)1,
+                            MaxAgeMonths = 48,
+                            MinAgeMonths = 36,
+                            Name = "Mầm",
+                            SortOrder = (short)1
+                        },
+                        new
+                        {
+                            Id = (short)2,
+                            MaxAgeMonths = 60,
+                            MinAgeMonths = 48,
+                            Name = "Chồi",
+                            SortOrder = (short)2
+                        },
+                        new
+                        {
+                            Id = (short)3,
+                            MaxAgeMonths = 72,
+                            MinAgeMonths = 60,
+                            Name = "Lá",
+                            SortOrder = (short)3
                         });
                 });
 
@@ -440,6 +839,12 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("issued_at");
 
+                    b.Property<string>("PaymentCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("payment_code");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
@@ -455,6 +860,10 @@ namespace NhaTre.Infrastructure.Migrations
                     b.HasIndex("ChildId")
                         .HasDatabaseName("ix_invoices_child_id");
 
+                    b.HasIndex("PaymentCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_invoices_payment_code");
+
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_invoices_status");
 
@@ -464,6 +873,8 @@ namespace NhaTre.Infrastructure.Migrations
                     b.ToTable("invoices", null, t =>
                         {
                             t.HasCheckConstraint("CK_Invoice_AmountPositive", "amount > 0");
+
+                            t.HasCheckConstraint("CK_Invoice_PaymentCode", "payment_code ~ '^HP[A-HJ-NP-Z2-9]{8}$'");
 
                             t.HasCheckConstraint("CK_Invoice_Status", "status IN ('unpaid', 'paid')");
                         });
@@ -485,6 +896,12 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
                     b.Property<Guid>("WeeklyMenuId")
                         .HasColumnType("uuid")
                         .HasColumnName("weekly_menu_id");
@@ -497,6 +914,25 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasDatabaseName("ix_menu_entries_weekly_menu_id_day_of_week");
 
                     b.ToTable("menu_entries", (string)null);
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.MenuEntryAllergen", b =>
+                {
+                    b.Property<Guid>("MenuEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("menu_entry_id");
+
+                    b.Property<short>("AllergenId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("allergen_id");
+
+                    b.HasKey("MenuEntryId", "AllergenId")
+                        .HasName("pk_menu_entry_allergens");
+
+                    b.HasIndex("AllergenId")
+                        .HasDatabaseName("ix_menu_entry_allergens_allergen_id");
+
+                    b.ToTable("menu_entry_allergens", (string)null);
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Notification", b =>
@@ -540,6 +976,10 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("amount");
 
+                    b.Property<Guid?>("BankTransactionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bank_transaction_id");
+
                     b.Property<string>("ExternalReference")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -559,12 +999,16 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("payment_method");
 
-                    b.Property<Guid>("RecordedByUserId")
+                    b.Property<Guid?>("RecordedByUserId")
                         .HasColumnType("uuid")
                         .HasColumnName("recorded_by_user_id");
 
                     b.HasKey("Id")
                         .HasName("pk_payments");
+
+                    b.HasIndex("BankTransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_payments_bank_transaction_id");
 
                     b.HasIndex("InvoiceId")
                         .HasDatabaseName("ix_payments_invoice_id");
@@ -576,7 +1020,11 @@ namespace NhaTre.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_Payment_AmountPositive", "amount > 0");
 
+                            t.HasCheckConstraint("CK_Payment_BankTransactionIsTransfer", "bank_transaction_id IS NULL OR payment_method = 'BankTransfer'");
+
                             t.HasCheckConstraint("CK_Payment_Method", "payment_method IN ('Cash', 'BankTransfer')");
+
+                            t.HasCheckConstraint("CK_Payment_RecordedOrBankTransaction", "recorded_by_user_id IS NOT NULL OR bank_transaction_id IS NOT NULL");
                         });
                 });
 
@@ -984,6 +1432,27 @@ namespace NhaTre.Infrastructure.Migrations
                     b.ToTable("weekly_menus", (string)null);
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.AbsenceFollowUp", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Attendance", "Attendance")
+                        .WithMany()
+                        .HasForeignKey("AttendanceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_absence_follow_ups_attendances_attendance_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.Teacher", "RecordedByTeacher")
+                        .WithMany()
+                        .HasForeignKey("RecordedByTeacherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_absence_follow_ups_teachers_recorded_by_teacher_id");
+
+                    b.Navigation("Attendance");
+
+                    b.Navigation("RecordedByTeacher");
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.ActivityPhoto", b =>
                 {
                     b.HasOne("NhaTre.Domain.Entities.Class", "Class")
@@ -1003,6 +1472,27 @@ namespace NhaTre.Infrastructure.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("UploadedByTeacher");
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.AllergyAcknowledgement", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Teacher", "AcknowledgedByTeacher")
+                        .WithMany()
+                        .HasForeignKey("AcknowledgedByTeacherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_allergy_acknowledgements_teachers_acknowledged_by_teacher_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.Child", "Child")
+                        .WithMany()
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_allergy_acknowledgements_children_child_id");
+
+                    b.Navigation("AcknowledgedByTeacher");
+
+                    b.Navigation("Child");
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Attendance", b =>
@@ -1026,6 +1516,23 @@ namespace NhaTre.Infrastructure.Migrations
                     b.Navigation("RecordedByTeacher");
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.BankTransaction", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Invoice", "Invoice")
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_bank_transactions_invoices_invoice_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ResolvedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_bank_transactions_users_resolved_by_user_id");
+
+                    b.Navigation("Invoice");
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.Child", b =>
                 {
                     b.HasOne("NhaTre.Domain.Entities.Class", "Class")
@@ -1034,6 +1541,27 @@ namespace NhaTre.Infrastructure.Migrations
                         .HasConstraintName("fk_children_classes_class_id");
 
                     b.Navigation("Class");
+                });
+
+            modelBuilder.Entity("NhaTre.Domain.Entities.ChildAllergen", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Allergen", "Allergen")
+                        .WithMany()
+                        .HasForeignKey("AllergenId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_child_allergens_allergens_allergen_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.Child", "Child")
+                        .WithMany()
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_child_allergens_children_child_id");
+
+                    b.Navigation("Allergen");
+
+                    b.Navigation("Child");
                 });
 
             modelBuilder.Entity("NhaTre.Domain.Entities.ChildGuardian", b =>
@@ -1059,11 +1587,20 @@ namespace NhaTre.Infrastructure.Migrations
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Class", b =>
                 {
+                    b.HasOne("NhaTre.Domain.Entities.GradeLevel", "GradeLevel")
+                        .WithMany()
+                        .HasForeignKey("GradeLevelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_classes_grade_levels_grade_level_id");
+
                     b.HasOne("NhaTre.Domain.Entities.Teacher", "HomeroomTeacher")
                         .WithMany("HomeroomClasses")
                         .HasForeignKey("HomeroomTeacherId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_classes_teachers_homeroom_teacher_id");
+
+                    b.Navigation("GradeLevel");
 
                     b.Navigation("HomeroomTeacher");
                 });
@@ -1203,6 +1740,27 @@ namespace NhaTre.Infrastructure.Migrations
                     b.Navigation("WeeklyMenu");
                 });
 
+            modelBuilder.Entity("NhaTre.Domain.Entities.MenuEntryAllergen", b =>
+                {
+                    b.HasOne("NhaTre.Domain.Entities.Allergen", "Allergen")
+                        .WithMany()
+                        .HasForeignKey("AllergenId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_menu_entry_allergens_allergens_allergen_id");
+
+                    b.HasOne("NhaTre.Domain.Entities.MenuEntry", "MenuEntry")
+                        .WithMany()
+                        .HasForeignKey("MenuEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_menu_entry_allergens_menu_entries_menu_entry_id");
+
+                    b.Navigation("Allergen");
+
+                    b.Navigation("MenuEntry");
+                });
+
             modelBuilder.Entity("NhaTre.Domain.Entities.Notification", b =>
                 {
                     b.HasOne("NhaTre.Domain.Entities.User", "RecipientUser")
@@ -1217,6 +1775,12 @@ namespace NhaTre.Infrastructure.Migrations
 
             modelBuilder.Entity("NhaTre.Domain.Entities.Payment", b =>
                 {
+                    b.HasOne("NhaTre.Domain.Entities.BankTransaction", "BankTransaction")
+                        .WithOne()
+                        .HasForeignKey("NhaTre.Domain.Entities.Payment", "BankTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payments_bank_transactions_bank_transaction_id");
+
                     b.HasOne("NhaTre.Domain.Entities.Invoice", "Invoice")
                         .WithMany("Payments")
                         .HasForeignKey("InvoiceId")
@@ -1228,8 +1792,9 @@ namespace NhaTre.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("RecordedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_payments_users_recorded_by_user_id");
+
+                    b.Navigation("BankTransaction");
 
                     b.Navigation("Invoice");
                 });

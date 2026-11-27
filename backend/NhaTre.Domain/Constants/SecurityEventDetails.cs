@@ -10,4 +10,6 @@ public static class SecurityEventDetails
     public const string Unlinked = "unlinked";       // guardian_link_changed: gỡ liên kết
     public const string Activated = "activated";     // account_activation_changed: mở lại tài khoản
     public const string Deactivated = "deactivated"; // account_activation_changed: vô hiệu hóa tài khoản
+    public const string BankAuto = "bank_auto";      // invoice_marked_paid: webhook ngân hàng tự đối soát (D21 mục 2)
+    public const string BankMatched = "bank_matched"; // invoice_marked_paid: Kế toán gán giao dịch chưa khớp (D21 mục 3)
 }

@@ -8,4 +8,5 @@ public interface IAttendanceService
     Task<AttendanceHistoryResult> GetHistoryAsync(Guid? childId, Guid? classId, DateOnly? date, Guid teacherUserId);
     Task<IReadOnlyList<ChildAttendanceResponse>?> GetChildHistoryForGuardianAsync(Guid childId, Guid parentUserId);
     Task<AttendanceResult> CheckInAsync(CheckInRequest request, Guid teacherUserId);
+    Task<BatchCheckInResult> CheckInBatchAsync(BatchCheckInRequest request, Guid teacherUserId);
 }

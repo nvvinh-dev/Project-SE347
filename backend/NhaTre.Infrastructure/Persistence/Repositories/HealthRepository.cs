@@ -56,6 +56,24 @@ public class HealthRepository : IHealthRepository
         _dbContext.QuickHealthStatuses.Add(quickHealthStatus);
     }
 
+    // Cùng phạm vi như FindChildInHomeroomClassAsync, gom cả lô vào một câu truy vấn
+    public async Task<IReadOnlyList<Child>> FindChildrenInHomeroomClassAsync(
+        IReadOnlyCollection<Guid> childIds, Guid teacherUserId)
+    {
+        var scope = _dbContext.ClassIdsInScope(teacherUserId);
+
+        return await _dbContext.Children
+            .AsNoTracking()
+            .Where(c => childIds.Contains(c.Id)
+                && scope.Contains(c.ClassId))
+            .ToListAsync();
+    }
+
+    public void AddQuickHealthStatuses(IReadOnlyList<QuickHealthStatus> quickHealthStatuses)
+    {
+        _dbContext.QuickHealthStatuses.AddRange(quickHealthStatuses);
+    }
+
     public async Task<bool> ChildExistsAsync(Guid childId)
     {
         return await _dbContext.Children.AnyAsync(c => c.Id == childId);

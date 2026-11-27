@@ -5,18 +5,21 @@ namespace NhaTre.Application.Interfaces;
 // D39 mục 6: service duy nhất ghi bảng notifications. Module gọi tự soạn message
 // (câu tiếng Việt hoàn chỉnh — D25), lưu xong bản ghi của mình rồi gọi một trong
 // các nhóm người nhận dưới đây. Chỉ Phụ huynh, Y tế và Admin nhận thông báo (BR-NOTIFICATION-01);
-// Admin chỉ nhận thông báo phản ánh mới.
+// Admin chỉ nhận thông báo phản ánh mới và thông báo không liên lạc được với người đón của trẻ
+// vắng không phép (FR-ATT-04).
 public interface INotificationService
 {
-    // Hóa đơn mới hoặc hóa đơn unpaid được sửa (FR-TUITION-02); sự cố (FR-INCIDENT-01) hoặc sức khỏe nhanh (FR-HEALTH-01) mới
+    // Hóa đơn mới hoặc hóa đơn unpaid được sửa (FR-TUITION-02); sự cố (FR-INCIDENT-01) hoặc sức khỏe nhanh (FR-HEALTH-01) mới;
+    // trẻ bị điểm danh vắng không phép (FR-ATT-01); thực đơn tuần trùng dị nguyên của trẻ (FR-MENU-03)
     Task NotifyParentsOfChildAsync(Guid childId, string message);
     // Ảnh hoạt động mới của lớp (FR-MEDIA-01)
     Task NotifyParentsOfClassAsync(Guid classId, string message);
-    // Chỉ sự cố mới (FR-INCIDENT-01, FR-NOTI-02); sức khỏe nhanh không gửi Y tế
+    // Sự cố mới (FR-INCIDENT-01, FR-NOTI-02) và thực đơn tuần trùng dị nguyên của trẻ (FR-MENU-03); sức khỏe
+    // nhanh không gửi Y tế
     Task NotifyActiveMedicalUsersAsync(string message);
     // Thông báo nghỉ học (FR-NOTI-03); trả số phụ huynh đã nhận
     Task<int> NotifyActiveParentsAsync(string message);
-    // Chỉ phản ánh mới (FR-COMPLAINT-01, FR-NOTI-04)
+    // Phản ánh mới (FR-COMPLAINT-01, FR-NOTI-04); không liên lạc được người đón của trẻ vắng không phép (FR-ATT-04)
     Task NotifyActiveAdminsAsync(string message);
     // Phản ánh đã xử lý xong (FR-COMPLAINT-02) → phụ huynh đã gửi; bỏ qua nếu tài khoản đã bị vô
     // hiệu hóa, không còn là Phụ huynh hoặc đã bị gỡ liên kết với trẻ (phạm vi tính lại theo
