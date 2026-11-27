@@ -29,7 +29,7 @@ public class DashboardController : ControllerBase
         return Ok(ApiResponse<ChildrenStatisticsResponse>.Ok(result));
     }
 
-    // FR-DASH-03, AC-DASH-03: Thống kê tỷ lệ có mặt theo tháng hiện tại, tách theo 3 lớp, lọc status = 'Present' (D23, D39 mục 12)
+    // FR-DASH-03, AC-DASH-03: Thống kê tỷ lệ có mặt theo tháng hiện tại, tách theo 3 khối, lọc status = 'Present' (D23, D39 mục 12)
     // AC-DASH-05: Chỉ Admin được phép truy cập; các vai trò khác nhận 403 Forbidden
     // AC-DASH-06, D40 mục 3, D45: Toàn bộ phản hồi là số liệu tổng hợp, tuyệt đối không có dữ liệu mức từng trẻ
     [HttpGet("attendance-statistics")]
