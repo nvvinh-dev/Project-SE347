@@ -217,6 +217,8 @@ public class ClassesController : ControllerBase
                 "Tuổi của trẻ không khớp độ tuổi của lớp này.")),
             ClassOutcome.ClassArchived => Conflict(ApiResponse<ClassPlacementResponse>.Fail(ClassArchivedMessage)),
             ClassOutcome.AlreadyInClass => Conflict(ApiResponse<ClassPlacementResponse>.Fail("Trẻ đã ở lớp này.")),
+            ClassOutcome.ClassFull => Conflict(ApiResponse<ClassPlacementResponse>.Fail(
+                "Lớp đã đủ sĩ số tối đa, không xếp thêm trẻ được.")),
             ClassOutcome.NotInAnyClass => Conflict(ApiResponse<ClassPlacementResponse>.Fail("Trẻ chưa được xếp lớp.")),
             ClassOutcome.ChildChanged => Conflict(ApiResponse<ClassPlacementResponse>.Fail(
                 "Thông tin của trẻ vừa được cập nhật. Vui lòng tải lại rồi thử lại.")),

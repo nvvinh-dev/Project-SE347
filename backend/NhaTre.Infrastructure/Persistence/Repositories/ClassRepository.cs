@@ -185,6 +185,12 @@ public class ClassRepository : IClassRepository
         if (lockedClass.GradeLevelId != expectedGradeLevelId)
             return ClassOutcome.ClassChanged;
 
+        // BR-CLASS-06: lớp đã đủ sĩ số tối đa thì không xếp thêm. Đếm sau khi khóa nên hai Admin cùng xếp vào chỗ
+        // trống cuối cùng chỉ một người thành công (AC-CLASS-10). Trẻ đang ở chính lớp này không tính thêm
+        if (lockedClass.MaxCapacity is { } maxCapacity
+            && await _dbContext.Children.CountAsync(c => c.ClassId == classId && c.Id != childId) >= maxCapacity)
+            return ClassOutcome.ClassFull;
+
         var updatedRows = await _dbContext.Children
             .Where(c => c.Id == childId && c.DateOfBirth == expectedDateOfBirth)
             .ExecuteUpdateAsync(setters => setters.SetProperty(c => c.ClassId, (Guid?)classId));
@@ -296,11 +302,13 @@ public class ClassRepository : IClassRepository
         return await _dbContext.Classes
             .AsNoTracking()
             .Where(c => c.Id == classId)
-            .Select(c => new LockedClass(c.HomeroomTeacherId, c.GradeLevelId, c.ArchivedAtUtc, c.Children.Count()))
+            .Select(c => new LockedClass(
+                c.HomeroomTeacherId, c.GradeLevelId, c.ArchivedAtUtc, c.MaxCapacity, c.Children.Count()))
             .SingleAsync();
     }
 
-    private sealed record LockedClass(Guid? HomeroomTeacherId, short GradeLevelId, DateTime? ArchivedAtUtc, int ChildCount);
+    private sealed record LockedClass(
+        Guid? HomeroomTeacherId, short GradeLevelId, DateTime? ArchivedAtUtc, int? MaxCapacity, int ChildCount);
 
     // Unique index của classes.name chặn: request khác vừa dùng tên này giữa lúc Service kiểm tra và lúc ghi.
     // SaveChanges bọc lỗi trong DbUpdateException, ExecuteUpdate thì không
