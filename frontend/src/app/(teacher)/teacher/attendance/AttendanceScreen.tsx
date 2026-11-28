@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ClassBatchButton } from "../_components/ClassBatchSection";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -614,10 +615,10 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
     <div ref={screenRef} className="w-full min-w-0 space-y-5">
       <PageHeader
         title="Điểm danh vào lớp"
-        description="Ghi nhận trạng thái đến lớp hàng ngày của học sinh lớp chủ nhiệm"
+        description="Ghi nhận trạng thái đến lớp hôm nay của trẻ thuộc lớp bạn phụ trách"
       >
         <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-subtle px-3 text-xs font-medium text-brand-text">
-          Lớp chủ nhiệm:
+          Lớp phụ trách:
           <span className="font-bold tabular-nums">
             {roster !== undefined ? roster.length : "—"}
           </span>
@@ -633,6 +634,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
           Lịch sử điểm danh
         </Link>
       </PageHeader>
+
 
       <section aria-label="Tình hình điểm danh hôm nay" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {metrics.map((metric) => (
@@ -712,6 +714,7 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
                 />
               </FormField>
 
+              <div className="flex shrink-0 items-center gap-2">
               <Button
                 variant="secondary"
                 size="sm"
@@ -734,6 +737,9 @@ export function AttendanceScreen({ roster: providedRoster }: { roster?: readonly
                 </svg>
                 <span className="hidden sm:inline">{isRefreshing ? "Đang tải..." : "Tải lại"}</span>
               </Button>
+              {user && <ClassBatchButton key={user.userId} userId={user.userId} date={date}
+                disabled={mutation.isPending || Boolean(pending)} />}
+              </div>
             </div>
           </form>
 
