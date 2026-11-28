@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ClassBatchButton } from "../_components/ClassBatchSection";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -114,7 +115,7 @@ function HealthWorkspace({ userId }: { userId: string }) {
     <div className="w-full min-w-0 space-y-6">
       <PageHeader
         title="Sức khỏe & Sự cố"
-        description="Ghi nhận tình trạng sức khỏe nhanh và báo cáo sự cố phát sinh của trẻ trong lớp bạn chủ nhiệm"
+        description="Ghi nhận sức khỏe nhanh và báo cáo sự cố của trẻ thuộc lớp bạn phụ trách"
       />
 
       <section
@@ -123,7 +124,7 @@ function HealthWorkspace({ userId }: { userId: string }) {
       >
         {/* Thanh chọn trẻ và loại tác vụ — đồng nhất với pattern p-4 border-b của các màn hình khác */}
         <form
-          className="flex w-full min-w-0 flex-col items-stretch gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-end"
+          className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-3 border-b border-border px-4 py-3 sm:flex"
           aria-label="Chọn trẻ cần ghi nhận"
           onSubmit={(event) => event.preventDefault()}
         >
@@ -132,7 +133,7 @@ function HealthWorkspace({ userId }: { userId: string }) {
             id="health-child"
             label="Ghi nhận cho trẻ"
             required
-            hint="Chỉ hiển thị trẻ thuộc lớp chủ nhiệm"
+            hint="Chỉ hiển thị trẻ thuộc lớp bạn phụ trách"
             className="min-w-0 flex-1"
           >
             <div className="relative">
@@ -175,7 +176,7 @@ function HealthWorkspace({ userId }: { userId: string }) {
           </FormField>
 
           {/* Dropdown chọn loại tác vụ — cùng hàng với select, đồng nhất với pattern Select của hệ thống */}
-          <FormField id="health-mode" label="Loại tác vụ" className="sm:w-44 sm:shrink-0">
+          <FormField id="health-mode" label="Loại tác vụ" className="col-span-2 row-start-2 sm:w-44 sm:shrink-0">
             <Select
               id="health-mode"
               className="min-h-11"
@@ -190,6 +191,7 @@ function HealthWorkspace({ userId }: { userId: string }) {
               }
             />
           </FormField>
+          <ClassBatchButton userId={userId} disabled={activity.locked} />
         </form>
 
         {/* Thân trang: Card hiển thị thông tin trẻ hoặc các trạng thái Loading/Error/Empty */}

@@ -100,6 +100,21 @@ export async function createQuickHealth(payload: QuickHealthRequest): Promise<Qu
   }
   return record;
 }
+
+export async function createQuickHealthBatch(items: QuickHealthRequest[]): Promise<QuickHealthRecord[]> {
+  const response = await apiClient.post<ApiResponse<QuickHealthRecord[]>>("/api/quick-health-statuses/batch", { items });
+  const records = response.data?.data;
+  if (response.status !== 201 || !response.data?.success || !Array.isArray(records) ||
+    records.length !== items.length || !records.every((record, index) => {
+      const item = items[index];
+      return isHealthRecord(record) && record.childId === item.childId &&
+        record.mood === item.mood && record.notes === item.notes && record.temperatureCelsius === item.temperatureCelsius;
+    })) {
+    throw new UncertainWriteError(null);
+  }
+  return records;
+}
+
 export async function getQuickHealth(id: string, childId: string, signal?: AbortSignal): Promise<QuickHealthRecord> {
   const response = await apiClient.get<ApiResponse<QuickHealthRecord>>(`/api/quick-health-statuses/${id}`, { signal });
   const record = readData(response.data, response.status, isHealthRecord);
